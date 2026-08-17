@@ -15,6 +15,10 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
+            $table->enum('role', ['wali_murid', 'staf_ppdb', 'kepala_sekolah', 'super_admin'])
+                ->default('wali_murid');
+            $table->string('telepon')->nullable();
+            $table->boolean('status_aktif')->default(true);
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
