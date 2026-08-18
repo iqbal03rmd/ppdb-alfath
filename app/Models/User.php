@@ -68,4 +68,14 @@ class User extends Authenticatable
     {
         return $this->role === 'super_admin';
     }
+
+    public function homeRouteName(): string
+    {
+        return match ($this->role) {
+            'wali_murid' => 'wali-murid.dashboard',
+            'staf_ppdb' => 'staf-ppdb.dashboard',
+            'kepala_sekolah' => 'kepala-sekolah.dashboard',
+            'super_admin' => 'super-admin.dashboard',
+        };
+    }
 }
