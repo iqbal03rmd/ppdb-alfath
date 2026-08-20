@@ -2,6 +2,18 @@ import { type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { type ReactNode } from 'react';
 import logoAlFath from '@/assets/logo-alfath.jpg';
+import {
+    Home,
+    FileText,
+    CircleCheckBig,
+    Wallet,
+    Users,
+    ClipboardCheck,
+    BarChart3,
+    Database,
+    Settings,
+    LogOut,
+} from 'lucide-react';
 
 type MenuItem = { label: string; href: string; icon: ReactNode };
 
@@ -13,70 +25,16 @@ const roleLabel: Record<string, string> = {
 };
 
 const Icon = {
-    home: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-            <path d="M3 11l9-8 9 8" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M5 10v10h14V10" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-    ),
-    file: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-            <path d="M6 2h9l5 5v15H6z" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M9 12h6M9 16h6M9 8h2" strokeLinecap="round" />
-        </svg>
-    ),
-    checkCircle: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-            <circle cx="12" cy="12" r="9" />
-            <path d="M8.5 12.5l2.5 2.5 5-5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-    ),
-    wallet: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-            <rect x="3" y="6" width="18" height="13" rx="2" />
-            <path d="M3 10h18" />
-            <circle cx="16.5" cy="14" r="0.6" fill="currentColor" />
-        </svg>
-    ),
-    users: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-            <circle cx="9" cy="8" r="3" />
-            <path d="M2 20c0-3.3 3-6 7-6s7 2.7 7 6" strokeLinecap="round" />
-            <path d="M16 4.5c1.7.4 3 2 3 3.5s-1.3 3.1-3 3.5" strokeLinecap="round" />
-            <path d="M18.5 14.3c2 .7 3.5 2.7 3.5 5.7" strokeLinecap="round" />
-        </svg>
-    ),
-    clipboardCheck: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-            <rect x="5" y="4" width="14" height="17" rx="2" />
-            <path d="M9 4V3a1 1 0 011-1h4a1 1 0 011 1v1" />
-            <path d="M9 12l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-    ),
-    barChart: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-            <path d="M4 20V10M12 20V4M20 20v-7" strokeLinecap="round" />
-        </svg>
-    ),
-    database: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-            <ellipse cx="12" cy="5" rx="8" ry="3" />
-            <path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5" />
-            <path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />
-        </svg>
-    ),
-    settings: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 13a7.7 7.7 0 000-2l2-1.5-2-3.4-2.3.9a7.7 7.7 0 00-1.7-1L15 3h-4l-.4 2.5a7.7 7.7 0 00-1.7 1l-2.3-.9-2 3.4L6.6 11a7.7 7.7 0 000 2l-2 1.5 2 3.4 2.3-.9a7.7 7.7 0 001.7 1L11 21h4l.4-2.5a7.7 7.7 0 001.7-1l2.3.9 2-3.4z" />
-        </svg>
-    ),
-    signOut: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M16 17l5-5-5-5M21 12H9" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-    ),
+    home: <Home size={18} strokeWidth={1.8} />,
+    file: <FileText size={18} strokeWidth={1.8} />,
+    checkCircle: <CircleCheckBig size={18} strokeWidth={1.8} />,
+    wallet: <Wallet size={18} strokeWidth={1.8} />,
+    users: <Users size={18} strokeWidth={1.8} />,
+    clipboardCheck: <ClipboardCheck size={18} strokeWidth={1.8} />,
+    barChart: <BarChart3 size={18} strokeWidth={1.8} />,
+    database: <Database size={18} strokeWidth={1.8} />,
+    settings: <Settings size={18} strokeWidth={1.8} />,
+    signOut: <LogOut size={18} strokeWidth={1.8} />,
 };
 
 const menuByRole: Record<string, MenuItem[]> = {
