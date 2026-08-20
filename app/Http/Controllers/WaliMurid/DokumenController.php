@@ -44,7 +44,7 @@ class DokumenController extends Controller
             ];
         })->values();
 
-        return Inertia::render('wali-murid/unggah-berkas', [
+        return Inertia::render('wali-murid/pendaftaran/unggah-berkas', [
             'pendaftaran' => [
                 'id' => $pendaftaran->id,
                 'nomor_pendaftaran' => $pendaftaran->nomor_pendaftaran,
@@ -94,7 +94,7 @@ class DokumenController extends Controller
 
         $pendaftaran->update(['status' => 'diajukan']);
 
-        return to_route('wali-murid.status-pendaftaran', $pendaftaran);
+        return to_route('wali-murid.pendaftaran.show', $pendaftaran);
     }
 
     /**

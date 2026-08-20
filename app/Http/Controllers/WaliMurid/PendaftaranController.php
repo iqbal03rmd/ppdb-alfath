@@ -7,12 +7,60 @@ use App\Http\Requests\WaliMurid\StoreFormulirRequest;
 use App\Models\GelombangPpdb;
 use App\Models\KategoriSiswa;
 use App\Models\PendaftaranPpdb;
+use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class PendaftaranController extends Controller
 {
+    /**
+     * DataTable: semua pendaftaran (anak) milik wali yang login.
+     */
+    public function index(Request $request): Response
+    {
+        $pendaftaran = PendaftaranPpdb::with('kategoriSiswa')
+            ->where('user_id', $request->user()->id)
+            ->latest()
+            ->get()
+            ->map(fn (PendaftaranPpdb $p) => [
+                'id' => $p->id,
+                'nomor_pendaftaran' => $p->nomor_pendaftaran,
+                'nama_pendaftar' => $p->nama_pendaftar,
+                'kategori' => $p->kategoriSiswa->nama,
+                'status' => $p->status,
+                'tanggal_daftar' => $p->created_at->locale('id')->translatedFormat('d F Y'),
+            ]);
+
+        return Inertia::render('wali-murid/pendaftaran/index', [
+            'pendaftaranList' => $pendaftaran,
+        ]);
+    }
+
+    /**
+     * Detail satu pendaftaran - status timeline, ringkasan berkas.
+     * Ini yang gantiin rencana lama "Status Pendaftaran" terpisah.
+     */
+    public function show(PendaftaranPpdb $pendaftaran): Response
+    {
+        $this->authorizeAccess($pendaftaran);
+
+        $pendaftaran->load(['kategoriSiswa', 'dokumen', 'pembayaranTerakhir']);
+
+        return Inertia::render('wali-murid/pendaftaran/show', [
+            'pendaftaran' => [
+                'id' => $pendaftaran->id,
+                'nomor_pendaftaran' => $pendaftaran->nomor_pendaftaran,
+                'nama_pendaftar' => $pendaftaran->nama_pendaftar,
+                'kategori' => $pendaftaran->kategoriSiswa->nama,
+                'status' => $pendaftaran->status,
+                'catatan_verifikasi' => $pendaftaran->catatan_verifikasi,
+                'jumlah_dokumen' => $pendaftaran->dokumen->count(),
+                'status_pembayaran' => $pendaftaran->pembayaranTerakhir?->status,
+            ],
+        ]);
+    }
+
     public function create(): Response
     {
         $gelombang = GelombangPpdb::with('tahunAjaran')
@@ -20,7 +68,7 @@ class PendaftaranController extends Controller
             ->latest()
             ->first();
 
-        return Inertia::render('wali-murid/formulir', [
+        return Inertia::render('wali-murid/pendaftaran/create', [
             'kategoriSiswa' => KategoriSiswa::select('id', 'nama', 'deskripsi')->get(),
             'gelombang' => $gelombang ? [
                 'id' => $gelombang->id,
@@ -63,7 +111,7 @@ class PendaftaranController extends Controller
             $pendaftaran->waliMurid()->create($waliMuridData);
         }
 
-        return to_route('wali-murid.unggah-berkas', $pendaftaran);
+        return to_route('wali-murid.pendaftaran.unggah-berkas', $pendaftaran);
     }
 
     private function generateNomorPendaftaran(GelombangPpdb $gelombang): string
@@ -71,5 +119,10 @@ class PendaftaranController extends Controller
         $nomorUrut = PendaftaranPpdb::where('gelombang_ppdb_id', $gelombang->id)->count() + 1;
 
         return sprintf('PPDB-%s-%05d', $gelombang->tahunAjaran->tahun_mulai, $nomorUrut);
+    }
+
+    private function authorizeAccess(PendaftaranPpdb $pendaftaran): void
+    {
+        abort_unless($pendaftaran->user_id === request()->user()->id, 403);
     }
 }

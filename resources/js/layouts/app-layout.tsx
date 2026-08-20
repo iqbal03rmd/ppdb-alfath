@@ -40,8 +40,7 @@ const Icon = {
 const menuByRole: Record<string, MenuItem[]> = {
     wali_murid: [
         { label: 'Beranda', href: '/wali-murid/dashboard', icon: Icon.home },
-        { label: 'Formulir', href: '/wali-murid/formulir', icon: Icon.file },
-        { label: 'Status Pendaftaran', href: '/wali-murid/status-pendaftaran', icon: Icon.checkCircle },
+        { label: 'Pendaftaran', href: '/wali-murid/pendaftaran', icon: Icon.file },
         { label: 'Pembayaran', href: '/wali-murid/pembayaran', icon: Icon.wallet },
     ],
     staf_ppdb: [

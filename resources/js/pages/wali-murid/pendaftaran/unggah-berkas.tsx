@@ -1,5 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import PageHeader from '@/components/page-header';
+import { Button } from '@/components/ui/button';
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 
@@ -33,7 +34,7 @@ export default function UnggahBerkas({ pendaftaran, dokumenList }: UnggahBerkasP
         formData.append('berkas', file);
 
         setUploadingJenis(jenis);
-        router.post(route('wali-murid.unggah-berkas.store', pendaftaran.id), formData, {
+        router.post(route('wali-murid.pendaftaran.unggah-berkas.store', pendaftaran.id), formData, {
             preserveScroll: true,
             forceFormData: true,
             onFinish: () => setUploadingJenis(null),
@@ -41,7 +42,7 @@ export default function UnggahBerkas({ pendaftaran, dokumenList }: UnggahBerkasP
     }
 
     function handleKirimBerkas() {
-        router.post(route('wali-murid.unggah-berkas.submit', pendaftaran.id));
+        router.post(route('wali-murid.pendaftaran.unggah-berkas.submit', pendaftaran.id));
     }
 
     return (
@@ -140,13 +141,9 @@ export default function UnggahBerkas({ pendaftaran, dokumenList }: UnggahBerkasP
                     ))}
                 </div>
 
-                <button
-                    onClick={handleKirimBerkas}
-                    disabled={!semuaTerunggah}
-                    className="w-full rounded-xl bg-[#E38E49] py-3.5 text-[15px] font-bold text-white shadow-[0_4px_14px_-4px_rgba(227,142,73,0.5)] transition-colors hover:bg-[#d47f3a] disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none"
-                >
+                <Button onClick={handleKirimBerkas} disabled={!semuaTerunggah} className="w-full rounded-xl py-3.5 text-[15px] font-bold">
                     Kirim Berkas untuk Diverifikasi
-                </button>
+                </Button>
                 {!semuaTerunggah && (
                     <p className="mt-2 text-center text-xs text-gray-500">
                         Lengkapi semua dokumen wajib di atas sebelum bisa mengirim.

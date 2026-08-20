@@ -1,6 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import PageHeader from '@/components/page-header';
+import { Button } from '@/components/ui/button';
 import { FormEventHandler } from 'react';
 
 interface KategoriSiswa {
@@ -72,7 +73,7 @@ export default function Formulir({ kategoriSiswa, gelombang }: FormulirProps) {
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        post(route('wali-murid.formulir.store'));
+        post(route('wali-murid.pendaftaran.store'));
     };
 
     return (
@@ -314,13 +315,9 @@ export default function Formulir({ kategoriSiswa, gelombang }: FormulirProps) {
                             </button>
                         </Section>
 
-                        <button
-                            type="submit"
-                            disabled={processing}
-                            className="w-full rounded-xl bg-[#E38E49] py-3.5 text-[15px] font-bold text-white shadow-[0_4px_14px_-4px_rgba(227,142,73,0.5)] transition-colors hover:bg-[#d47f3a] disabled:opacity-50"
-                        >
+                        <Button type="submit" disabled={processing} className="w-full rounded-xl py-3.5 text-[15px] font-bold">
                             {processing ? 'Menyimpan...' : 'Simpan dan Lanjutkan ke Unggah Berkas'}
-                        </button>
+                        </Button>
                     </form>
 
                     {/* Panel kanan - info bantu, sekaligus ngisi ruang kosong */}
