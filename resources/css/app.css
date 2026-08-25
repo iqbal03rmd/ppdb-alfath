@@ -77,6 +77,7 @@
 }
 
 :root {
+    color-scheme: light;
     --background: hsl(210, 60%, 98%);
     --foreground: hsl(0, 0%, 3.9%);
     --card: hsl(0, 0%, 100%);

@@ -24,24 +24,44 @@ type WaliMuridInput = {
     telepon: string;
 };
 
+interface PendaftaranExisting {
+    id: number;
+    kategori_siswa_id: string;
+    nama_pendaftar: string;
+    nik: string;
+    tanggal_lahir: string;
+    tempat_lahir: string;
+    jenis_kelamin: string;
+    agama: string;
+    alamat: string;
+    nama_saudara: string;
+    nama_orang_tua_guru: string;
+    wali_murid: WaliMuridInput[];
+}
+
 interface FormulirProps {
     kategoriSiswa: KategoriSiswa[];
     gelombang: Gelombang | null;
+    pendaftaran?: PendaftaranExisting;
 }
 
-export default function Formulir({ kategoriSiswa, gelombang }: FormulirProps) {
-    const { data, setData, post, processing, errors: rawErrors } = useForm({
-        kategori_siswa_id: '',
-        nama_pendaftar: '',
-        nik: '',
-        tanggal_lahir: '',
-        tempat_lahir: '',
-        jenis_kelamin: '',
-        agama: '',
-        alamat: '',
-        nama_saudara: '',
-        nama_orang_tua_guru: '',
-        wali_murid: [{ nama: '', nik: '', hubungan: '', telepon: '' }] as WaliMuridInput[],
+export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: FormulirProps) {
+    const isEdit = !!pendaftaran;
+
+    const { data, setData, post, put, processing, errors: rawErrors } = useForm({
+        kategori_siswa_id: pendaftaran?.kategori_siswa_id ?? '',
+        nama_pendaftar: pendaftaran?.nama_pendaftar ?? '',
+        nik: pendaftaran?.nik ?? '',
+        tanggal_lahir: pendaftaran?.tanggal_lahir ?? '',
+        tempat_lahir: pendaftaran?.tempat_lahir ?? '',
+        jenis_kelamin: pendaftaran?.jenis_kelamin ?? '',
+        agama: pendaftaran?.agama ?? '',
+        alamat: pendaftaran?.alamat ?? '',
+        nama_saudara: pendaftaran?.nama_saudara ?? '',
+        nama_orang_tua_guru: pendaftaran?.nama_orang_tua_guru ?? '',
+        wali_murid: (pendaftaran?.wali_murid?.length
+            ? pendaftaran.wali_murid
+            : [{ nama: '', nik: '', hubungan: '', telepon: '' }]) as WaliMuridInput[],
     });
 
     // Inertia cuma tahu key top-level ('nama_pendaftar', dst) secara tipe,
@@ -73,33 +93,41 @@ export default function Formulir({ kategoriSiswa, gelombang }: FormulirProps) {
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        post(route('wali-murid.pendaftaran.store'));
+        if (isEdit) {
+            put(route('wali-murid.pendaftaran.update', pendaftaran.id));
+        } else {
+            post(route('wali-murid.pendaftaran.store'));
+        }
     };
 
     return (
         <>
-            <Head title="Formulir Pendaftaran PPDB" />
+            <Head title={isEdit ? 'Edit Pendaftaran PPDB' : 'Formulir Pendaftaran PPDB'} />
 
             <AppLayout>
                 <PageHeader
-                    title="Formulir Pendaftaran PPDB"
+                    title={isEdit ? `Edit Pendaftaran - ${pendaftaran.nama_pendaftar}` : 'Formulir Pendaftaran PPDB'}
                     subtitle={
-                        gelombang
-                            ? `Gelombang: ${gelombang.nama} (${gelombang.tanggal_mulai} s/d ${gelombang.tanggal_selesai})`
-                            : 'Tidak ada gelombang PPDB yang sedang dibuka saat ini.'
+                        isEdit
+                            ? 'Perbarui data di bawah, lalu simpan perubahan.'
+                            : gelombang
+                              ? `Gelombang: ${gelombang.nama} (${gelombang.tanggal_mulai} s/d ${gelombang.tanggal_selesai})`
+                              : 'Tidak ada gelombang PPDB yang sedang dibuka saat ini.'
                     }
                 />
                 <div className="mx-auto max-w-6xl px-8 pb-20">
-                    {/* Stepper */}
-                    <div className="mb-10 flex items-center">
-                        <Step label="Registrasi Akun" state="done" />
-                        <StepLine />
-                        <Step label="Formulir" state="active" />
-                        <StepLine />
-                        <Step label="Unggah Berkas" state="pending" />
-                        <StepLine />
-                        <Step label="Pembayaran" state="pending" />
-                    </div>
+                    {/* Stepper - cuma relevan buat alur pendaftaran baru, disembunyikan pas edit */}
+                    {!isEdit && (
+                        <div className="mb-10 flex items-center">
+                            <Step label="Registrasi Akun" state="done" />
+                            <StepLine />
+                            <Step label="Formulir" state="active" />
+                            <StepLine />
+                            <Step label="Unggah Berkas" state="pending" />
+                            <StepLine />
+                            <Step label="Pembayaran" state="pending" />
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
                     <form onSubmit={submit} className="lg:col-span-3">
@@ -316,7 +344,7 @@ export default function Formulir({ kategoriSiswa, gelombang }: FormulirProps) {
                         </Section>
 
                         <Button type="submit" disabled={processing} className="w-full rounded-xl py-3.5 text-[15px] font-bold">
-                            {processing ? 'Menyimpan...' : 'Simpan dan Lanjutkan ke Unggah Berkas'}
+                            {processing ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Simpan dan Lanjutkan ke Unggah Berkas'}
                         </Button>
                     </form>
 

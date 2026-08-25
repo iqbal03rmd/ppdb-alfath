@@ -19,6 +19,9 @@ Route::middleware(['auth', 'role:wali_murid'])
             Route::get('/create', [PendaftaranController::class, 'create'])->name('create');
             Route::post('/', [PendaftaranController::class, 'store'])->name('store');
             Route::get('/{pendaftaran}', [PendaftaranController::class, 'show'])->name('show');
+            Route::get('/{pendaftaran}/edit', [PendaftaranController::class, 'edit'])->name('edit');
+            Route::put('/{pendaftaran}', [PendaftaranController::class, 'update'])->name('update');
+            Route::post('/{pendaftaran}/kirim-perbaikan', [PendaftaranController::class, 'submitPerbaikan'])->name('kirim-perbaikan');
 
             // Unggah Berkas, nested di bawah pendaftaran karena memang sub-resource-nya
             Route::get('/{pendaftaran}/unggah-berkas', [DokumenController::class, 'index'])->name('unggah-berkas');

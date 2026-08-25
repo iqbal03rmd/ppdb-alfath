@@ -41,6 +41,7 @@ class DokumenController extends Controller
                 'label' => self::JENIS_LABEL[$jenis],
                 'terunggah' => (bool) $existing,
                 'nama_file' => $existing ? basename($existing->berkas) : null,
+                'url' => $existing ? Storage::url($existing->berkas) : null,
             ];
         })->values();
 
@@ -52,12 +53,15 @@ class DokumenController extends Controller
                 'status' => $pendaftaran->status,
             ],
             'dokumenList' => $dokumenList,
+            // Frontend pakai ini buat mutusin tampilan dropzone aktif vs read-only.
+            'bisaEdit' => $this->isEditable($pendaftaran),
         ]);
     }
 
     public function store(StoreDokumenRequest $request, PendaftaranPpdb $pendaftaran): RedirectResponse
     {
         $this->authorizeAccess($pendaftaran);
+        $this->authorizeEditable($pendaftaran);
 
         $path = $request->file('berkas')->store('dokumen-ppdb', 'public');
 
@@ -78,11 +82,18 @@ class DokumenController extends Controller
     }
 
     /**
-     * Wali klik "Kirim Berkas untuk Diverifikasi" - ubah status draft -> diajukan.
+     * Wali klik "Kirim Berkas untuk Diverifikasi" - CUMA relevan buat
+     * pengajuan pertama kali (status draft). Kalau lagi perlu_perbaikan,
+     * ini nggak boleh ngubah status sendirian - itu tugasnya
+     * PendaftaranController::submitPerbaikan(), biar formulir nggak
+     * kekunci duluan sebelum sempat ikut dibetulin.
      */
     public function submit(PendaftaranPpdb $pendaftaran): RedirectResponse
     {
         $this->authorizeAccess($pendaftaran);
+        $this->authorizeEditable($pendaftaran);
+
+        abort_unless($pendaftaran->status === 'draft', 403, 'Gunakan tombol "Kirim Perbaikan" untuk mengirim ulang setelah perbaikan.');
 
         $pendaftaran->load(['dokumen', 'kategoriSiswa']);
 
@@ -94,7 +105,7 @@ class DokumenController extends Controller
 
         $pendaftaran->update(['status' => 'diajukan']);
 
-        return to_route('wali-murid.pendaftaran.show', $pendaftaran);
+        return to_route('wali-murid.pendaftaran.index', ['expand' => $pendaftaran->id]);
     }
 
     /**
@@ -111,6 +122,24 @@ class DokumenController extends Controller
         }
 
         return $required;
+    }
+
+    /**
+     * Sama persis aturannya kayak edit Formulir (PendaftaranController) -
+     * berkas cuma boleh diubah selama status masih draft/perlu_perbaikan.
+     */
+    private function isEditable(PendaftaranPpdb $pendaftaran): bool
+    {
+        return in_array($pendaftaran->status, ['draft', 'perlu_perbaikan']);
+    }
+
+    private function authorizeEditable(PendaftaranPpdb $pendaftaran): void
+    {
+        abort_unless(
+            $this->isEditable($pendaftaran),
+            403,
+            'Berkas pendaftaran ini sudah tidak bisa diubah karena statusnya sudah lanjut ke tahap berikutnya.'
+        );
     }
 
     private function authorizeAccess(PendaftaranPpdb $pendaftaran): void
