@@ -76,6 +76,9 @@ class User extends Authenticatable
             'staf_ppdb' => 'staf-ppdb.dashboard',
             'kepala_sekolah' => 'kepala-sekolah.dashboard',
             'super_admin' => 'super-admin.dashboard',
+            default => throw new \RuntimeException(
+                'Role pengguna tidak dikenali: '.($this->role ?? 'NULL').'. Cek data user di database.'
+            ),
         };
     }
 }
