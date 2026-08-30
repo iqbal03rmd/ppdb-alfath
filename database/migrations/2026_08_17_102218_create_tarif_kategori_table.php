@@ -13,6 +13,9 @@ return new class extends Migration
     {
         Schema::create('tarif_kategori', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('komponen_biaya_id')->constrained('komponen_biaya')->cascadeOnDelete();
+            $table->foreignId('kategori_siswa_id')->constrained('kategori_siswa')->cascadeOnDelete();
+            $table->unsignedBigInteger('nominal');
             $table->timestamps();
         });
     }

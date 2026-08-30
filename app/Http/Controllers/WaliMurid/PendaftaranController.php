@@ -38,7 +38,7 @@ class PendaftaranController extends Controller
             ->get()
             ->map(fn (PendaftaranPpdb $p) => $this->mapDetail($p));
 
-        return Inertia::render('wali-murid/pendaftaran/index', [
+        return Inertia::render('wali-murid/pendaftaran-index', [
             'pendaftaranList' => $pendaftaranList,
             'expandId' => $request->query('expand'),
         ]);
@@ -54,7 +54,7 @@ class PendaftaranController extends Controller
 
         $pendaftaran->load(['kategoriSiswa', 'dokumen', 'waliMurid', 'pembayaranTerakhir', 'gelombang']);
 
-        return Inertia::render('wali-murid/pendaftaran/show', $this->mapDetail($pendaftaran));
+        return Inertia::render('wali-murid/pendaftaran-show', $this->mapDetail($pendaftaran));
     }
 
     /**
@@ -99,7 +99,10 @@ class PendaftaranController extends Controller
                 'nama_file' => basename($d->berkas),
                 'url' => Storage::url($d->berkas),
             ]),
-            'statusPembayaran' => $pendaftaran->pembayaranTerakhir?->status,
+            // Status pelunasan GABUNGAN (bisa dari beberapa baris pembayaran_ppdb
+            // kalau dicicil) - bukan status transfer terakhir doang. null kalau
+            // belum ada transfer sama sekali, biar cocok sama badge di frontend.
+            'statusPembayaran' => ($status = $pendaftaran->statusPelunasan()) === 'belum_bayar' ? null : $status,
             'bisaEditBerkas' => in_array($pendaftaran->status, ['draft', 'perlu_perbaikan']),
             'progres' => [
                 'wali' => $pendaftaran->waliMurid->count() > 0,
@@ -116,7 +119,7 @@ class PendaftaranController extends Controller
             ->latest()
             ->first();
 
-        return Inertia::render('wali-murid/pendaftaran/create', [
+        return Inertia::render('wali-murid/pendaftaran-create', [
             'kategoriSiswa' => KategoriSiswa::select('id', 'nama', 'deskripsi')->get(),
             'gelombang' => $gelombang ? [
                 'id' => $gelombang->id,
@@ -174,7 +177,7 @@ class PendaftaranController extends Controller
             ->latest()
             ->first();
 
-        return Inertia::render('wali-murid/pendaftaran/create', [
+        return Inertia::render('wali-murid/pendaftaran-create', [
             'kategoriSiswa' => KategoriSiswa::select('id', 'nama', 'deskripsi')->get(),
             'gelombang' => $gelombang ? [
                 'id' => $gelombang->id,

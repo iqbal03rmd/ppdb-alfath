@@ -45,7 +45,7 @@ class DokumenController extends Controller
             ];
         })->values();
 
-        return Inertia::render('wali-murid/pendaftaran/unggah-berkas', [
+        return Inertia::render('wali-murid/unggah-berkas', [
             'pendaftaran' => [
                 'id' => $pendaftaran->id,
                 'nomor_pendaftaran' => $pendaftaran->nomor_pendaftaran,

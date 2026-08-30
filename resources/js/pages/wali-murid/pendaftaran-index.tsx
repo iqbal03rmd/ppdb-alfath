@@ -63,6 +63,15 @@ const statusBadge: Record<string, { label: string; className: string }> = {
     ditolak: { label: 'Ditolak', className: 'bg-red-100 text-red-700' },
 };
 
+// Status PELUNASAN gabungan (bisa dari beberapa transfer kalau dicicil),
+// bukan status satu baris transfer - lihat PendaftaranPpdb::statusPelunasan().
+const pembayaranBadge: Record<string, { label: string; className: string }> = {
+    menunggu_verifikasi: { label: 'Menunggu Verifikasi', className: 'bg-amber-100 text-amber-700' },
+    dicicil: { label: 'Dicicil', className: 'bg-amber-100 text-amber-700' },
+    lunas: { label: 'Lunas', className: 'bg-green-100 text-green-700' },
+    ditolak: { label: 'Ditolak', className: 'bg-red-100 text-red-700' },
+};
+
 export default function PendaftaranIndex({ pendaftaranList, expandId }: IndexProps) {
     const [search, setSearch] = useState('');
 
@@ -97,7 +106,7 @@ export default function PendaftaranIndex({ pendaftaranList, expandId }: IndexPro
                 ) : (
                     <>
                         {/* Header label kolom - visual doang, bukan bagian dari Accordion */}
-                        <div className="hidden grid-cols-6 gap-4 rounded-t-2xl bg-[#0A3981] px-6 py-3 pr-14 text-xs font-bold tracking-wide text-white uppercase lg:grid">
+                        <div className="hidden h-12 grid-cols-6 items-center gap-4 rounded-t-2xl bg-[#0A3981] px-6 pr-10 text-xs font-bold tracking-wide text-white uppercase lg:grid">
                             <span>Nomor Pendaftaran</span>
                             <span>Nama Calon Peserta Didik</span>
                             <span>Kategori</span>
@@ -121,7 +130,7 @@ export default function PendaftaranIndex({ pendaftaranList, expandId }: IndexPro
                                         className={i !== filtered.length - 1 ? 'border-b border-gray-100' : 'border-b-0'}
                                     >
                                         <AccordionTrigger className="px-6 py-4 hover:bg-[#F5F9FD]/50 hover:no-underline">
-                                            <div className="grid flex-1 grid-cols-1 gap-1 text-left lg:grid-cols-6 lg:items-center lg:gap-4">
+                                            <div className="grid flex-1 grid-cols-1 gap-1 text-left text-sm font-normal lg:grid-cols-6 lg:items-center lg:gap-4">
                                                 <span className="font-medium text-gray-700">{item.pendaftaran.nomor_pendaftaran}</span>
                                                 <span className="text-gray-900">{item.pendaftaran.nama_pendaftar}</span>
                                                 <span className="text-gray-600">{item.pendaftaran.kategori}</span>
@@ -159,8 +168,10 @@ function PendaftaranDetailPanel({ item }: { item: PendaftaranItem }) {
     const labelBerkas = pendaftaran.status === 'perlu_perbaikan' ? 'Perbaiki Berkas' : !berkasLengkap ? 'Upload Berkas' : 'Lihat / Kelola Berkas';
 
     // Pembayaran baru boleh dilakukan setelah berkas diverifikasi staf -
-    // biar nggak ada duit "nyangkut" buat pendaftaran yang ternyata perlu diperbaiki/ditolak.
-    const sudahBolehBayar = ['diverifikasi', 'diterima', 'ditolak'].includes(pendaftaran.status);
+    // biar nggak ada duit "nyangkut" buat pendaftaran yang ternyata perlu diperbaiki.
+    // 'ditolak' sengaja nggak termasuk - itu dipakai staf buat nutup pendaftaran
+    // yang nggak dibayar sampai batas waktu, bukan status yang masih bisa dibayar.
+    const sudahBolehBayar = ['diverifikasi', 'diterima'].includes(pendaftaran.status);
 
     return (
         <div className="space-y-5">
@@ -225,7 +236,16 @@ function PendaftaranDetailPanel({ item }: { item: PendaftaranItem }) {
                 </div>
 
                 <div className="flex items-center justify-between gap-4 bg-[#F5F9FD] p-4">
-                    <ProgresBadge label="Pembayaran" selesai={item.statusPembayaran === 'terverifikasi'} />
+                    <div className="flex items-center gap-2">
+                        <ProgresBadge label="Pembayaran" selesai={item.statusPembayaran === 'lunas'} />
+                        {item.statusPembayaran && (
+                            <span
+                                className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${pembayaranBadge[item.statusPembayaran].className}`}
+                            >
+                                {pembayaranBadge[item.statusPembayaran].label}
+                            </span>
+                        )}
+                    </div>
                     {sudahBolehBayar ? (
                         <Button
                             asChild
@@ -233,13 +253,13 @@ function PendaftaranDetailPanel({ item }: { item: PendaftaranItem }) {
                             size="sm"
                             className="shrink-0 border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
                         >
-                            <Link href={route('wali-murid.pembayaran.index')}>
+                            <Link href={route('wali-murid.pembayaran.show', pendaftaran.id)}>
                                 {item.statusPembayaran ? 'Lihat Status Pembayaran' : 'Bayar Sekarang'}
                             </Link>
                         </Button>
-                    ) : (
+                    ) : pendaftaran.status !== 'ditolak' ? (
                         <span className="shrink-0 text-xs text-gray-400">Menunggu berkas diverifikasi</span>
-                    )}
+                    ) : null}
                 </div>
             </div>
 

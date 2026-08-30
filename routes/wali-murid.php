@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\WaliMurid\DokumenController;
+use App\Http\Controllers\WaliMurid\PembayaranController;
 use App\Http\Controllers\WaliMurid\PendaftaranController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -29,9 +30,12 @@ Route::middleware(['auth', 'role:wali_murid'])
             Route::post('/{pendaftaran}/unggah-berkas/submit', [DokumenController::class, 'submit'])->name('unggah-berkas.submit');
         });
 
-        // Pembayaran - sementara placeholder, dikerjakan penuh di sesi berikutnya
-        Route::get('/pembayaran', function () {
-            return Inertia::render('wali-murid/pembayaran/index');
-        })->name('pembayaran.index');
+        // Pembayaran - namespace sendiri (sejajar pendaftaran.*), karena juga
+        // diakses langsung dari menu sidebar, bukan cuma dari dalam satu pendaftaran.
+        Route::prefix('pembayaran')->name('pembayaran.')->group(function () {
+            Route::get('/', [PembayaranController::class, 'index'])->name('index');
+            Route::get('/{pendaftaran}', [PembayaranController::class, 'show'])->name('show');
+            Route::post('/{pendaftaran}', [PembayaranController::class, 'store'])->name('store');
+        });
 
     });

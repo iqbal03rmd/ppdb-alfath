@@ -41,7 +41,7 @@ const menuByRole: Record<string, MenuItem[]> = {
     wali_murid: [
         { label: 'Beranda', href: '/wali-murid/dashboard', icon: Icon.home },
         { label: 'Pendaftaran', href: '/wali-murid/pendaftaran', icon: Icon.file },
-        { label: 'Pembayaran', href: '/wali-murid/pembayaran', icon: Icon.wallet },
+        { label: 'Riwayat Pembayaran', href: '/wali-murid/pembayaran', icon: Icon.wallet },
     ],
     staf_ppdb: [
         { label: 'Beranda', href: '/staf-ppdb/dashboard', icon: Icon.home },
