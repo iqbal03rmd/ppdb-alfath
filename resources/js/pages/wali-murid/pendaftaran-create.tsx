@@ -8,6 +8,9 @@ interface KategoriSiswa {
     id: number;
     nama: string;
     deskripsi: string | null;
+    kuota: number | null;
+    sisa_kuota: number | null;
+    penuh: boolean;
 }
 
 interface Gelombang {
@@ -142,13 +145,23 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                                 >
                                     <option value="">Pilih kategori siswa</option>
                                     {kategoriSiswa.map((k) => (
-                                        <option key={k.id} value={k.id}>
+                                        <option key={k.id} value={k.id} disabled={k.penuh}>
                                             {k.nama}
+                                            {k.penuh
+                                                ? ' — Kuota penuh'
+                                                : k.sisa_kuota !== null
+                                                  ? ` — sisa kuota ${k.sisa_kuota}`
+                                                  : ''}
                                         </option>
                                     ))}
                                 </select>
                                 {kategoriTerpilih?.deskripsi && (
                                     <p className="mt-1 text-xs text-gray-500">{kategoriTerpilih.deskripsi}</p>
+                                )}
+                                {kategoriTerpilih && kategoriTerpilih.sisa_kuota !== null && !kategoriTerpilih.penuh && (
+                                    <p className="mt-1 text-xs text-[#1F509A]">
+                                        Sisa kuota kategori ini: <b>{kategoriTerpilih.sisa_kuota}</b> dari {kategoriTerpilih.kuota}.
+                                    </p>
                                 )}
                                 <FieldError message={errors.kategori_siswa_id} />
                             </div>

@@ -42,6 +42,7 @@ interface PendaftaranItem {
     dokumenList: DokumenItem[];
     statusPembayaran: string | null;
     bisaEditBerkas: boolean;
+    bolehBayar: boolean;
     progres: {
         wali: boolean;
         berkasTerunggah: number;
@@ -167,11 +168,10 @@ function PendaftaranDetailPanel({ item }: { item: PendaftaranItem }) {
 
     const labelBerkas = pendaftaran.status === 'perlu_perbaikan' ? 'Perbaiki Berkas' : !berkasLengkap ? 'Upload Berkas' : 'Lihat / Kelola Berkas';
 
-    // Pembayaran baru boleh dilakukan setelah berkas diverifikasi staf -
-    // biar nggak ada duit "nyangkut" buat pendaftaran yang ternyata perlu diperbaiki.
-    // 'ditolak' sengaja nggak termasuk - itu dipakai staf buat nutup pendaftaran
-    // yang nggak dibayar sampai batas waktu, bukan status yang masih bisa dibayar.
-    const sudahBolehBayar = ['diverifikasi', 'diterima'].includes(pendaftaran.status);
+    // Aturan "boleh bayar" dihitung di backend (PendaftaranPpdb::bolehBayar())
+    // dan dikirim sebagai prop - jangan dihitung ulang di sini, biar UI dan
+    // server nggak pernah beda pendapat.
+    const sudahBolehBayar = item.bolehBayar;
 
     return (
         <div className="space-y-5">

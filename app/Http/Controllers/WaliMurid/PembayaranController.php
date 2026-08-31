@@ -4,29 +4,18 @@ namespace App\Http\Controllers\WaliMurid;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\WaliMurid\StorePembayaranRequest;
-use App\Models\KomponenBiaya;
 use App\Models\PembayaranPpdb;
 use App\Models\PendaftaranPpdb;
+use App\Models\TagihanItem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class PembayaranController extends Controller
 {
-    /**
-     * Statusnya sama kayak sudahBolehBayar di accordion pendaftaran-index.tsx -
-     * pembayaran baru boleh dilakukan setelah berkas diverifikasi staf, biar
-     * nggak ada duit "nyangkut" buat pendaftaran yang ternyata perlu diperbaiki.
-     * 'ditolak' SENGAJA nggak dimasukin - itu statusnya khusus dipakai staf buat
-     * nutup pendaftaran yang nggak dibayar sampai batas waktu, jadi pendaftaran
-     * yang ditolak nggak seharusnya bisa diakses buat bayar lagi. Kalau bukti
-     * transfer wali yang ditolak (bukan pendaftarannya), pendaftaran tetap di
-     * status diverifikasi - itu ditangani lewat pembayaran.status, bukan di sini.
-     */
-    private const STATUS_BOLEH_BAYAR = ['diverifikasi', 'diterima'];
-
     /**
      * Riwayat Pembayaran - log semua transfer yang pernah diajukan wali ini,
      * lintas semua pendaftaran (anak) miliknya. Ini BUKAN halaman buat milih
@@ -58,24 +47,35 @@ class PembayaranController extends Controller
     {
         $this->authorizeAccess($pendaftaran);
 
-        if ($redirect = $this->guardBolehBayar($pendaftaran)) {
+        // Sengaja pakai guard LIHAT, bukan guard BAYAR - pendaftaran yang
+        // ditolak tetap boleh dibuka read-only supaya wali yang terlanjur
+        // menyetor uang masih bisa melihat catatan pembayarannya.
+        if ($redirect = $this->guardBolehLihat($pendaftaran)) {
             return $redirect;
         }
 
-        $rincianTagihan = KomponenBiaya::with(['tarif' => fn ($q) => $q->where('kategori_siswa_id', $pendaftaran->kategori_siswa_id)])
-            ->where('gelombang_ppdb_id', $pendaftaran->gelombang_ppdb_id)
+        // Terbitkan tagihan kalau ini pertama kali wali melihat tagihannya.
+        // Sesudah ini nominalnya beku - perubahan tarif oleh Admin nggak akan
+        // mengubah tagihan yang sudah pernah ditampilkan/dibayar.
+        $pendaftaran->terbitkanTagihan();
+        $pendaftaran->load(['pembayaran', 'tagihanItem']);
+
+        $rincianTagihan = $pendaftaran->tagihanItem()
+            ->orderBy('id')
             ->get()
-            ->map(fn (KomponenBiaya $k) => [
-                'nama' => $k->nama,
-                'keterangan' => $k->keterangan,
-                // Rp0 kalau Admin belum setting tarif buat kombinasi gelombang+kategori ini.
-                'nominal' => $k->tarif->first()?->nominal ?? 0,
+            ->map(fn (TagihanItem $i) => [
+                'nama' => $i->nama_komponen,
+                'keterangan' => $i->keterangan,
+                'nominal' => $i->nominal,
             ]);
 
-        $totalTagihan = $rincianTagihan->sum('nominal');
+        $totalTagihan = $pendaftaran->totalTagihan();
         $totalTerbayar = $pendaftaran->totalTerbayar();
         $sisaTagihan = max(0, $totalTagihan - $totalTerbayar);
-        $adaPending = $pendaftaran->pembayaran()->where('status', 'menunggu_verifikasi')->exists();
+        $adaPending = $pendaftaran->adaPembayaranPending();
+        // Admin belum menyiapkan komponen biaya untuk gelombang ini - tagihan
+        // belum bisa diterbitkan, jadi wali belum bisa bayar apa-apa.
+        $tagihanTersedia = $pendaftaran->tagihanSudahTerbit();
 
         $riwayatTransfer = $pendaftaran->pembayaran()
             ->latest('tanggal_transfer')
@@ -88,21 +88,28 @@ class PembayaranController extends Controller
                 'catatan_verifikasi' => $p->catatan_verifikasi,
             ]);
 
+        $batasWaktu = $pendaftaran->gelombang->batas_waktu_pembayaran;
+
         return Inertia::render('wali-murid/pembayaran', [
             'pendaftaran' => [
                 'id' => $pendaftaran->id,
                 'nomor_pendaftaran' => $pendaftaran->nomor_pendaftaran,
                 'nama_pendaftar' => $pendaftaran->nama_pendaftar,
             ],
+            'batasWaktuPembayaran' => $batasWaktu?->locale('id')->translatedFormat('d F Y'),
+            'batasWaktuLewat' => $batasWaktu ? $batasWaktu->isPast() : false,
+            'statusPendaftaran' => $pendaftaran->status,
+            'catatanVerifikasi' => $pendaftaran->catatan_verifikasi,
             'rincianTagihan' => $rincianTagihan,
             'totalTagihan' => $totalTagihan,
             'totalTerbayar' => $totalTerbayar,
             'sisaTagihan' => $sisaTagihan,
             'riwayatTransfer' => $riwayatTransfer,
-            // Cicilan: boleh transfer lagi selama masih ada sisa DAN nggak ada
-            // transfer lain yang masih menunggu diverifikasi staf (biar nggak
-            // numpuk beberapa transfer pending sekaligus).
-            'bisaBayar' => $sisaTagihan > 0 && ! $adaPending,
+            'tagihanTersedia' => $tagihanTersedia,
+            // Cicilan: boleh transfer lagi selama pendaftarannya masih boleh
+            // dibayar, masih ada sisa, DAN nggak ada transfer lain yang masih
+            // menunggu diverifikasi staf (biar nggak numpuk pending sekaligus).
+            'bisaBayar' => $pendaftaran->bolehBayar() && $tagihanTersedia && $sisaTagihan > 0 && ! $adaPending,
         ]);
     }
 
@@ -114,39 +121,75 @@ class PembayaranController extends Controller
             return $redirect;
         }
 
-        abort_if($pendaftaran->sisaTagihan() <= 0, 403, 'Tagihan pendaftaran ini sudah lunas.');
-        abort_if(
-            $pendaftaran->pembayaran()->where('status', 'menunggu_verifikasi')->exists(),
-            403,
-            'Masih ada transfer yang menunggu diverifikasi staf, tunggu sampai itu diproses dulu sebelum mengirim transfer baru.'
-        );
+        // Kalau wali POST langsung tanpa pernah buka halaman tagihan (idempotent).
+        $pendaftaran->terbitkanTagihan();
+        abort_unless($pendaftaran->tagihanSudahTerbit(), 403, 'Tagihan untuk pendaftaran ini belum tersedia.');
 
         $path = $request->file('bukti_transfer')->store('bukti-transfer', 'public');
 
-        $pendaftaran->pembayaran()->create([
-            'nominal_transfer' => $request->nominal_transfer,
-            'tanggal_transfer' => $request->tanggal_transfer,
-            'bukti_transfer' => $path,
-            'status' => 'menunggu_verifikasi',
-        ]);
+        try {
+            DB::transaction(function () use ($request, $pendaftaran, $path) {
+                // Kunci baris pendaftaran selama transaksi. Tanpa ini, dua submit
+                // bersamaan (double-click / koneksi lambat) bisa dua-duanya lolos
+                // cek di bawah, bikin dua transfer kembar - dan kalau staf
+                // memverifikasi dua-duanya, pembayarannya kehitung dobel.
+                PendaftaranPpdb::whereKey($pendaftaran->getKey())->lockForUpdate()->first();
+
+                // Baca ulang di dalam kunci - relasi yang mungkin sudah ter-load
+                // sebelum transaksi nggak boleh dipakai buat keputusan ini.
+                $pendaftaran->load(['pembayaran', 'tagihanItem']);
+
+                abort_if($pendaftaran->sisaTagihan() <= 0, 403, 'Tagihan pendaftaran ini sudah lunas.');
+                abort_if(
+                    $pendaftaran->adaPembayaranPending(),
+                    403,
+                    'Masih ada transfer yang menunggu diverifikasi staf, tunggu sampai itu diproses dulu sebelum mengirim transfer baru.'
+                );
+
+                $pendaftaran->pembayaran()->create([
+                    'nominal_transfer' => $request->nominal_transfer,
+                    'tanggal_transfer' => $request->tanggal_transfer,
+                    'bukti_transfer' => $path,
+                    'status' => 'menunggu_verifikasi',
+                ]);
+            });
+        } catch (\Throwable $e) {
+            // Transaksi batal - jangan tinggalkan file bukti transfer yatim di disk.
+            Storage::disk('public')->delete($path);
+
+            throw $e;
+        }
 
         return to_route('wali-murid.pembayaran.show', $pendaftaran);
     }
 
     /**
-     * Pembayaran baru boleh diakses kalau berkas pendaftaran udah diverifikasi
-     * staf (diverifikasi/diterima/ditolak) - bukan draft/diajukan/perlu_perbaikan.
-     * Kalau diakses sebelum waktunya, lempar balik ke detail pendaftaran
-     * dengan flash message, bukan 403 mentah.
+     * Untuk show() - lebih longgar, pendaftaran yang ditolak tetap boleh
+     * membuka halamannya (read-only) buat melihat catatan pembayaran.
      */
-    private function guardBolehBayar(PendaftaranPpdb $pendaftaran): ?RedirectResponse
+    private function guardBolehLihat(PendaftaranPpdb $pendaftaran): ?RedirectResponse
     {
-        if (in_array($pendaftaran->status, self::STATUS_BOLEH_BAYAR)) {
+        if ($pendaftaran->bolehLihatTagihan()) {
             return null;
         }
 
         return to_route('wali-murid.pendaftaran.show', $pendaftaran)
-            ->with('error', 'Pembayaran baru bisa dilakukan setelah berkas pendaftaran diverifikasi Staf PPDB.');
+            ->with('error', 'Rincian pembayaran baru tersedia setelah berkas pendaftaran diverifikasi Staf PPDB.');
+    }
+
+    /**
+     * Untuk store() - lebih ketat. Aturannya ada di PendaftaranPpdb::bolehBayar();
+     * di sini cuma soal "kalau belum boleh, mau diapain". Dilempar balik dengan
+     * flash message, bukan 403 mentah.
+     */
+    private function guardBolehBayar(PendaftaranPpdb $pendaftaran): ?RedirectResponse
+    {
+        if ($pendaftaran->bolehBayar()) {
+            return null;
+        }
+
+        return to_route('wali-murid.pendaftaran.show', $pendaftaran)
+            ->with('error', 'Pendaftaran ini sudah tidak menerima pembayaran baru. Silakan hubungi Staf PPDB.');
     }
 
     private function authorizeAccess(PendaftaranPpdb $pendaftaran): void

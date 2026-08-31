@@ -45,6 +45,12 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            // Dipakai controller lewat ->with('error'/'success', ...) saat redirect,
+            // lalu ditampilkan sebagai notifikasi di AppLayout.
+            'flash' => [
+                'error' => $request->session()->get('error'),
+                'success' => $request->session()->get('success'),
+            ],
         ]);
     }
 }

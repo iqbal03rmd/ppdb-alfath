@@ -4,41 +4,29 @@ namespace App\Http\Controllers\WaliMurid;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\WaliMurid\StoreDokumenRequest;
+use App\Models\DokumenPpdb;
+use App\Models\KuotaKategori;
 use App\Models\PendaftaranPpdb;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DokumenController extends Controller
 {
-    /**
-     * Label yang ditampilkan ke wali per jenis dokumen.
-     * Kalau nanti nambah jenis dokumen baru di migration, tambahkan juga di sini.
-     */
-    private const JENIS_LABEL = [
-        'kartu_keluarga' => 'Kartu Keluarga (KK)',
-        'akta' => 'Akta Kelahiran',
-        'ktp_orangtua' => 'KTP Orang Tua / Wali',
-        'pas_foto' => 'Pas Foto Calon Peserta Didik',
-        'surat_kematian_ayah' => 'Surat Kematian Ayah',
-        'surat_keterangan_tidak_mampu' => 'Surat Keterangan Tidak Mampu',
-    ];
-
     public function index(PendaftaranPpdb $pendaftaran): Response
     {
         $this->authorizeAccess($pendaftaran);
 
         $pendaftaran->load(['dokumen', 'kategoriSiswa']);
 
-        $requiredJenis = $this->requiredJenisFor($pendaftaran);
-
-        $dokumenList = collect($requiredJenis)->map(function (string $jenis) use ($pendaftaran) {
+        $dokumenList = collect($pendaftaran->dokumenWajib())->map(function (string $jenis) use ($pendaftaran) {
             $existing = $pendaftaran->dokumen->firstWhere('jenis_dokumen', $jenis);
 
             return [
                 'jenis' => $jenis,
-                'label' => self::JENIS_LABEL[$jenis],
+                'label' => DokumenPpdb::LABEL[$jenis],
                 'terunggah' => (bool) $existing,
                 'nama_file' => $existing ? basename($existing->berkas) : null,
                 'url' => $existing ? Storage::url($existing->berkas) : null,
@@ -54,7 +42,7 @@ class DokumenController extends Controller
             ],
             'dokumenList' => $dokumenList,
             // Frontend pakai ini buat mutusin tampilan dropzone aktif vs read-only.
-            'bisaEdit' => $this->isEditable($pendaftaran),
+            'bisaEdit' => $pendaftaran->bisaDiedit(),
         ]);
     }
 
@@ -97,46 +85,35 @@ class DokumenController extends Controller
 
         $pendaftaran->load(['dokumen', 'kategoriSiswa']);
 
-        $requiredJenis = $this->requiredJenisFor($pendaftaran);
-        $uploadedJenis = $pendaftaran->dokumen->pluck('jenis_dokumen')->all();
-        $missing = array_diff($requiredJenis, $uploadedJenis);
+        abort_if(! $pendaftaran->berkasLengkap(), 422, 'Masih ada dokumen wajib yang belum diunggah.');
 
-        abort_if(count($missing) > 0, 422, 'Masih ada dokumen wajib yang belum diunggah.');
+        // INI titik kursi kuota benar-benar diambil (draft -> diajukan). Kuota
+        // bisa saja sudah habis diambil orang lain sejak formulir ini dibuat,
+        // jadi dicek ulang di sini - bukan cuma saat formulir disimpan.
+        // Baris kuota dikunci selama transaksi supaya dua wali nggak bisa
+        // sama-sama mengambil kursi terakhir.
+        DB::transaction(function () use ($pendaftaran) {
+            KuotaKategori::where('gelombang_ppdb_id', $pendaftaran->gelombang_ppdb_id)
+                ->where('kategori_siswa_id', $pendaftaran->kategori_siswa_id)
+                ->lockForUpdate()
+                ->first();
 
-        $pendaftaran->update(['status' => 'diajukan']);
+            abort_if(
+                KuotaKategori::penuhUntuk($pendaftaran->gelombang_ppdb_id, $pendaftaran->kategori_siswa_id),
+                422,
+                'Kuota untuk kategori pendaftaran ini sudah penuh. Silakan ubah kategori di formulir atau tunggu gelombang berikutnya.'
+            );
+
+            $pendaftaran->update(['status' => 'diajukan']);
+        });
 
         return to_route('wali-murid.pendaftaran.index', ['expand' => $pendaftaran->id]);
-    }
-
-    /**
-     * Dokumen wajib dasar buat semua kategori, ditambah dokumen khusus
-     * tergantung kategori_siswa yang diklaim (mis. Anak Yatim butuh surat
-     * kematian ayah). Sesuaikan di sini kalau ada kategori baru nanti.
-     */
-    private function requiredJenisFor(PendaftaranPpdb $pendaftaran): array
-    {
-        $required = ['kartu_keluarga', 'akta', 'ktp_orangtua', 'pas_foto'];
-
-        if ($pendaftaran->kategoriSiswa->nama === 'Anak Yatim') {
-            $required[] = 'surat_kematian_ayah';
-        }
-
-        return $required;
-    }
-
-    /**
-     * Sama persis aturannya kayak edit Formulir (PendaftaranController) -
-     * berkas cuma boleh diubah selama status masih draft/perlu_perbaikan.
-     */
-    private function isEditable(PendaftaranPpdb $pendaftaran): bool
-    {
-        return in_array($pendaftaran->status, ['draft', 'perlu_perbaikan']);
     }
 
     private function authorizeEditable(PendaftaranPpdb $pendaftaran): void
     {
         abort_unless(
-            $this->isEditable($pendaftaran),
+            $pendaftaran->bisaDiedit(),
             403,
             'Berkas pendaftaran ini sudah tidak bisa diubah karena statusnya sudah lanjut ke tahap berikutnya.'
         );

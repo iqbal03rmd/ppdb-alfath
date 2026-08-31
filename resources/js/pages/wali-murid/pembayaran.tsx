@@ -30,6 +30,11 @@ interface PembayaranProps {
     totalTerbayar: number;
     sisaTagihan: number;
     riwayatTransfer: TransferItem[];
+    tagihanTersedia: boolean;
+    batasWaktuPembayaran: string | null;
+    batasWaktuLewat: boolean;
+    statusPendaftaran: string;
+    catatanVerifikasi: string | null;
     bisaBayar: boolean;
 }
 
@@ -50,6 +55,11 @@ export default function Pembayaran({
     totalTerbayar,
     sisaTagihan,
     riwayatTransfer,
+    tagihanTersedia,
+    batasWaktuPembayaran,
+    batasWaktuLewat,
+    statusPendaftaran,
+    catatanVerifikasi,
     bisaBayar,
 }: PembayaranProps) {
     const { data, setData, post, processing, errors } = useForm({
@@ -67,6 +77,9 @@ export default function Pembayaran({
     // alasan form disembunyikan padahal sisa tagihan masih > 0 - bedain dari kondisi lunas.
     const adaPending = riwayatTransfer.some((t) => t.status === 'menunggu_verifikasi');
     const transferTerakhirDitolak = riwayatTransfer[0]?.status === 'ditolak';
+    // Pendaftaran ditolak: halaman tetap dibuka read-only supaya wali bisa
+    // melihat uang yang sudah terlanjur disetor, tapi nggak bisa nambah transfer.
+    const pendaftaranDitolak = statusPendaftaran === 'ditolak';
 
     return (
         <AppLayout>
@@ -81,7 +94,9 @@ export default function Pembayaran({
                     </div>
                     <div className="divide-y divide-gray-100">
                         {rincianTagihan.length === 0 ? (
-                            <p className="p-6 text-sm text-gray-500">Belum ada komponen biaya untuk gelombang pendaftaran ini.</p>
+                            <p className="p-6 text-sm text-gray-500">
+                                Rincian tagihan untuk gelombang ini belum ditetapkan sekolah.
+                            </p>
                         ) : (
                             rincianTagihan.map((item, i) => (
                                 <div key={i} className="flex items-center justify-between gap-4 p-6">
@@ -101,6 +116,43 @@ export default function Pembayaran({
                         </span>
                     </div>
                 </div>
+
+                {/* Pendaftaran ditutup staf - halaman jadi arsip, bukan tempat bayar */}
+                {pendaftaranDitolak && (
+                    <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                        <span className="font-semibold text-red-800">Pendaftaran ini ditolak. </span>
+                        {catatanVerifikasi ?? 'Pendaftaran ini sudah ditutup oleh Staf PPDB.'}
+                        {totalTerbayar > 0 && (
+                            <p className="mt-2">
+                                Pembayaran yang sudah terverifikasi sebesar <b>{formatRupiah(totalTerbayar)}</b> tetap tercatat di bawah.
+                                Hubungi Staf PPDB untuk menanyakan tindak lanjutnya.
+                            </p>
+                        )}
+                    </div>
+                )}
+
+                {/* Jatuh tempo pelunasan - informatif, nggak memblokir pembayaran.
+                    Keputusan menolak pendaftaran yang telat tetap di tangan Staf PPDB. */}
+                {! pendaftaranDitolak && tagihanTersedia && batasWaktuPembayaran && sisaTagihan > 0 && (
+                    <div
+                        className={
+                            'mb-6 rounded-xl border p-4 text-sm ' +
+                            (batasWaktuLewat ? 'border-red-200 bg-red-50 text-red-700' : 'border-[#D4EBF8] bg-[#F5F9FD] text-[#0A3981]')
+                        }
+                    >
+                        {batasWaktuLewat ? (
+                            <>
+                                <span className="font-semibold text-red-800">Batas waktu pembayaran terlewat. </span>
+                                Jatuh tempo {batasWaktuPembayaran}. Segera hubungi Staf PPDB untuk menanyakan status pendaftaran ini.
+                            </>
+                        ) : (
+                            <>
+                                <span className="font-semibold">Batas waktu pembayaran: </span>
+                                {batasWaktuPembayaran}. Lunasi sebelum tanggal tersebut agar pendaftaran dapat diproses lebih lanjut.
+                            </>
+                        )}
+                    </div>
+                )}
 
                 {/* Ringkasan pelunasan - selalu tampil kalau udah pernah ada transfer, biar kelihatan progres cicilan */}
                 {totalTerbayar > 0 && (
@@ -160,8 +212,17 @@ export default function Pembayaran({
                     </div>
                 )}
 
+                {/* Admin belum menyiapkan komponen biaya - tagihan belum bisa diterbitkan */}
+                {!tagihanTersedia && !pendaftaranDitolak && (
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+                        <span className="font-semibold text-gray-700">Tagihan belum tersedia. </span>
+                        Sekolah belum menetapkan rincian biaya untuk gelombang ini, jadi pembayaran belum bisa dilakukan. Silakan hubungi Staf
+                        PPDB untuk informasi lebih lanjut.
+                    </div>
+                )}
+
                 {/* Sisa tagihan udah lunas - nggak ada form lagi */}
-                {sisaTagihan <= 0 && totalTerbayar > 0 && (
+                {tagihanTersedia && sisaTagihan <= 0 && totalTerbayar > 0 && (
                     <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
                         <span className="font-semibold text-green-800">Tagihan lunas. </span>
                         Seluruh tagihan pendaftaran ini sudah terverifikasi, tidak perlu transfer lagi.
@@ -169,7 +230,7 @@ export default function Pembayaran({
                 )}
 
                 {/* Masih ada sisa, tapi ada transfer lain yang masih diproses staf */}
-                {sisaTagihan > 0 && adaPending && !bisaBayar && (
+                {!pendaftaranDitolak && sisaTagihan > 0 && adaPending && !bisaBayar && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
                         <span className="font-semibold text-amber-800">Menunggu verifikasi. </span>
                         Ada transfer yang masih diperiksa Staf PPDB. Kamu bisa kirim transfer susulan setelah transfer ini diverifikasi atau

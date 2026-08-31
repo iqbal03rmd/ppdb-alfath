@@ -11,12 +11,14 @@ class GelombangPpdb extends Model
     protected $table = 'gelombang_ppdb';
 
     protected $fillable = [
-        'tahun_ajaran_id', 'nama', 'tanggal_mulai', 'tanggal_selesai', 'status_buka',
+        'tahun_ajaran_id', 'nama', 'tanggal_mulai', 'tanggal_selesai',
+        'batas_waktu_pembayaran', 'status_buka',
     ];
 
     protected $casts = [
         'tanggal_mulai' => 'date',
         'tanggal_selesai' => 'date',
+        'batas_waktu_pembayaran' => 'date',
         'status_buka' => 'boolean',
     ];
 

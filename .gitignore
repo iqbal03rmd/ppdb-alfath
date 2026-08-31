@@ -23,3 +23,9 @@ Homestead.json
 Homestead.yaml
 npm-debug.log
 yarn-error.log
+
+# Catatan kerja internal dengan Claude - tidak ikut ke GitHub
+/CLAUDE.md
+/CLAUDE.local.md
+/docs/PRD-ppdb.md
+/.claude

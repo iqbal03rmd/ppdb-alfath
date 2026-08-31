@@ -14,9 +14,14 @@ return new class extends Migration
         Schema::create('gelombang_ppdb', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tahun_ajaran_id')->constrained('tahun_ajaran')->cascadeOnDelete();
-            $table->string('nama'); 
+            $table->string('nama');
             $table->date('tanggal_mulai');
             $table->date('tanggal_selesai');
+            // Jatuh tempo pelunasan biaya PPDB. Dasar staf untuk menetapkan
+            // status pendaftaran jadi 'ditolak' kalau sampai tanggal ini
+            // tagihannya belum lunas. Beda dari tanggal_selesai, yang menutup
+            // jendela PENDAFTARAN, bukan pembayaran.
+            $table->date('batas_waktu_pembayaran')->nullable();
             $table->boolean('status_buka')->default(true);
             $table->timestamps();
         });

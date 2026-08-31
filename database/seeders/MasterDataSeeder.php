@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\GelombangPpdb;
 use App\Models\KategoriSiswa;
 use App\Models\KomponenBiaya;
+use App\Models\KuotaKategori;
 use App\Models\TahunAjaran;
 use App\Models\TarifKategori;
 use Illuminate\Database\Seeder;
@@ -27,6 +28,9 @@ class MasterDataSeeder extends Seeder
             [
                 'tanggal_mulai' => '2026-03-01',
                 'tanggal_selesai' => '2026-06-30',
+                // Sengaja di masa depan biar tampilan normalnya kelihatan saat demo.
+                // Ubah ke tanggal lampau kalau mau menguji peringatan "batas waktu terlewat".
+                'batas_waktu_pembayaran' => '2026-09-30',
                 'status_buka' => true,
             ]
         );
@@ -54,7 +58,32 @@ class MasterDataSeeder extends Seeder
             KategoriSiswa::updateOrCreate(['nama' => $data['nama']], $data);
         }
 
+        $this->seedKuotaKategori($gelombang);
         $this->seedTarifKomponenBiaya($gelombang);
+    }
+
+    /**
+     * Daya tampung per kategori untuk Gelombang 1 - angka dummy demo.
+     * Sengaja dibikin kecil buat kategori non-reguler biar kondisi "kuota penuh"
+     * gampang diuji tanpa perlu bikin puluhan pendaftaran.
+     */
+    private function seedKuotaKategori(GelombangPpdb $gelombang): void
+    {
+        $kuotaPerKategori = [
+            'Reguler' => 30,
+            'Saudara' => 10,
+            'Anak Yatim' => 5,
+            'Anak Guru' => 5,
+        ];
+
+        $kategoriIdByNama = KategoriSiswa::pluck('id', 'nama');
+
+        foreach ($kuotaPerKategori as $namaKategori => $kuota) {
+            KuotaKategori::updateOrCreate(
+                ['gelombang_ppdb_id' => $gelombang->id, 'kategori_siswa_id' => $kategoriIdByNama[$namaKategori]],
+                ['kuota' => $kuota]
+            );
+        }
     }
 
     /**

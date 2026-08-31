@@ -6,9 +6,41 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\DB;
 
 class PendaftaranPpdb extends Model
 {
+    /**
+     * Formulir & berkas cuma boleh diubah selama masih di dua status ini.
+     */
+    public const STATUS_BISA_DIEDIT = ['draft', 'perlu_perbaikan'];
+
+    /**
+     * Pembayaran baru boleh diakses setelah berkas diverifikasi staf, biar nggak
+     * ada duit "nyangkut" buat pendaftaran yang ternyata perlu diperbaiki.
+     *
+     * 'ditolak' SENGAJA nggak masuk - status itu dipakai staf buat menutup
+     * pendaftaran yang nggak dibayar sampai batas waktu. Kalau yang ditolak itu
+     * bukti transfernya (bukan pendaftarannya), status pendaftaran tetap
+     * 'diverifikasi' dan ditangani lewat pembayaran.status, bukan di sini.
+     */
+    public const STATUS_BOLEH_BAYAR = ['diverifikasi', 'diterima'];
+
+    /**
+     * Boleh MELIHAT tagihan & riwayat transfer - lebih longgar daripada
+     * STATUS_BOLEH_BAYAR karena 'ditolak' ikut masuk. Wali yang pendaftarannya
+     * ditolak setelah terlanjur menyetor uang tetap harus bisa melihat catatan
+     * pembayarannya sendiri (buat menanyakan sisa/refund ke sekolah); yang
+     * dicabut cuma hak menambah transfer baru, bukan hak melihat.
+     */
+    public const STATUS_BOLEH_LIHAT_TAGIHAN = ['diverifikasi', 'diterima', 'ditolak'];
+
+    /**
+     * Dokumen wajib dasar untuk semua kategori. Kategori tertentu menambah
+     * dokumen khusus - lihat dokumenWajib().
+     */
+    private const DOKUMEN_WAJIB_DASAR = ['kartu_keluarga', 'akta', 'ktp_orangtua', 'pas_foto'];
+
     protected $table = 'pendaftaran_ppdb';
 
     protected $fillable = [
@@ -74,17 +106,125 @@ class PendaftaranPpdb extends Model
         return $this->hasOne(PembayaranPpdb::class, 'pendaftaran_ppdb_id')->latestOfMany();
     }
 
+    public function tagihanItem(): HasMany
+    {
+        return $this->hasMany(TagihanItem::class, 'pendaftaran_ppdb_id');
+    }
+
     /**
-     * Total tagihan = jumlah komponen_biaya untuk gelombang ini, masing-masing
-     * dinilai sesuai tarif_kategori punya kategori_siswa pendaftaran ini.
-     * Rp0 per komponen kalau Admin belum setting tarifnya.
+     * Dokumen wajib untuk pendaftaran INI - dasar, ditambah dokumen khusus
+     * sesuai kategori yang diklaim (mis. Anak Yatim butuh surat kematian ayah).
+     * Satu-satunya tempat aturan ini didefinisikan; dipakai halaman Unggah
+     * Berkas, checklist progres, dan validasi sebelum kirim/kirim perbaikan.
+     */
+    public function dokumenWajib(): array
+    {
+        $wajib = self::DOKUMEN_WAJIB_DASAR;
+
+        if ($this->kategoriSiswa->nama === 'Anak Yatim') {
+            $wajib[] = 'surat_kematian_ayah';
+        }
+
+        return $wajib;
+    }
+
+    /**
+     * Jenis dokumen wajib yang belum diunggah. Kosong = berkas sudah lengkap.
+     */
+    public function dokumenKurang(): array
+    {
+        return array_values(array_diff($this->dokumenWajib(), $this->dokumen->pluck('jenis_dokumen')->all()));
+    }
+
+    public function berkasLengkap(): bool
+    {
+        return $this->dokumenKurang() === [];
+    }
+
+    public function bisaDiedit(): bool
+    {
+        return in_array($this->status, self::STATUS_BISA_DIEDIT);
+    }
+
+    public function bolehBayar(): bool
+    {
+        return in_array($this->status, self::STATUS_BOLEH_BAYAR);
+    }
+
+    public function bolehLihatTagihan(): bool
+    {
+        return in_array($this->status, self::STATUS_BOLEH_LIHAT_TAGIHAN);
+    }
+
+    /**
+     * Terbitkan tagihan: SALIN komponen_biaya + tarif_kategori yang berlaku
+     * saat ini jadi baris tagihan_item yang beku. Setelah ini, perubahan tarif
+     * oleh Admin tidak lagi mengubah tagihan pendaftaran ini.
+     *
+     * Idempotent - aman dipanggil berkali-kali, cuma menerbitkan sekali.
+     * Sekarang dipanggil lazy dari PembayaranController (saat wali pertama kali
+     * melihat tagihannya). Nanti kalau modul Staf jadi, panggil method yang sama
+     * di titik verifikasi berkas biar tagihan terbit lebih awal - nggak perlu
+     * ubah apa pun di sini karena idempotent.
+     */
+    public function terbitkanTagihan(): void
+    {
+        if ($this->tagihanItem()->exists()) {
+            return;
+        }
+
+        $komponen = KomponenBiaya::with(['tarif' => fn ($q) => $q->where('kategori_siswa_id', $this->kategori_siswa_id)])
+            ->where('gelombang_ppdb_id', $this->gelombang_ppdb_id)
+            ->get();
+
+        // Admin belum bikin komponen biaya buat gelombang ini - JANGAN terbitkan
+        // tagihan kosong, nanti kebekukan di Rp0 selamanya walau tarifnya
+        // di-setting belakangan. Biarkan belum terbit sampai datanya siap.
+        if ($komponen->isEmpty()) {
+            return;
+        }
+
+        DB::transaction(function () use ($komponen) {
+            // Kunci baris pendaftaran biar dua request bersamaan nggak dua-duanya
+            // lolos cek exists() di atas dan menerbitkan tagihan dobel.
+            static::whereKey($this->getKey())->lockForUpdate()->first();
+
+            if ($this->tagihanItem()->exists()) {
+                return;
+            }
+
+            foreach ($komponen as $k) {
+                $this->tagihanItem()->create([
+                    'nama_komponen' => $k->nama,
+                    'keterangan' => $k->keterangan,
+                    'nominal' => $k->tarif->first()?->nominal ?? 0,
+                ]);
+            }
+        });
+
+        // Relasi yang mungkin sudah ter-load sebelum penerbitan jadi basi -
+        // buang biar pembacaan berikutnya ambil data yang baru.
+        $this->unsetRelation('tagihanItem');
+    }
+
+    /**
+     * Total tagihan dibaca dari SNAPSHOT (tagihan_item), bukan dihitung ulang
+     * dari master tarif - lihat terbitkanTagihan(). 0 kalau tagihan belum terbit.
+     *
+     * Sengaja baca lewat properti relasi ($this->tagihanItem), bukan query
+     * builder - biar kalau relasinya sudah di-eager-load (mis. daftar
+     * pendaftaran), penjumlahannya dilakukan di PHP tanpa query tambahan
+     * per baris. Di jalur yang butuh data terkini (mis. di dalam transaksi
+     * pembayaran), controller memanggil load() dulu supaya nggak baca yang basi.
      */
     public function totalTagihan(): int
     {
-        return KomponenBiaya::with(['tarif' => fn ($q) => $q->where('kategori_siswa_id', $this->kategori_siswa_id)])
-            ->where('gelombang_ppdb_id', $this->gelombang_ppdb_id)
-            ->get()
-            ->sum(fn (KomponenBiaya $k) => $k->tarif->first()?->nominal ?? 0);
+        return (int) $this->tagihanItem->sum('nominal');
+    }
+
+    public function tagihanSudahTerbit(): bool
+    {
+        return $this->tagihanItem->isNotEmpty();
     }
 
     /**
@@ -93,7 +233,12 @@ class PendaftaranPpdb extends Model
      */
     public function totalTerbayar(): int
     {
-        return (int) $this->pembayaran()->where('status', 'terverifikasi')->sum('nominal_transfer');
+        return (int) $this->pembayaran->where('status', 'terverifikasi')->sum('nominal_transfer');
+    }
+
+    public function adaPembayaranPending(): bool
+    {
+        return $this->pembayaran->contains('status', 'menunggu_verifikasi');
     }
 
     public function sisaTagihan(): int
@@ -114,7 +259,7 @@ class PendaftaranPpdb extends Model
             return 'lunas';
         }
 
-        if ($this->pembayaran()->where('status', 'menunggu_verifikasi')->exists()) {
+        if ($this->adaPembayaranPending()) {
             return 'menunggu_verifikasi';
         }
 

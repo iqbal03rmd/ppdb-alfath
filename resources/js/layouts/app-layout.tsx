@@ -1,6 +1,6 @@
 import { type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { type ReactNode } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import logoAlFath from '@/assets/logo-alfath.jpg';
 import {
     Home,
@@ -62,11 +62,26 @@ const menuByRole: Record<string, MenuItem[]> = {
 };
 
 export default function AppLayout({ children }: { children: ReactNode }) {
-    const { auth } = usePage<SharedData>().props;
+    const { auth, flash } = usePage<SharedData>().props;
     const { url } = usePage();
 
     const role = String(auth.user?.role ?? '');
     const menuItems = menuByRole[role] ?? [];
+
+    // Notifikasi flash dari redirect controller - jarang muncul (mis. status
+    // pendaftaran diubah staf saat halaman wali sudah terlanjur terbuka), jadi
+    // dibikin melayang & hilang sendiri: nggak menggeser layout halaman.
+    const [notif, setNotif] = useState<{ pesan: string; tipe: 'error' | 'success' } | null>(null);
+
+    useEffect(() => {
+        if (flash?.error) setNotif({ pesan: flash.error, tipe: 'error' });
+        else if (flash?.success) setNotif({ pesan: flash.success, tipe: 'success' });
+        else return;
+
+        const timer = setTimeout(() => setNotif(null), 6000);
+
+        return () => clearTimeout(timer);
+    }, [flash?.error, flash?.success]);
 
     return (
         <div className="flex h-screen bg-[#F5F9FD]">
@@ -144,6 +159,29 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
             {/* Kolom kanan: cuma konten, info user dipindah jadi bagian header tiap halaman */}
             <div className="flex-1 overflow-y-auto">{children}</div>
+
+            {/* Toast melayang di atas layout - sengaja fixed, bukan bagian dari
+                aliran halaman, biar munculnya nggak menggeser konten apa pun. */}
+            {notif && (
+                <div
+                    role="status"
+                    className={
+                        'fixed top-5 right-5 z-50 flex max-w-md items-start gap-3 rounded-xl border px-4 py-3 text-sm shadow-lg ' +
+                        (notif.tipe === 'error'
+                            ? 'border-red-200 bg-red-50 text-red-700'
+                            : 'border-green-200 bg-green-50 text-green-700')
+                    }
+                >
+                    <span className="flex-1">{notif.pesan}</span>
+                    <button
+                        onClick={() => setNotif(null)}
+                        className="shrink-0 font-semibold opacity-60 hover:opacity-100"
+                        aria-label="Tutup notifikasi"
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
         </div>
     );
 }
