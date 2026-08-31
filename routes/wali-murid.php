@@ -1,19 +1,17 @@
 <?php
 
+use App\Http\Controllers\WaliMurid\DashboardController;
 use App\Http\Controllers\WaliMurid\DokumenController;
 use App\Http\Controllers\WaliMurid\PembayaranController;
 use App\Http\Controllers\WaliMurid\PendaftaranController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::middleware(['auth', 'role:wali_murid'])
     ->prefix('wali-murid')
     ->name('wali-murid.')
     ->group(function () {
 
-        Route::get('/dashboard', function () {
-            return Inertia::render('wali-murid/dashboard');
-        })->name('dashboard');
+        Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
         Route::prefix('pendaftaran')->name('pendaftaran.')->group(function () {
             Route::get('/', [PendaftaranController::class, 'index'])->name('index');

@@ -2,44 +2,39 @@ import { useEffect, useState } from 'react';
 
 export type Appearance = 'light' | 'dark' | 'system';
 
-const prefersDark = () => window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-const applyTheme = (appearance: Appearance) => {
-    const isDark = appearance === 'dark' || (appearance === 'system' && prefersDark());
-
-    document.documentElement.classList.toggle('dark', isDark);
-};
-
-const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-
-const handleSystemThemeChange = () => {
-    const currentAppearance = localStorage.getItem('appearance') as Appearance;
-    applyTheme(currentAppearance || 'system');
+/**
+ * Aplikasi ini SENGAJA terang saja.
+ *
+ * Seluruh halaman (layout wali murid, kartu, badge, palet navy/oranye) memakai
+ * warna terang yang ditulis langsung di kelas Tailwind. Sementara komponen
+ * shadcn mengikuti token `.dark`. Waktu starter kit masih memasang kelas `dark`
+ * dari preferensi OS, dua hal itu bertabrakan: halaman masuk jadi kartu putih
+ * berisi input hitam, dan label putih di atas latar putih (kontras 1,05:1 -
+ * praktis tak terbaca).
+ *
+ * Menambahkan mode gelap sungguhan berarti menulis ulang setiap warna jadi token,
+ * dan itu jauh lebih besar daripada nilainya untuk proyek ini. Jadi kelas `dark`
+ * dipastikan tidak pernah menempel.
+ */
+const applyTheme = () => {
+    document.documentElement.classList.remove('dark');
 };
 
 export function initializeTheme() {
-    const savedAppearance = (localStorage.getItem('appearance') as Appearance) || 'system';
-
-    applyTheme(savedAppearance);
-
-    // Add the event listener for system theme changes...
-    mediaQuery.addEventListener('change', handleSystemThemeChange);
+    applyTheme();
 }
 
 export function useAppearance() {
-    const [appearance, setAppearance] = useState<Appearance>('system');
+    const [appearance] = useState<Appearance>('light');
 
-    const updateAppearance = (mode: Appearance) => {
-        setAppearance(mode);
-        localStorage.setItem('appearance', mode);
-        applyTheme(mode);
+    // Dipertahankan supaya halaman pengaturan bawaan starter kit tidak rusak,
+    // tapi mengubah tema tidak lagi berpengaruh.
+    const updateAppearance = () => {
+        applyTheme();
     };
 
     useEffect(() => {
-        const savedAppearance = localStorage.getItem('appearance') as Appearance | null;
-        updateAppearance(savedAppearance || 'system');
-
-        return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
+        applyTheme();
     }, []);
 
     return { appearance, updateAppearance };

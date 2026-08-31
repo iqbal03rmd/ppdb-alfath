@@ -1,6 +1,8 @@
 import { Head, useForm } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import PageHeader from '@/components/page-header';
+import PageContainer from '@/components/page-container';
+import AlurStepper from '@/components/alur-stepper';
 import { Button } from '@/components/ui/button';
 import { FormEventHandler } from 'react';
 
@@ -118,19 +120,12 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                               : 'Tidak ada gelombang PPDB yang sedang dibuka saat ini.'
                     }
                 />
-                <div className="mx-auto max-w-6xl px-8 pb-20">
-                    {/* Stepper - cuma relevan buat alur pendaftaran baru, disembunyikan pas edit */}
-                    {!isEdit && (
-                        <div className="mb-10 flex items-center">
-                            <Step label="Registrasi Akun" state="done" />
-                            <StepLine />
-                            <Step label="Formulir" state="active" />
-                            <StepLine />
-                            <Step label="Unggah Berkas" state="pending" />
-                            <StepLine />
-                            <Step label="Pembayaran" state="pending" />
-                        </div>
-                    )}
+                <PageContainer wide>
+                    {/* Stepper tetap tampil waktu mengedit. Formulir cuma bisa diedit
+                        saat status draft atau perlu_perbaikan - dua-duanya masih di
+                        dalam alur pendaftaran, jadi wali justru butuh orientasi di
+                        situ. Halaman Unggah Berkas juga menampilkannya tanpa syarat. */}
+                    <AlurStepper aktif="Formulir" />
 
                     <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
                     <form onSubmit={submit} className="lg:col-span-3">
@@ -178,7 +173,7 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                                 </div>
                                 <div>
                                     <Label>
-                                        NIK <span className="text-gray-400">(opsional)</span>
+                                        NIK <span className="text-gray-500">(opsional)</span>
                                     </Label>
                                     <Input
                                         value={data.nik}
@@ -239,7 +234,7 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
 
                                 <div>
                                     <Label>
-                                        Agama <span className="text-gray-400">(opsional)</span>
+                                        Agama <span className="text-gray-500">(opsional)</span>
                                     </Label>
                                     <Input value={data.agama} onChange={(v) => setData('agama', v)} placeholder="Agama" />
                                     <FieldError message={errors.agama} />
@@ -385,7 +380,7 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                         </div>
                     </aside>
                     </div>
-                </div>
+                </PageContainer>
             </AppLayout>
         </>
     );
@@ -440,28 +435,4 @@ function Input({
 function FieldError({ message }: { message?: string }) {
     if (!message) return null;
     return <p className="mt-1 text-xs text-red-600">{message}</p>;
-}
-
-function Step({ label, state }: { label: string; state: 'done' | 'active' | 'pending' }) {
-    const circleClass =
-        state === 'done'
-            ? 'border-green-500 bg-green-500 text-white'
-            : state === 'active'
-              ? 'border-[#0A3981] bg-[#0A3981] text-white shadow-[0_0_0_4px_rgba(10,57,129,0.12)]'
-              : 'border-gray-200 bg-white text-gray-300';
-
-    return (
-        <div className="flex items-center">
-            <div className={`flex h-9 w-9 items-center justify-center rounded-full border-2 text-xs font-bold transition-all ${circleClass}`}>
-                {state === 'done' ? '✓' : label[0]}
-            </div>
-            <span className={`ml-2 text-[13px] ${state === 'active' ? 'font-semibold text-[#0A3981]' : state === 'done' ? 'text-gray-500' : 'text-gray-300'}`}>
-                {label}
-            </span>
-        </div>
-    );
-}
-
-function StepLine() {
-    return <div className="mx-3 h-0.5 w-14 bg-[#D4EBF8]" />;
 }

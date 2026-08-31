@@ -1,5 +1,6 @@
 import { DataTable } from '@/components/data-table';
 import PageHeader from '@/components/page-header';
+import PageContainer from '@/components/page-container';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link } from '@inertiajs/react';
 import { type ColumnDef } from '@tanstack/react-table';
@@ -75,9 +76,9 @@ export default function RiwayatPembayaran({ riwayat }: RiwayatPembayaranProps) {
             <Head title="Riwayat Pembayaran" />
             <PageHeader title="Riwayat Pembayaran" subtitle="Daftar seluruh transfer yang pernah kamu ajukan" />
 
-            <div className="px-8 pb-20">
+            <PageContainer wide>
                 <DataTable columns={columns} data={riwayat} searchPlaceholder="Cari nama atau nomor pendaftaran..." />
-            </div>
+            </PageContainer>
         </AppLayout>
     );
 }

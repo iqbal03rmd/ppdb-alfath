@@ -1,4 +1,6 @@
 import PageHeader from '@/components/page-header';
+import PageContainer from '@/components/page-container';
+import AlurStepper from '@/components/alur-stepper';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
@@ -81,41 +83,21 @@ export default function Pembayaran({
     // melihat uang yang sudah terlanjur disetor, tapi nggak bisa nambah transfer.
     const pendaftaranDitolak = statusPendaftaran === 'ditolak';
 
+    // Kolom kanan cuma dipasang kalau ada isinya - kalau tidak (mis. pendaftaran
+    // ditolak tanpa pernah bayar), rincian tagihan memakai lebar penuh daripada
+    // menyisakan kolom kosong.
+    const adaIsiKanan = totalTerbayar > 0 || bisaBayar || adaPending;
+
     return (
         <AppLayout>
             <Head title="Pembayaran" />
             <PageHeader title="Pembayaran" subtitle={`${pendaftaran.nomor_pendaftaran} — ${pendaftaran.nama_pendaftar}`} />
 
-            <div className="mx-auto max-w-3xl px-5 pb-20">
-                {/* Rincian Tagihan */}
-                <div className="mb-6 overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
-                    <div className="border-b border-gray-100 p-6">
-                        <h2 className="text-[15px] font-semibold text-gray-900">Rincian Tagihan</h2>
-                    </div>
-                    <div className="divide-y divide-gray-100">
-                        {rincianTagihan.length === 0 ? (
-                            <p className="p-6 text-sm text-gray-500">
-                                Rincian tagihan untuk gelombang ini belum ditetapkan sekolah.
-                            </p>
-                        ) : (
-                            rincianTagihan.map((item, i) => (
-                                <div key={i} className="flex items-center justify-between gap-4 p-6">
-                                    <div className="min-w-0">
-                                        <p className="text-sm font-medium text-gray-900">{item.nama}</p>
-                                        {item.keterangan && <p className="mt-0.5 text-xs text-gray-500">{item.keterangan}</p>}
-                                    </div>
-                                    <span className="shrink-0 text-sm font-medium text-gray-700">{formatRupiah(item.nominal)}</span>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                    <div className="flex items-center justify-between gap-4 bg-[#F5F9FD] p-6">
-                        <span className="text-sm font-bold text-[#0A3981]">Total Tagihan</span>
-                        <span className="text-base font-bold text-[#0A3981] underline decoration-2 underline-offset-4">
-                            {formatRupiah(totalTagihan)}
-                        </span>
-                    </div>
-                </div>
+            <PageContainer wide>
+                <AlurStepper aktif="Pembayaran" />
+
+                {/* Peringatan tingkat halaman - lebar penuh di atas dua kolom, karena
+                    menyangkut seluruh pendaftaran, bukan salah satu kolom saja. */}
 
                 {/* Pendaftaran ditutup staf - halaman jadi arsip, bukan tempat bayar */}
                 {pendaftaranDitolak && (
@@ -154,9 +136,92 @@ export default function Pembayaran({
                     </div>
                 )}
 
+                {/* Admin belum menyiapkan komponen biaya - tagihan belum bisa diterbitkan */}
+                {!tagihanTersedia && !pendaftaranDitolak && (
+                    <div className="mb-6 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+                        <span className="font-semibold text-gray-700">Tagihan belum tersedia. </span>
+                        Sekolah belum menetapkan rincian biaya untuk gelombang ini, jadi pembayaran belum bisa dilakukan. Silakan hubungi Staf
+                        PPDB untuk informasi lebih lanjut.
+                    </div>
+                )}
+
+                {/* Dua kolom di layar lebar: KIRI catatan tagihan & riwayat, KANAN
+                    ringkasan + tempat bertindak. Di bawah lg menumpuk jadi satu kolom
+                    dengan urutan alami: lihat tagihannya dulu, baru bayar. */}
+                <div className={`grid gap-6 ${adaIsiKanan ? 'lg:grid-cols-5' : 'lg:grid-cols-1'}`}>
+                    <div className={`space-y-6 ${adaIsiKanan ? 'lg:col-span-3' : ''}`}>
+                        {/* Rincian Tagihan */}
+                        <div className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
+                            <div className="border-b border-gray-100 p-6">
+                                <h2 className="text-[15px] font-semibold text-gray-900">Rincian Tagihan</h2>
+                            </div>
+                            <div className="divide-y divide-gray-100">
+                                {rincianTagihan.length === 0 ? (
+                                    <p className="p-6 text-sm text-gray-500">Rincian tagihan untuk gelombang ini belum ditetapkan sekolah.</p>
+                                ) : (
+                                    rincianTagihan.map((item, i) => (
+                                        <div key={i} className="flex items-center justify-between gap-4 p-6">
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-medium text-gray-900">{item.nama}</p>
+                                                {item.keterangan && <p className="mt-0.5 text-xs text-gray-500">{item.keterangan}</p>}
+                                            </div>
+                                            <span className="shrink-0 text-sm font-medium text-gray-700">{formatRupiah(item.nominal)}</span>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                            <div className="flex items-center justify-between gap-4 bg-[#F5F9FD] p-6">
+                                <span className="text-sm font-bold text-[#0A3981]">Total Tagihan</span>
+                                <span className="text-base font-bold text-[#0A3981] underline decoration-2 underline-offset-4">
+                                    {formatRupiah(totalTagihan)}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Riwayat semua transfer yang pernah diajukan untuk pendaftaran ini */}
+                        {riwayatTransfer.length > 0 && (
+                            <div className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
+                                <div className="border-b border-gray-100 p-6">
+                                    <h2 className="text-[15px] font-semibold text-gray-900">Riwayat Transfer</h2>
+                                </div>
+                                <div className="divide-y divide-gray-100">
+                                    {riwayatTransfer.map((t, i) => (
+                                        <div key={i} className="flex items-center justify-between gap-4 p-6">
+                                            <div>
+                                                <p className="text-sm font-medium text-gray-900">{formatRupiah(t.nominal_transfer)}</p>
+                                                <p className="mt-0.5 text-xs text-gray-500">{t.tanggal_transfer}</p>
+                                                {t.status === 'ditolak' && (
+                                                    <p className="mt-1 text-xs text-red-600">
+                                                        {t.catatan_verifikasi ?? 'Bukti transfer ditolak Staf PPDB.'}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            <div className="flex shrink-0 items-center gap-3">
+                                                <a
+                                                    href={t.bukti_transfer_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-xs font-medium text-[#1F509A] underline hover:text-[#0A3981]"
+                                                >
+                                                    Lihat Berkas
+                                                </a>
+                                                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadge[t.status].className}`}>
+                                                    {statusBadge[t.status].label}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* KOLOM KANAN - ringkasan pelunasan + tempat bertindak */}
+                    {adaIsiKanan && (
+                        <div className="space-y-6 lg:col-span-2">
                 {/* Ringkasan pelunasan - selalu tampil kalau udah pernah ada transfer, biar kelihatan progres cicilan */}
                 {totalTerbayar > 0 && (
-                    <div className="mb-6 overflow-hidden rounded-2xl bg-white p-6 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
+                    <div className="overflow-hidden rounded-2xl bg-white p-6 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
                         <h2 className="mb-4 text-[15px] font-semibold text-gray-900">Progres Pelunasan</h2>
                         <div className="mb-3 h-2 overflow-hidden rounded-full bg-gray-100">
                             <div
@@ -175,51 +240,6 @@ export default function Pembayaran({
                     </div>
                 )}
 
-                {/* Riwayat semua transfer yang pernah diajukan untuk pendaftaran ini */}
-                {riwayatTransfer.length > 0 && (
-                    <div className="mb-6 overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
-                        <div className="border-b border-gray-100 p-6">
-                            <h2 className="text-[15px] font-semibold text-gray-900">Riwayat Transfer</h2>
-                        </div>
-                        <div className="divide-y divide-gray-100">
-                            {riwayatTransfer.map((t, i) => (
-                                <div key={i} className="flex items-center justify-between gap-4 p-6">
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-900">{formatRupiah(t.nominal_transfer)}</p>
-                                        <p className="mt-0.5 text-xs text-gray-500">{t.tanggal_transfer}</p>
-                                        {t.status === 'ditolak' && (
-                                            <p className="mt-1 text-xs text-red-600">
-                                                {t.catatan_verifikasi ?? 'Bukti transfer ditolak Staf PPDB.'}
-                                            </p>
-                                        )}
-                                    </div>
-                                    <div className="flex shrink-0 items-center gap-3">
-                                        <a
-                                            href={t.bukti_transfer_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-xs font-medium text-[#1F509A] underline hover:text-[#0A3981]"
-                                        >
-                                            Lihat Berkas
-                                        </a>
-                                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadge[t.status].className}`}>
-                                            {statusBadge[t.status].label}
-                                        </span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Admin belum menyiapkan komponen biaya - tagihan belum bisa diterbitkan */}
-                {!tagihanTersedia && !pendaftaranDitolak && (
-                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
-                        <span className="font-semibold text-gray-700">Tagihan belum tersedia. </span>
-                        Sekolah belum menetapkan rincian biaya untuk gelombang ini, jadi pembayaran belum bisa dilakukan. Silakan hubungi Staf
-                        PPDB untuk informasi lebih lanjut.
-                    </div>
-                )}
 
                 {/* Sisa tagihan udah lunas - nggak ada form lagi */}
                 {tagihanTersedia && sisaTagihan <= 0 && totalTerbayar > 0 && (
@@ -300,7 +320,7 @@ export default function Pembayaran({
                                     <span className="text-xs font-medium text-[#1F509A]">
                                         {data.bukti_transfer ? data.bukti_transfer.name : 'Klik untuk unggah bukti transfer'}
                                     </span>
-                                    <span className="mt-1 text-[11px] text-gray-400">PDF/JPG/PNG, maksimal 2 MB</span>
+                                    <span className="mt-1 text-xs text-gray-500">PDF/JPG/PNG, maksimal 2 MB</span>
                                 </label>
                                 <input
                                     id="bukti_transfer"
@@ -318,7 +338,10 @@ export default function Pembayaran({
                         </form>
                     </>
                 )}
-            </div>
+                        </div>
+                    )}
+                </div>
+            </PageContainer>
         </AppLayout>
     );
 }

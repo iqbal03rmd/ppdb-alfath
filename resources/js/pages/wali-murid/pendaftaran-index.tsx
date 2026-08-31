@@ -1,5 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import PageHeader from '@/components/page-header';
+import PageContainer from '@/components/page-container';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -87,7 +88,7 @@ export default function PendaftaranIndex({ pendaftaranList, expandId }: IndexPro
             <Head title="Pendaftaran" />
             <PageHeader title="Pendaftaran" subtitle="Daftar seluruh pendaftaran PPDB yang kamu ajukan" />
 
-            <div className="px-8 pb-20">
+            <PageContainer wide>
                 <div className="mb-5 flex items-center justify-between gap-4">
                     <Input
                         placeholder="Cari nama atau nomor pendaftaran..."
@@ -109,7 +110,7 @@ export default function PendaftaranIndex({ pendaftaranList, expandId }: IndexPro
                         {/* Header label kolom - visual doang, bukan bagian dari Accordion */}
                         <div className="hidden h-12 grid-cols-6 items-center gap-4 rounded-t-2xl bg-[#0A3981] px-6 pr-10 text-xs font-bold tracking-wide text-white uppercase lg:grid">
                             <span>Nomor Pendaftaran</span>
-                            <span>Nama Calon Peserta Didik</span>
+                            <span>Nama Anak</span>
                             <span>Kategori</span>
                             <span>Gelombang</span>
                             <span>Tanggal Daftar</span>
@@ -151,7 +152,7 @@ export default function PendaftaranIndex({ pendaftaranList, expandId }: IndexPro
                         </Accordion>
                     </>
                 )}
-            </div>
+            </PageContainer>
         </AppLayout>
     );
 }
@@ -240,7 +241,7 @@ function PendaftaranDetailPanel({ item }: { item: PendaftaranItem }) {
                         <ProgresBadge label="Pembayaran" selesai={item.statusPembayaran === 'lunas'} />
                         {item.statusPembayaran && (
                             <span
-                                className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${pembayaranBadge[item.statusPembayaran].className}`}
+                                className={`rounded-full px-2 py-0.5 text-xs font-semibold ${pembayaranBadge[item.statusPembayaran].className}`}
                             >
                                 {pembayaranBadge[item.statusPembayaran].label}
                             </span>
@@ -258,7 +259,7 @@ function PendaftaranDetailPanel({ item }: { item: PendaftaranItem }) {
                             </Link>
                         </Button>
                     ) : pendaftaran.status !== 'ditolak' ? (
-                        <span className="shrink-0 text-xs text-gray-400">Menunggu berkas diverifikasi</span>
+                        <span className="shrink-0 text-xs text-gray-500">Menunggu berkas diverifikasi</span>
                     ) : null}
                 </div>
             </div>
@@ -294,7 +295,7 @@ function ProgresBadge({ label, selesai }: { label: string; selesai: boolean }) {
             >
                 {selesai ? '✓' : ''}
             </span>
-            <span className={selesai ? 'font-medium text-gray-700' : 'text-gray-400'}>{label}</span>
+            <span className={selesai ? 'font-medium text-gray-700' : 'text-gray-500'}>{label}</span>
         </div>
     );
 }

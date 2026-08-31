@@ -13,6 +13,7 @@ import {
     Database,
     Settings,
     LogOut,
+    Menu,
 } from 'lucide-react';
 
 type MenuItem = { label: string; href: string; icon: ReactNode };
@@ -83,6 +84,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         return () => clearTimeout(timer);
     }, [flash?.error, flash?.success]);
 
+    // Di bawah lg sidebar jadi laci geser. Wali murid mayoritas mendaftar lewat
+    // ponsel - sidebar tetap 288px bakal memakan 74% layar 390px.
+    const [laciTerbuka, setLaciTerbuka] = useState(false);
+
+    // Tutup laci tiap pindah halaman, biar nggak menghalangi konten tujuan.
+    useEffect(() => setLaciTerbuka(false), [url]);
+
     return (
         <div className="flex h-screen bg-[#F5F9FD]">
             <Head>
@@ -90,8 +98,23 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <link href="https://fonts.bunny.net/css?family=fraunces:600" rel="stylesheet" />
             </Head>
 
-            {/* Sidebar - utuh dari atas ke bawah */}
-            <div className="flex h-screen w-72 shrink-0 flex-col border-r border-[#D4EBF8] bg-white shadow-[2px_0_12px_-4px_rgba(10,57,129,0.08)]">
+            {/* Latar gelap di belakang laci - hanya pada layar kecil */}
+            {laciTerbuka && (
+                <button
+                    type="button"
+                    aria-label="Tutup menu"
+                    onClick={() => setLaciTerbuka(false)}
+                    className="fixed inset-0 z-30 bg-[#0A3981]/40 lg:hidden"
+                />
+            )}
+
+            {/* Sidebar - utuh dari atas ke bawah; jadi laci geser di bawah lg */}
+            <div
+                className={
+                    'fixed inset-y-0 left-0 z-40 flex h-screen w-72 shrink-0 flex-col border-r border-[#D4EBF8] bg-white shadow-[2px_0_12px_-4px_rgba(10,57,129,0.08)] transition-transform duration-200 lg:static lg:translate-x-0 ' +
+                    (laciTerbuka ? 'translate-x-0' : '-translate-x-full')
+                }
+            >
                 {/* Logo di tengah atas */}
                 <div className="flex flex-col items-center gap-2.5 pt-12 pb-8">
                     <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white p-1 shadow-md ring-4 ring-white ring-offset-2 ring-offset-[#D4EBF8]">
@@ -101,7 +124,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                         <div style={{ fontFamily: 'Fraunces, serif' }} className="text-[18px] leading-tight font-semibold text-[#0A3981]">
                             SDIT Al-Fath
                         </div>
-                        <div className="mt-0.5 flex items-center justify-center gap-1.5 text-[10px] text-gray-400">
+                        <div className="mt-0.5 flex items-center justify-center gap-1.5 text-[11px] text-gray-500">
                             <span className="h-px w-4 bg-[#E38E49]/50" />
                             Sistem Informasi PPDB
                             <span className="h-px w-4 bg-[#E38E49]/50" />
@@ -144,12 +167,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                         </div>
                         <div className="min-w-0 flex-1">
                             <div className="truncate text-sm font-medium text-[#0A3981]">{auth.user?.name}</div>
-                            <div className="truncate text-[11px] text-gray-400">{roleLabel[role] ?? role}</div>
+                            <div className="truncate text-xs text-gray-500">{roleLabel[role] ?? role}</div>
                         </div>
                         <button
                             onClick={() => router.post(route('logout'))}
                             title="Keluar"
-                            className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-[#F5F9FD] hover:text-[#0A3981]"
+                            className="shrink-0 rounded-lg p-1.5 text-gray-500 hover:bg-[#F5F9FD] hover:text-[#0A3981]"
                         >
                             {Icon.signOut}
                         </button>
@@ -157,8 +180,23 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 </div>
             </div>
 
-            {/* Kolom kanan: cuma konten, info user dipindah jadi bagian header tiap halaman */}
-            <div className="flex-1 overflow-y-auto">{children}</div>
+            {/* Kolom kanan: bilah atas (hanya layar kecil) + konten */}
+            <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+                <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-[#D4EBF8] bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+                    <button
+                        type="button"
+                        onClick={() => setLaciTerbuka(true)}
+                        aria-label="Buka menu"
+                        className="rounded-lg p-2 text-[#1F509A] hover:bg-[#F5F9FD]"
+                    >
+                        <Menu size={20} strokeWidth={1.8} />
+                    </button>
+                    <span style={{ fontFamily: 'Fraunces, serif' }} className="text-[15px] font-semibold text-[#0A3981]">
+                        SDIT Al-Fath
+                    </span>
+                </div>
+                {children}
+            </div>
 
             {/* Toast melayang di atas layout - sengaja fixed, bukan bagian dari
                 aliran halaman, biar munculnya nggak menggeser konten apa pun. */}

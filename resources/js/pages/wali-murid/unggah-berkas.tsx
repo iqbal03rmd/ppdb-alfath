@@ -1,5 +1,7 @@
 import AppLayout from '@/layouts/app-layout';
 import PageHeader from '@/components/page-header';
+import PageContainer from '@/components/page-container';
+import AlurStepper from '@/components/alur-stepper';
 import { Button } from '@/components/ui/button';
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
@@ -60,17 +62,8 @@ export default function UnggahBerkas({ pendaftaran, dokumenList, bisaEdit }: Ung
                 subtitle={`${pendaftaran.nomor_pendaftaran} — ${pendaftaran.nama_pendaftar}`}
             />
 
-            <div className="mx-auto max-w-3xl px-5 pb-20">
-                {/* Stepper */}
-                <div className="mb-8 flex items-center">
-                    <Step label="Registrasi Akun" state="done" />
-                    <StepLine />
-                    <Step label="Formulir" state="done" />
-                    <StepLine />
-                    <Step label="Unggah Berkas" state="active" />
-                    <StepLine />
-                    <Step label="Pembayaran" state="pending" />
-                </div>
+            <PageContainer>
+                <AlurStepper aktif="Unggah Berkas" />
 
                 {!bisaEdit && (
                     <div className="mb-6 rounded-2xl border border-gray-200 bg-gray-100 p-5 text-sm text-gray-600">
@@ -100,15 +93,15 @@ export default function UnggahBerkas({ pendaftaran, dokumenList, bisaEdit }: Ung
                                 <div className="flex items-center gap-2">
                                     <h3 className="text-[15px] font-semibold text-gray-900">{doc.label}</h3>
                                     {baruTersimpan === doc.jenis ? (
-                                        <span className="animate-pulse rounded-full bg-green-500 px-2.5 py-0.5 text-[11px] font-semibold text-white">
+                                        <span className="animate-pulse rounded-full bg-green-500 px-2.5 py-0.5 text-xs font-semibold text-white">
                                             ✓ Tersimpan
                                         </span>
                                     ) : doc.terunggah ? (
-                                        <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-[11px] font-semibold text-green-700">
+                                        <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">
                                             Terunggah
                                         </span>
                                     ) : (
-                                        <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-semibold text-gray-500">
+                                        <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-500">
                                             Belum Diunggah
                                         </span>
                                     )}
@@ -158,7 +151,7 @@ export default function UnggahBerkas({ pendaftaran, dokumenList, bisaEdit }: Ung
                                     </label>
                                 ) : (
                                     <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-center">
-                                        <span className="text-xs font-medium text-gray-400">Tidak diunggah</span>
+                                        <span className="text-xs font-medium text-gray-500">Tidak diunggah</span>
                                     </div>
                                 )}
                                 {bisaEdit && (
@@ -200,31 +193,7 @@ export default function UnggahBerkas({ pendaftaran, dokumenList, bisaEdit }: Ung
                         <Link href={route('wali-murid.pendaftaran.index', { expand: pendaftaran.id })}>Selesai</Link>
                     </Button>
                 )}
-            </div>
+            </PageContainer>
         </AppLayout>
     );
-}
-
-function Step({ label, state }: { label: string; state: 'done' | 'active' | 'pending' }) {
-    const circleClass =
-        state === 'done'
-            ? 'border-green-500 bg-green-500 text-white'
-            : state === 'active'
-              ? 'border-[#0A3981] bg-[#0A3981] text-white shadow-[0_0_0_4px_rgba(10,57,129,0.12)]'
-              : 'border-gray-200 bg-white text-gray-300';
-
-    return (
-        <div className="flex items-center">
-            <div className={`flex h-9 w-9 items-center justify-center rounded-full border-2 text-xs font-bold transition-all ${circleClass}`}>
-                {state === 'done' ? '✓' : label[0]}
-            </div>
-            <span className={`ml-2 text-[13px] ${state === 'active' ? 'font-semibold text-[#0A3981]' : state === 'done' ? 'text-gray-500' : 'text-gray-300'}`}>
-                {label}
-            </span>
-        </div>
-    );
-}
-
-function StepLine() {
-    return <div className="mx-3 h-0.5 w-14 bg-[#D4EBF8]" />;
 }

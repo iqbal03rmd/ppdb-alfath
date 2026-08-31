@@ -2,6 +2,8 @@ import { LucideIcon } from 'lucide-react';
 
 export interface Auth {
     user: User;
+    /** Beranda sesuai role user - tidak ada rute bernama 'dashboard'. */
+    home_url: string | null;
 }
 
 export interface BreadcrumbItem {

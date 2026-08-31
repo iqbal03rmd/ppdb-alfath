@@ -16,11 +16,8 @@ const sidebarNavItems: NavItem[] = [
         url: '/settings/password',
         icon: null,
     },
-    {
-        title: 'Appearance',
-        url: '/settings/appearance',
-        icon: null,
-    },
+    // "Appearance" dibuang: aplikasi ini terang saja, penyetel tema tidak lagi
+    // berpengaruh dan justru merusak halaman auth. Lihat use-appearance.tsx.
 ];
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {

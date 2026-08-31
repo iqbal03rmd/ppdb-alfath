@@ -1,5 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import PageHeader from '@/components/page-header';
+import PageContainer from '@/components/page-container';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Head, Link } from '@inertiajs/react';
@@ -50,7 +51,7 @@ interface ShowProps {
 function InfoItem({ label, value }: { label: string; value: string }) {
     return (
         <div>
-            <div className="text-xs text-gray-400">{label}</div>
+            <div className="text-xs text-gray-500">{label}</div>
             <div className="text-sm font-medium text-gray-800">{value}</div>
         </div>
     );
@@ -63,7 +64,7 @@ export default function PendaftaranShow({ pendaftaran, waliMurid }: ShowProps) {
             <Head title={`Detail Pendaftaran - ${pendaftaran.nama_pendaftar}`} />
             <PageHeader title={pendaftaran.nama_pendaftar} subtitle={pendaftaran.nomor_pendaftaran} />
 
-            <div className="px-8 pb-20">
+            <PageContainer>
                 <Link href={route('wali-murid.pendaftaran.index')} className="mb-5 inline-block text-sm text-[#1F509A] underline">
                     &larr; Kembali ke daftar pendaftaran
                 </Link>
@@ -104,10 +105,10 @@ export default function PendaftaranShow({ pendaftaran, waliMurid }: ShowProps) {
                 <div>
                     <Tabs defaultValue="calon" className="rounded-2xl bg-white p-7 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
                         <TabsList className="mb-6 bg-[#F5F9FD]">
-                            <TabsTrigger value="calon" className="data-[state=active]:bg-[#0A3981] data-[state=active]:text-white">
+                            <TabsTrigger value="calon" className="text-gray-600 data-[state=active]:bg-[#0A3981] data-[state=active]:text-white">
                                 Data Calon Peserta Didik
                             </TabsTrigger>
-                            <TabsTrigger value="wali" className="data-[state=active]:bg-[#0A3981] data-[state=active]:text-white">
+                            <TabsTrigger value="wali" className="text-gray-600 data-[state=active]:bg-[#0A3981] data-[state=active]:text-white">
                                 Data Orang Tua / Wali
                             </TabsTrigger>
                         </TabsList>
@@ -142,7 +143,7 @@ export default function PendaftaranShow({ pendaftaran, waliMurid }: ShowProps) {
                         </TabsContent>
                     </Tabs>
                 </div>
-            </div>
+            </PageContainer>
         </AppLayout>
     );
 }
