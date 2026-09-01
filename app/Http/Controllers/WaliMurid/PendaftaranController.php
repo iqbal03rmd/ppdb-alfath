@@ -41,6 +41,12 @@ class PendaftaranController extends Controller
         return Inertia::render('wali-murid/pendaftaran-index', [
             'pendaftaranList' => $pendaftaranList,
             'expandId' => $request->query('expand'),
+            // Gerbang "boleh mendaftarkan anak baru". Halaman ini punya tombol
+            // tambah sendiri, jadi gerbangnya harus ikut dikirim ke sini juga -
+            // kalau nggak, wali yang sudah punya anak terdaftar tetap bisa masuk
+            // ke formulir saat pendaftaran ditutup, isi semua kolom, lalu baru
+            // ditolak server di detik terakhir.
+            'gelombangDibuka' => $this->gelombangDibuka() !== null,
         ]);
     }
 
@@ -115,12 +121,22 @@ class PendaftaranController extends Controller
         ];
     }
 
-    public function create(): Response
+    /**
+     * Gelombang yang sedang menerima pendaftaran baru. SATU-SATUNYA definisi
+     * gerbang itu - dipakai index(), create(), store(), dan edit() supaya UI
+     * nggak pernah menjanjikan sesuatu yang ditolak server.
+     */
+    private function gelombangDibuka(): ?GelombangPpdb
     {
-        $gelombang = GelombangPpdb::with('tahunAjaran')
+        return GelombangPpdb::with('tahunAjaran')
             ->where('status_buka', true)
             ->latest()
             ->first();
+    }
+
+    public function create(): Response
+    {
+        $gelombang = $this->gelombangDibuka();
 
         return Inertia::render('wali-murid/pendaftaran-create', [
             'kategoriSiswa' => $this->kategoriDenganKuota($gelombang),
@@ -135,10 +151,7 @@ class PendaftaranController extends Controller
 
     public function store(StoreFormulirRequest $request): RedirectResponse
     {
-        $gelombang = GelombangPpdb::with('tahunAjaran')
-            ->where('status_buka', true)
-            ->latest()
-            ->first();
+        $gelombang = $this->gelombangDibuka();
 
         abort_if(! $gelombang, 422, 'Tidak ada gelombang PPDB yang sedang dibuka saat ini.');
 
@@ -189,10 +202,10 @@ class PendaftaranController extends Controller
 
         $pendaftaran->load('waliMurid');
 
-        $gelombang = GelombangPpdb::with('tahunAjaran')
-            ->where('status_buka', true)
-            ->latest()
-            ->first();
+        // Sengaja TIDAK dijadikan gerbang di sini: wali yang diminta memperbaiki
+        // data harus tetap bisa mengirim perbaikannya walau gelombangnya sudah
+        // ditutup. Gelombang di sini cuma dipakai buat menghitung sisa kuota.
+        $gelombang = $this->gelombangDibuka();
 
         return Inertia::render('wali-murid/pendaftaran-create', [
             // Kategori yang sedang dipakai pendaftaran ini dikecualikan dari

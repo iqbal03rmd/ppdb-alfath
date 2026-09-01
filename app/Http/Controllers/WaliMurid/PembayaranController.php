@@ -58,7 +58,7 @@ class PembayaranController extends Controller
         // Sesudah ini nominalnya beku - perubahan tarif oleh Admin nggak akan
         // mengubah tagihan yang sudah pernah ditampilkan/dibayar.
         $pendaftaran->terbitkanTagihan();
-        $pendaftaran->load(['pembayaran', 'tagihanItem']);
+        $pendaftaran->load(['pembayaran', 'tagihanItem', 'gelombang.tahunAjaran']);
 
         $rincianTagihan = $pendaftaran->tagihanItem()
             ->orderBy('id')
@@ -88,7 +88,13 @@ class PembayaranController extends Controller
                 'catatan_verifikasi' => $p->catatan_verifikasi,
             ]);
 
-        $batasWaktu = $pendaftaran->gelombang->batas_waktu_pembayaran;
+        // DUA tenggat yang berbeda, dan bedanya penting buat wali:
+        //   - batas minimal bayar (milik gelombang pendaftaran ini) -> lewat
+        //     tanggal ini tanpa memenuhi minimal, staf boleh menolak.
+        //   - batas pelunasan (milik tahun ajaran) -> cuma menagih sisa cicilan,
+        //     nggak pernah membatalkan pendaftaran yang sudah diterima.
+        $batasMinimal = $pendaftaran->batasMinimalBayar();
+        $batasPelunasan = $pendaftaran->batasPelunasan();
 
         return Inertia::render('wali-murid/pembayaran', [
             'pendaftaran' => [
@@ -96,8 +102,15 @@ class PembayaranController extends Controller
                 'nomor_pendaftaran' => $pendaftaran->nomor_pendaftaran,
                 'nama_pendaftar' => $pendaftaran->nama_pendaftar,
             ],
-            'batasWaktuPembayaran' => $batasWaktu?->locale('id')->translatedFormat('d F Y'),
-            'batasWaktuLewat' => $batasWaktu ? $batasWaktu->isPast() : false,
+            'batasWaktuPembayaran' => $batasMinimal?->locale('id')->translatedFormat('d F Y'),
+            'batasWaktuLewat' => $batasMinimal ? $batasMinimal->isPast() : false,
+            'batasPelunasan' => $batasPelunasan?->locale('id')->translatedFormat('d F Y'),
+            // Minimal bayar: ambang yang menentukan diterima/tidak. Dihitung di
+            // model dari snapshot, jangan dihitung ulang di TSX.
+            'minimalBayar' => $pendaftaran->minimalBayar(),
+            'kurangMinimal' => $pendaftaran->kurangMinimal(),
+            'sudahPenuhiMinimal' => $pendaftaran->sudahPenuhiMinimal(),
+            'menunggak' => $pendaftaran->menunggak(),
             'statusPendaftaran' => $pendaftaran->status,
             'catatanVerifikasi' => $pendaftaran->catatan_verifikasi,
             'rincianTagihan' => $rincianTagihan,

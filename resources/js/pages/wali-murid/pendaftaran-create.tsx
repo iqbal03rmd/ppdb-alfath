@@ -1,9 +1,10 @@
-import { Head, useForm } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
-import PageHeader from '@/components/page-header';
-import PageContainer from '@/components/page-container';
 import AlurStepper from '@/components/alur-stepper';
+import PageContainer from '@/components/page-container';
+import PageHeader from '@/components/page-header';
 import { Button } from '@/components/ui/button';
+import AppLayout from '@/layouts/app-layout';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { CalendarClock } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
 interface KategoriSiswa {
@@ -53,7 +54,14 @@ interface FormulirProps {
 export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: FormulirProps) {
     const isEdit = !!pendaftaran;
 
-    const { data, setData, post, put, processing, errors: rawErrors } = useForm({
+    const {
+        data,
+        setData,
+        post,
+        put,
+        processing,
+        errors: rawErrors,
+    } = useForm({
         kategori_siswa_id: pendaftaran?.kategori_siswa_id ?? '',
         nama_pendaftar: pendaftaran?.nama_pendaftar ?? '',
         nik: pendaftaran?.nik ?? '',
@@ -74,9 +82,7 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
     // error field array. Cast ke Record<string, string> biar bisa diakses bebas.
     const errors = rawErrors as Record<string, string>;
 
-    const kategoriTerpilih = kategoriSiswa.find(
-        (k) => String(k.id) === data.kategori_siswa_id,
-    );
+    const kategoriTerpilih = kategoriSiswa.find((k) => String(k.id) === data.kategori_siswa_id);
 
     function addWaliMurid() {
         setData('wali_murid', [...data.wali_murid, { nama: '', nik: '', hubungan: '', telepon: '' }]);
@@ -127,259 +133,275 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                         situ. Halaman Unggah Berkas juga menampilkannya tanpa syarat. */}
                     <AlurStepper aktif="Formulir" />
 
-                    <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
-                    <form onSubmit={submit} className="lg:col-span-3">
-                        {/* Data calon peserta didik */}
-                        <Section title="Data Calon Peserta Didik">
-                            <div className="mb-5">
-                                <Label required>Kategori Siswa</Label>
-                                <select
-                                    className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1F509A]/15"
-                                    value={data.kategori_siswa_id}
-                                    onChange={(e) => setData('kategori_siswa_id', e.target.value)}
-                                >
-                                    <option value="">Pilih kategori siswa</option>
-                                    {kategoriSiswa.map((k) => (
-                                        <option key={k.id} value={k.id} disabled={k.penuh}>
-                                            {k.nama}
-                                            {k.penuh
-                                                ? ' — Kuota penuh'
-                                                : k.sisa_kuota !== null
-                                                  ? ` — sisa kuota ${k.sisa_kuota}`
-                                                  : ''}
-                                        </option>
-                                    ))}
-                                </select>
-                                {kategoriTerpilih?.deskripsi && (
-                                    <p className="mt-1 text-xs text-gray-500">{kategoriTerpilih.deskripsi}</p>
-                                )}
-                                {kategoriTerpilih && kategoriTerpilih.sisa_kuota !== null && !kategoriTerpilih.penuh && (
-                                    <p className="mt-1 text-xs text-[#1F509A]">
-                                        Sisa kuota kategori ini: <b>{kategoriTerpilih.sisa_kuota}</b> dari {kategoriTerpilih.kuota}.
-                                    </p>
-                                )}
-                                <FieldError message={errors.kategori_siswa_id} />
-                            </div>
-
-                            <div className="mb-5 grid grid-cols-2 gap-5">
-                                <div>
-                                    <Label required>Nama Lengkap</Label>
-                                    <Input
-                                        value={data.nama_pendaftar}
-                                        onChange={(v) => setData('nama_pendaftar', v)}
-                                        placeholder="Nama lengkap calon peserta didik"
-                                    />
-                                    <FieldError message={errors.nama_pendaftar} />
-                                </div>
-                                <div>
-                                    <Label>
-                                        NIK <span className="text-gray-500">(opsional)</span>
-                                    </Label>
-                                    <Input
-                                        value={data.nik}
-                                        onChange={(v) => setData('nik', v)}
-                                        placeholder="16 digit NIK"
-                                        maxLength={16}
-                                    />
-                                    <FieldError message={errors.nik} />
-                                </div>
-                                <div>
-                                    <Label required>Tempat Lahir</Label>
-                                    <Input
-                                        value={data.tempat_lahir}
-                                        onChange={(v) => setData('tempat_lahir', v)}
-                                        placeholder="Kota kelahiran"
-                                    />
-                                    <FieldError message={errors.tempat_lahir} />
-                                </div>
-                                <div>
-                                    <Label required>Tanggal Lahir</Label>
-                                    <input
-                                        type="date"
-                                        className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1F509A]/15"
-                                        value={data.tanggal_lahir}
-                                        onChange={(e) => setData('tanggal_lahir', e.target.value)}
-                                    />
-                                    <FieldError message={errors.tanggal_lahir} />
-                                </div>
-                            </div>
-
-                            <div className="mb-5 grid grid-cols-2 gap-5">
-                                <div>
-                                    <Label required>Jenis Kelamin</Label>
-                                    <div className="flex h-[42px] items-center gap-6">
-                                        <label className="flex items-center gap-2 text-sm text-gray-700">
-                                            <input
-                                                type="radio"
-                                                name="jenis_kelamin"
-                                                checked={data.jenis_kelamin === 'laki-laki'}
-                                                onChange={() => setData('jenis_kelamin', 'laki-laki')}
-                                                className="h-4 w-4 accent-[#1F509A]"
-                                            />
-                                            Laki-laki
-                                        </label>
-                                        <label className="flex items-center gap-2 text-sm text-gray-700">
-                                            <input
-                                                type="radio"
-                                                name="jenis_kelamin"
-                                                checked={data.jenis_kelamin === 'perempuan'}
-                                                onChange={() => setData('jenis_kelamin', 'perempuan')}
-                                                className="h-4 w-4 accent-[#1F509A]"
-                                            />
-                                            Perempuan
-                                        </label>
-                                    </div>
-                                    <FieldError message={errors.jenis_kelamin} />
-                                </div>
-
-                                <div>
-                                    <Label>
-                                        Agama <span className="text-gray-500">(opsional)</span>
-                                    </Label>
-                                    <Input value={data.agama} onChange={(v) => setData('agama', v)} placeholder="Agama" />
-                                    <FieldError message={errors.agama} />
-                                </div>
-                            </div>
-
-                            <div>
-                                <Label required>Alamat Domisili</Label>
-                                <textarea
-                                    className="min-h-[90px] resize-y w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1F509A]/15"
-                                    value={data.alamat}
-                                    onChange={(e) => setData('alamat', e.target.value)}
-                                    placeholder="Alamat lengkap tempat tinggal"
-                                />
-                                <FieldError message={errors.alamat} />
-                            </div>
-                        </Section>
-
-                        {/* Data pendukung klaim kategori - tampil kondisional */}
-                        {kategoriTerpilih?.nama === 'Saudara' && (
-                            <Section title="Data Pendukung: Saudara di Sekolah Ini">
-                                <Label>Nama Saudara</Label>
-                                <Input
-                                    value={data.nama_saudara}
-                                    onChange={(v) => setData('nama_saudara', v)}
-                                    placeholder="Nama saudara kandung yang terdaftar di sekolah ini"
-                                />
-                                <FieldError message={errors.nama_saudara} />
-                            </Section>
-                        )}
-
-                        {kategoriTerpilih?.nama === 'Anak Guru/Tenaga Kependidikan' && (
-                            <Section title="Data Pendukung: Orang Tua Guru/Tenaga Kependidikan">
-                                <Label>Nama Orang Tua</Label>
-                                <Input
-                                    value={data.nama_orang_tua_guru}
-                                    onChange={(v) => setData('nama_orang_tua_guru', v)}
-                                    placeholder="Nama orang tua yang merupakan guru/tenaga kependidikan"
-                                />
-                                <FieldError message={errors.nama_orang_tua_guru} />
-                            </Section>
-                        )}
-
-                        {/* Data wali - repeatable */}
-                        <Section title="Data Orang Tua / Wali">
-                            {data.wali_murid.map((w, index) => (
-                                <div key={index} className="mb-5 rounded-xl border border-[#D4EBF8] bg-[#F5F9FD]/50 p-5">
-                                    <div className="mb-3 flex items-center justify-between">
-                                        <span className="text-xs font-bold tracking-wide text-[#1F509A] uppercase">Wali {index + 1}</span>
-                                        {data.wali_murid.length > 1 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => removeWaliMurid(index)}
-                                                className="rounded-full px-2.5 py-1 text-xs font-medium text-red-500 hover:bg-red-50"
-                                            >
-                                                Hapus
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-5">
-                                        <div>
-                                            <Label required>Nama</Label>
-                                            <Input
-                                                value={w.nama}
-                                                onChange={(v) => updateWaliMurid(index, 'nama', v)}
-                                                placeholder="Nama lengkap"
-                                            />
-                                            <FieldError message={errors[`wali_murid.${index}.nama`]} />
-                                        </div>
-                                        <div>
-                                            <Label required>NIK</Label>
-                                            <Input
-                                                value={w.nik}
-                                                onChange={(v) => updateWaliMurid(index, 'nik', v)}
-                                                placeholder="16 digit NIK"
-                                                maxLength={16}
-                                            />
-                                            <FieldError message={errors[`wali_murid.${index}.nik`]} />
-                                        </div>
-                                        <div>
-                                            <Label required>Hubungan</Label>
-                                            <select
-                                                className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1F509A]/15"
-                                                value={w.hubungan}
-                                                onChange={(e) => updateWaliMurid(index, 'hubungan', e.target.value)}
-                                            >
-                                                <option value="">Pilih hubungan</option>
-                                                <option value="Ayah">Ayah</option>
-                                                <option value="Ibu">Ibu</option>
-                                                <option value="Wali Lainnya">Wali Lainnya</option>
-                                            </select>
-                                            <FieldError message={errors[`wali_murid.${index}.hubungan`]} />
-                                        </div>
-                                        <div>
-                                            <Label required>No. WhatsApp Aktif</Label>
-                                            <Input
-                                                value={w.telepon}
-                                                onChange={(v) => updateWaliMurid(index, 'telepon', v)}
-                                                placeholder="08xxxxxxxxxx"
-                                            />
-                                            <FieldError message={errors[`wali_murid.${index}.telepon`]} />
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                            <FieldError message={errors.wali_murid} />
-
-                            <button
-                                type="button"
-                                onClick={addWaliMurid}
-                                className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-[#1F509A]/40 py-2.5 text-sm font-medium text-[#1F509A] transition-colors hover:bg-[#F5F9FD]"
+                    {/* Pendaftaran baru ditutup: formulirnya nggak ditampilkan sama
+                        sekali, bukan sekadar tombol simpannya dimatikan. Server pun
+                        menolak store() dalam keadaan ini, jadi membiarkan 16 kolom
+                        bisa diisi cuma menunda kabar buruknya sampai klik terakhir.
+                        Mode EDIT dikecualikan - wali yang diminta memperbaiki data
+                        harus tetap bisa mengirim perbaikannya walau gelombangnya
+                        sudah ditutup. */}
+                    {!isEdit && !gelombang ? (
+                        <div className="rounded-2xl bg-white p-10 text-center shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
+                            <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#D4EBF8]/60 text-[#1F509A]">
+                                <CalendarClock size={22} strokeWidth={1.8} />
+                            </span>
+                            <h2 className="text-[15px] font-semibold text-gray-900">Pendaftaran sedang ditutup</h2>
+                            <p className="mx-auto mt-1.5 max-w-md text-sm text-gray-500">
+                                Sekolah belum membuka gelombang PPDB berikutnya, jadi pendaftaran anak baru belum bisa diisi. Silakan cek kembali
+                                nanti — pendaftaran yang sudah berjalan tetap bisa kamu urus dari halaman Pendaftaran.
+                            </p>
+                            <Button
+                                asChild
+                                variant="outline"
+                                className="mt-5 rounded-xl border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
                             >
-                                <span className="text-lg leading-none">+</span> Tambah Wali
-                            </button>
-                        </Section>
-
-                        <Button type="submit" disabled={processing} className="w-full rounded-xl py-3.5 text-[15px] font-bold">
-                            {processing ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Simpan dan Lanjutkan ke Unggah Berkas'}
-                        </Button>
-                    </form>
-
-                    {/* Panel kanan - info bantu, sekaligus ngisi ruang kosong */}
-                    <aside className="lg:col-span-1">
-                        <div className="sticky top-8 flex flex-col gap-5">
-                            {kategoriTerpilih && (
-                                <div className="rounded-2xl bg-[#0A3981] p-6 text-white shadow-[0_8px_24px_-8px_rgba(10,57,129,0.35)]">
-                                    <h3 className="mb-1 text-sm font-semibold text-[#D4EBF8]">Kategori Terpilih</h3>
-                                    <p className="text-base font-semibold">{kategoriTerpilih.nama}</p>
-                                    {kategoriTerpilih.deskripsi && (
-                                        <p className="mt-2 text-sm leading-relaxed text-white/80">{kategoriTerpilih.deskripsi}</p>
-                                    )}
-                                </div>
-                            )}
-
-                            <div className="rounded-2xl border border-[#D4EBF8] bg-[#F5F9FD] p-6">
-                                <h3 className="mb-2 text-sm font-semibold text-[#0A3981]">Tips Pengisian</h3>
-                                <ul className="space-y-2 text-xs leading-relaxed text-gray-600">
-                                    <li>• Isi data sesuai dokumen resmi (KK/Akta) untuk mempercepat verifikasi.</li>
-                                    <li>• Nomor WhatsApp wali harus aktif, digunakan untuk semua notifikasi PPDB.</li>
-                                    <li>• Kamu bisa menambahkan lebih dari satu data wali jika diperlukan.</li>
-                                </ul>
-                            </div>
+                                <Link href={route('wali-murid.pendaftaran.index')}>Kembali ke Pendaftaran</Link>
+                            </Button>
                         </div>
-                    </aside>
-                    </div>
+                    ) : (
+                        <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
+                            <form onSubmit={submit} className="lg:col-span-3">
+                                {/* Data calon peserta didik */}
+                                <Section title="Data Calon Peserta Didik">
+                                    <div className="mb-5">
+                                        <Label required>Kategori Siswa</Label>
+                                        <select
+                                            className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none"
+                                            value={data.kategori_siswa_id}
+                                            onChange={(e) => setData('kategori_siswa_id', e.target.value)}
+                                        >
+                                            <option value="">Pilih kategori siswa</option>
+                                            {kategoriSiswa.map((k) => (
+                                                <option key={k.id} value={k.id} disabled={k.penuh}>
+                                                    {k.nama}
+                                                    {k.penuh ? ' — Kuota penuh' : k.sisa_kuota !== null ? ` — sisa kuota ${k.sisa_kuota}` : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {kategoriTerpilih?.deskripsi && <p className="mt-1 text-xs text-gray-500">{kategoriTerpilih.deskripsi}</p>}
+                                        {kategoriTerpilih && kategoriTerpilih.sisa_kuota !== null && !kategoriTerpilih.penuh && (
+                                            <p className="mt-1 text-xs text-[#1F509A]">
+                                                Sisa kuota kategori ini: <b>{kategoriTerpilih.sisa_kuota}</b> dari {kategoriTerpilih.kuota}.
+                                            </p>
+                                        )}
+                                        <FieldError message={errors.kategori_siswa_id} />
+                                    </div>
+
+                                    <div className="mb-5 grid grid-cols-2 gap-5">
+                                        <div>
+                                            <Label required>Nama Lengkap</Label>
+                                            <Input
+                                                value={data.nama_pendaftar}
+                                                onChange={(v) => setData('nama_pendaftar', v)}
+                                                placeholder="Nama lengkap calon peserta didik"
+                                            />
+                                            <FieldError message={errors.nama_pendaftar} />
+                                        </div>
+                                        <div>
+                                            <Label>
+                                                NIK <span className="text-gray-500">(opsional)</span>
+                                            </Label>
+                                            <Input value={data.nik} onChange={(v) => setData('nik', v)} placeholder="16 digit NIK" maxLength={16} />
+                                            <FieldError message={errors.nik} />
+                                        </div>
+                                        <div>
+                                            <Label required>Tempat Lahir</Label>
+                                            <Input
+                                                value={data.tempat_lahir}
+                                                onChange={(v) => setData('tempat_lahir', v)}
+                                                placeholder="Kota kelahiran"
+                                            />
+                                            <FieldError message={errors.tempat_lahir} />
+                                        </div>
+                                        <div>
+                                            <Label required>Tanggal Lahir</Label>
+                                            <input
+                                                type="date"
+                                                className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none"
+                                                value={data.tanggal_lahir}
+                                                onChange={(e) => setData('tanggal_lahir', e.target.value)}
+                                            />
+                                            <FieldError message={errors.tanggal_lahir} />
+                                        </div>
+                                    </div>
+
+                                    <div className="mb-5 grid grid-cols-2 gap-5">
+                                        <div>
+                                            <Label required>Jenis Kelamin</Label>
+                                            <div className="flex h-[42px] items-center gap-6">
+                                                <label className="flex items-center gap-2 text-sm text-gray-700">
+                                                    <input
+                                                        type="radio"
+                                                        name="jenis_kelamin"
+                                                        checked={data.jenis_kelamin === 'laki-laki'}
+                                                        onChange={() => setData('jenis_kelamin', 'laki-laki')}
+                                                        className="h-4 w-4 accent-[#1F509A]"
+                                                    />
+                                                    Laki-laki
+                                                </label>
+                                                <label className="flex items-center gap-2 text-sm text-gray-700">
+                                                    <input
+                                                        type="radio"
+                                                        name="jenis_kelamin"
+                                                        checked={data.jenis_kelamin === 'perempuan'}
+                                                        onChange={() => setData('jenis_kelamin', 'perempuan')}
+                                                        className="h-4 w-4 accent-[#1F509A]"
+                                                    />
+                                                    Perempuan
+                                                </label>
+                                            </div>
+                                            <FieldError message={errors.jenis_kelamin} />
+                                        </div>
+
+                                        <div>
+                                            <Label>
+                                                Agama <span className="text-gray-500">(opsional)</span>
+                                            </Label>
+                                            <Input value={data.agama} onChange={(v) => setData('agama', v)} placeholder="Agama" />
+                                            <FieldError message={errors.agama} />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <Label required>Alamat Domisili</Label>
+                                        <textarea
+                                            className="min-h-[90px] w-full resize-y rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none"
+                                            value={data.alamat}
+                                            onChange={(e) => setData('alamat', e.target.value)}
+                                            placeholder="Alamat lengkap tempat tinggal"
+                                        />
+                                        <FieldError message={errors.alamat} />
+                                    </div>
+                                </Section>
+
+                                {/* Data pendukung klaim kategori - tampil kondisional */}
+                                {kategoriTerpilih?.nama === 'Saudara' && (
+                                    <Section title="Data Pendukung: Saudara di Sekolah Ini">
+                                        <Label>Nama Saudara</Label>
+                                        <Input
+                                            value={data.nama_saudara}
+                                            onChange={(v) => setData('nama_saudara', v)}
+                                            placeholder="Nama saudara kandung yang terdaftar di sekolah ini"
+                                        />
+                                        <FieldError message={errors.nama_saudara} />
+                                    </Section>
+                                )}
+
+                                {kategoriTerpilih?.nama === 'Anak Guru/Tenaga Kependidikan' && (
+                                    <Section title="Data Pendukung: Orang Tua Guru/Tenaga Kependidikan">
+                                        <Label>Nama Orang Tua</Label>
+                                        <Input
+                                            value={data.nama_orang_tua_guru}
+                                            onChange={(v) => setData('nama_orang_tua_guru', v)}
+                                            placeholder="Nama orang tua yang merupakan guru/tenaga kependidikan"
+                                        />
+                                        <FieldError message={errors.nama_orang_tua_guru} />
+                                    </Section>
+                                )}
+
+                                {/* Data wali - repeatable */}
+                                <Section title="Data Orang Tua / Wali">
+                                    {data.wali_murid.map((w, index) => (
+                                        <div key={index} className="mb-5 rounded-xl border border-[#D4EBF8] bg-[#F5F9FD]/50 p-5">
+                                            <div className="mb-3 flex items-center justify-between">
+                                                <span className="text-xs font-bold tracking-wide text-[#1F509A] uppercase">Wali {index + 1}</span>
+                                                {data.wali_murid.length > 1 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeWaliMurid(index)}
+                                                        className="rounded-full px-2.5 py-1 text-xs font-medium text-red-500 hover:bg-red-50"
+                                                    >
+                                                        Hapus
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-5">
+                                                <div>
+                                                    <Label required>Nama</Label>
+                                                    <Input
+                                                        value={w.nama}
+                                                        onChange={(v) => updateWaliMurid(index, 'nama', v)}
+                                                        placeholder="Nama lengkap"
+                                                    />
+                                                    <FieldError message={errors[`wali_murid.${index}.nama`]} />
+                                                </div>
+                                                <div>
+                                                    <Label required>NIK</Label>
+                                                    <Input
+                                                        value={w.nik}
+                                                        onChange={(v) => updateWaliMurid(index, 'nik', v)}
+                                                        placeholder="16 digit NIK"
+                                                        maxLength={16}
+                                                    />
+                                                    <FieldError message={errors[`wali_murid.${index}.nik`]} />
+                                                </div>
+                                                <div>
+                                                    <Label required>Hubungan</Label>
+                                                    <select
+                                                        className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none"
+                                                        value={w.hubungan}
+                                                        onChange={(e) => updateWaliMurid(index, 'hubungan', e.target.value)}
+                                                    >
+                                                        <option value="">Pilih hubungan</option>
+                                                        <option value="Ayah">Ayah</option>
+                                                        <option value="Ibu">Ibu</option>
+                                                        <option value="Wali Lainnya">Wali Lainnya</option>
+                                                    </select>
+                                                    <FieldError message={errors[`wali_murid.${index}.hubungan`]} />
+                                                </div>
+                                                <div>
+                                                    <Label required>No. WhatsApp Aktif</Label>
+                                                    <Input
+                                                        value={w.telepon}
+                                                        onChange={(v) => updateWaliMurid(index, 'telepon', v)}
+                                                        placeholder="08xxxxxxxxxx"
+                                                    />
+                                                    <FieldError message={errors[`wali_murid.${index}.telepon`]} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <FieldError message={errors.wali_murid} />
+
+                                    <button
+                                        type="button"
+                                        onClick={addWaliMurid}
+                                        className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-[#1F509A]/40 py-2.5 text-sm font-medium text-[#1F509A] transition-colors hover:bg-[#F5F9FD]"
+                                    >
+                                        <span className="text-lg leading-none">+</span> Tambah Wali
+                                    </button>
+                                </Section>
+
+                                <Button type="submit" disabled={processing} className="w-full rounded-xl py-3.5 text-[15px] font-bold">
+                                    {processing ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Simpan dan Lanjutkan ke Unggah Berkas'}
+                                </Button>
+                            </form>
+
+                            {/* Panel kanan - info bantu, sekaligus ngisi ruang kosong */}
+                            <aside className="lg:col-span-1">
+                                <div className="sticky top-8 flex flex-col gap-5">
+                                    {kategoriTerpilih && (
+                                        <div className="rounded-2xl bg-[#0A3981] p-6 text-white shadow-[0_8px_24px_-8px_rgba(10,57,129,0.35)]">
+                                            <h3 className="mb-1 text-sm font-semibold text-[#D4EBF8]">Kategori Terpilih</h3>
+                                            <p className="text-base font-semibold">{kategoriTerpilih.nama}</p>
+                                            {kategoriTerpilih.deskripsi && (
+                                                <p className="mt-2 text-sm leading-relaxed text-white/80">{kategoriTerpilih.deskripsi}</p>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="rounded-2xl border border-[#D4EBF8] bg-[#F5F9FD] p-6">
+                                        <h3 className="mb-2 text-sm font-semibold text-[#0A3981]">Tips Pengisian</h3>
+                                        <ul className="space-y-2 text-xs leading-relaxed text-gray-600">
+                                            <li>• Isi data sesuai dokumen resmi (KK/Akta) untuk mempercepat verifikasi.</li>
+                                            <li>• Nomor WhatsApp wali harus aktif, digunakan untuk semua notifikasi PPDB.</li>
+                                            <li>• Kamu bisa menambahkan lebih dari satu data wali jika diperlukan.</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </aside>
+                        </div>
+                    )}
                 </PageContainer>
             </AppLayout>
         </>
@@ -423,7 +445,7 @@ function Input({
     return (
         <input
             type="text"
-            className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1F509A]/15"
+            className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}

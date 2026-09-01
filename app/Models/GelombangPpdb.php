@@ -12,13 +12,16 @@ class GelombangPpdb extends Model
 
     protected $fillable = [
         'tahun_ajaran_id', 'nama', 'tanggal_mulai', 'tanggal_selesai',
-        'batas_waktu_pembayaran', 'status_buka',
+        'batas_waktu_pembayaran', 'minimal_pembayaran', 'minimal_bayar_persen_yatim',
+        'status_buka',
     ];
 
     protected $casts = [
         'tanggal_mulai' => 'date',
         'tanggal_selesai' => 'date',
         'batas_waktu_pembayaran' => 'date',
+        'minimal_pembayaran' => 'integer',
+        'minimal_bayar_persen_yatim' => 'integer',
         'status_buka' => 'boolean',
     ];
 

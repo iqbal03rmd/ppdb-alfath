@@ -48,6 +48,12 @@ return new class extends Migration
                 'diterima',
                 'ditolak',
             ])->default('draft');
+            // Minimal bayar yang DIBEKUKAN buat pendaftaran ini, dihitung sekali
+            // bersamaan dengan penerbitan tagihan_item. Alasannya sama dengan
+            // snapshot tagihan: kebijakan yang diubah Admin belakangan nggak
+            // boleh mengubah kewajiban orang yang tagihannya sudah terbit.
+            // Null = tagihan belum terbit.
+            $table->unsignedBigInteger('minimal_bayar')->nullable();
             // Catatan dari staf PPDB
             $table->text('catatan_verifikasi')->nullable();
             $table->timestamps();

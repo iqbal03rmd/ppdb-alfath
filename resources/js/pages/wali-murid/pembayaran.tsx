@@ -1,6 +1,6 @@
-import PageHeader from '@/components/page-header';
-import PageContainer from '@/components/page-container';
 import AlurStepper from '@/components/alur-stepper';
+import PageContainer from '@/components/page-container';
+import PageHeader from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
@@ -33,8 +33,15 @@ interface PembayaranProps {
     sisaTagihan: number;
     riwayatTransfer: TransferItem[];
     tagihanTersedia: boolean;
+    // Dua tenggat yang berbeda artinya: batasWaktu* itu tenggat MINIMAL bayar
+    // (lewat = boleh ditolak staf), batasPelunasan* cuma menagih sisa cicilan.
     batasWaktuPembayaran: string | null;
     batasWaktuLewat: boolean;
+    batasPelunasan: string | null;
+    minimalBayar: number | null;
+    kurangMinimal: number;
+    sudahPenuhiMinimal: boolean;
+    menunggak: boolean;
     statusPendaftaran: string;
     catatanVerifikasi: string | null;
     bisaBayar: boolean;
@@ -60,6 +67,11 @@ export default function Pembayaran({
     tagihanTersedia,
     batasWaktuPembayaran,
     batasWaktuLewat,
+    batasPelunasan,
+    minimalBayar,
+    kurangMinimal,
+    sudahPenuhiMinimal,
+    menunggak,
     statusPendaftaran,
     catatanVerifikasi,
     bisaBayar,
@@ -106,16 +118,20 @@ export default function Pembayaran({
                         {catatanVerifikasi ?? 'Pendaftaran ini sudah ditutup oleh Staf PPDB.'}
                         {totalTerbayar > 0 && (
                             <p className="mt-2">
-                                Pembayaran yang sudah terverifikasi sebesar <b>{formatRupiah(totalTerbayar)}</b> tetap tercatat di bawah.
-                                Hubungi Staf PPDB untuk menanyakan tindak lanjutnya.
+                                Pembayaran yang sudah terverifikasi sebesar <b>{formatRupiah(totalTerbayar)}</b> tetap tercatat di bawah. Hubungi Staf
+                                PPDB untuk menanyakan tindak lanjutnya.
                             </p>
                         )}
                     </div>
                 )}
 
-                {/* Jatuh tempo pelunasan - informatif, nggak memblokir pembayaran.
-                    Keputusan menolak pendaftaran yang telat tetap di tangan Staf PPDB. */}
-                {! pendaftaranDitolak && tagihanTersedia && batasWaktuPembayaran && sisaTagihan > 0 && (
+                {/* Dua tenggat, dan bedanya menentukan nasib pendaftaran:
+                      - sebelum minimal bayar tercapai -> yang berlaku tenggat gelombang,
+                        dan melewatinya bisa berujung penolakan oleh staf.
+                      - sesudahnya -> tinggal cicilan dengan tenggat tahun ajaran, yang
+                        TIDAK pernah membatalkan pendaftaran yang sudah diterima.
+                    Dua-duanya informatif; keputusan menolak tetap di tangan Staf PPDB. */}
+                {!pendaftaranDitolak && tagihanTersedia && sisaTagihan > 0 && !sudahPenuhiMinimal && batasWaktuPembayaran && (
                     <div
                         className={
                             'mb-6 rounded-xl border p-4 text-sm ' +
@@ -129,8 +145,32 @@ export default function Pembayaran({
                             </>
                         ) : (
                             <>
-                                <span className="font-semibold">Batas waktu pembayaran: </span>
-                                {batasWaktuPembayaran}. Lunasi sebelum tanggal tersebut agar pendaftaran dapat diproses lebih lanjut.
+                                <span className="font-semibold">Bayar minimal {formatRupiah(kurangMinimal)} lagi </span>
+                                sebelum {batasWaktuPembayaran} supaya pendaftaran diterima. Sisanya boleh dicicil
+                                {batasPelunasan ? ` sampai ${batasPelunasan}` : ''}.
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {!pendaftaranDitolak && tagihanTersedia && sisaTagihan > 0 && sudahPenuhiMinimal && (
+                    <div
+                        className={
+                            'mb-6 rounded-xl border p-4 text-sm ' +
+                            (menunggak ? 'border-red-200 bg-red-50 text-red-700' : 'border-green-200 bg-green-50 text-green-700')
+                        }
+                    >
+                        {menunggak ? (
+                            <>
+                                <span className="font-semibold text-red-800">Batas pelunasan terlewat. </span>
+                                Sisa cicilan {formatRupiah(sisaTagihan)} jatuh tempo {batasPelunasan}. Pendaftaran tetap diterima — silakan hubungi
+                                Staf PPDB untuk mengatur pelunasannya.
+                            </>
+                        ) : (
+                            <>
+                                <span className="font-semibold">Minimal pembayaran sudah terpenuhi. </span>
+                                Sisa {formatRupiah(sisaTagihan)} boleh dicicil
+                                {batasPelunasan ? ` sampai ${batasPelunasan}` : ''}.
                             </>
                         )}
                     </div>
@@ -140,8 +180,8 @@ export default function Pembayaran({
                 {!tagihanTersedia && !pendaftaranDitolak && (
                     <div className="mb-6 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
                         <span className="font-semibold text-gray-700">Tagihan belum tersedia. </span>
-                        Sekolah belum menetapkan rincian biaya untuk gelombang ini, jadi pembayaran belum bisa dilakukan. Silakan hubungi Staf
-                        PPDB untuk informasi lebih lanjut.
+                        Sekolah belum menetapkan rincian biaya untuk gelombang ini, jadi pembayaran belum bisa dilakukan. Silakan hubungi Staf PPDB
+                        untuk informasi lebih lanjut.
                     </div>
                 )}
 
@@ -219,125 +259,150 @@ export default function Pembayaran({
                     {/* KOLOM KANAN - ringkasan pelunasan + tempat bertindak */}
                     {adaIsiKanan && (
                         <div className="space-y-6 lg:col-span-2">
-                {/* Ringkasan pelunasan - selalu tampil kalau udah pernah ada transfer, biar kelihatan progres cicilan */}
-                {totalTerbayar > 0 && (
-                    <div className="overflow-hidden rounded-2xl bg-white p-6 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
-                        <h2 className="mb-4 text-[15px] font-semibold text-gray-900">Progres Pelunasan</h2>
-                        <div className="mb-3 h-2 overflow-hidden rounded-full bg-gray-100">
-                            <div
-                                className="h-full rounded-full bg-green-500"
-                                style={{ width: `${Math.min(100, Math.round((totalTerbayar / totalTagihan) * 100))}%` }}
-                            />
-                        </div>
-                        <div className="space-y-2 text-sm">
-                            <DetailRow label="Sudah Terverifikasi" value={formatRupiah(totalTerbayar)} />
-                            <DetailRow
-                                label="Sisa Tagihan"
-                                value={sisaTagihan > 0 ? formatRupiah(sisaTagihan) : 'Lunas'}
-                                highlight={sisaTagihan <= 0}
-                            />
-                        </div>
-                    </div>
-                )}
+                            {/* Ringkasan pelunasan - selalu tampil kalau udah pernah ada transfer, biar kelihatan progres cicilan */}
+                            {totalTerbayar > 0 && (
+                                <div className="overflow-hidden rounded-2xl bg-white p-6 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
+                                    <h2 className="mb-4 text-[15px] font-semibold text-gray-900">Progres Pelunasan</h2>
+                                    <div className="relative mb-2 h-2 overflow-hidden rounded-full bg-gray-100">
+                                        <div
+                                            className="h-full rounded-full bg-green-500"
+                                            style={{ width: `${Math.min(100, Math.round((totalTerbayar / totalTagihan) * 100))}%` }}
+                                        />
+                                        {/* Ambang minimal bayar: batas antara "masih bisa ditolak"
+                                dan "sudah diterima, sisanya tinggal cicilan". */}
+                                        {minimalBayar !== null && minimalBayar > 0 && minimalBayar < totalTagihan && (
+                                            <span
+                                                aria-hidden
+                                                className="absolute top-0 h-full w-0.5 bg-[#0A3981]"
+                                                style={{ left: `${(minimalBayar / totalTagihan) * 100}%` }}
+                                            />
+                                        )}
+                                    </div>
+                                    {minimalBayar !== null && minimalBayar > 0 && minimalBayar < totalTagihan && (
+                                        <p className="mb-3 text-xs text-gray-500">
+                                            Garis biru menandai minimal {formatRupiah(minimalBayar)} supaya pendaftaran diterima.
+                                        </p>
+                                    )}
+                                    <div className="space-y-2 text-sm">
+                                        <DetailRow label="Sudah Terverifikasi" value={formatRupiah(totalTerbayar)} />
+                                        {!sudahPenuhiMinimal && kurangMinimal > 0 && (
+                                            <DetailRow label="Kurang agar Diterima" value={formatRupiah(kurangMinimal)} />
+                                        )}
+                                        <DetailRow
+                                            label="Sisa Tagihan"
+                                            value={sisaTagihan > 0 ? formatRupiah(sisaTagihan) : 'Lunas'}
+                                            highlight={sisaTagihan <= 0}
+                                        />
+                                    </div>
+                                </div>
+                            )}
 
+                            {/* Sisa tagihan udah lunas - nggak ada form lagi */}
+                            {tagihanTersedia && sisaTagihan <= 0 && totalTerbayar > 0 && (
+                                <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+                                    <span className="font-semibold text-green-800">Tagihan lunas. </span>
+                                    Seluruh tagihan pendaftaran ini sudah terverifikasi, tidak perlu transfer lagi.
+                                </div>
+                            )}
 
-                {/* Sisa tagihan udah lunas - nggak ada form lagi */}
-                {tagihanTersedia && sisaTagihan <= 0 && totalTerbayar > 0 && (
-                    <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
-                        <span className="font-semibold text-green-800">Tagihan lunas. </span>
-                        Seluruh tagihan pendaftaran ini sudah terverifikasi, tidak perlu transfer lagi.
-                    </div>
-                )}
+                            {/* Masih ada sisa, tapi ada transfer lain yang masih diproses staf */}
+                            {!pendaftaranDitolak && sisaTagihan > 0 && adaPending && !bisaBayar && (
+                                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+                                    <span className="font-semibold text-amber-800">Menunggu verifikasi. </span>
+                                    Ada transfer yang masih diperiksa Staf PPDB. Kamu bisa kirim transfer susulan setelah transfer ini diverifikasi
+                                    atau ditolak.
+                                </div>
+                            )}
 
-                {/* Masih ada sisa, tapi ada transfer lain yang masih diproses staf */}
-                {!pendaftaranDitolak && sisaTagihan > 0 && adaPending && !bisaBayar && (
-                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-                        <span className="font-semibold text-amber-800">Menunggu verifikasi. </span>
-                        Ada transfer yang masih diperiksa Staf PPDB. Kamu bisa kirim transfer susulan setelah transfer ini diverifikasi atau
-                        ditolak.
-                    </div>
-                )}
+                            {/* Masih ada sisa dan boleh transfer (baik cicilan pertama maupun susulan) */}
+                            {bisaBayar && (
+                                <>
+                                    {transferTerakhirDitolak && (
+                                        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                                            <span className="font-semibold text-red-800">Bukti transfer ditolak: </span>
+                                            {riwayatTransfer[0].catatan_verifikasi ??
+                                                'Staf PPDB menolak bukti transfer sebelumnya. Silakan unggah ulang.'}
+                                        </div>
+                                    )}
 
-                {/* Masih ada sisa dan boleh transfer (baik cicilan pertama maupun susulan) */}
-                {bisaBayar && (
-                    <>
-                        {transferTerakhirDitolak && (
-                            <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                                <span className="font-semibold text-red-800">Bukti transfer ditolak: </span>
-                                {riwayatTransfer[0].catatan_verifikasi ?? 'Staf PPDB menolak bukti transfer sebelumnya. Silakan unggah ulang.'}
-                            </div>
-                        )}
+                                    <form
+                                        onSubmit={submit}
+                                        className="overflow-hidden rounded-2xl bg-white p-6 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]"
+                                    >
+                                        <h2 className="mb-5 text-[15px] font-semibold text-gray-900">
+                                            {totalTerbayar > 0 ? 'Kirim Transfer Susulan' : 'Unggah Bukti Transfer'}
+                                        </h2>
 
-                        <form
-                            onSubmit={submit}
-                            className="overflow-hidden rounded-2xl bg-white p-6 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]"
-                        >
-                            <h2 className="mb-5 text-[15px] font-semibold text-gray-900">
-                                {totalTerbayar > 0 ? 'Kirim Transfer Susulan' : 'Unggah Bukti Transfer'}
-                            </h2>
+                                        <div className="mb-4">
+                                            <label className="mb-1.5 block text-sm font-medium text-gray-700">Nominal Transfer</label>
+                                            <Input
+                                                type="number"
+                                                min={1}
+                                                value={data.nominal_transfer}
+                                                onChange={(e) => setData('nominal_transfer', e.target.value)}
+                                                onWheel={(e) => e.currentTarget.blur()}
+                                                placeholder="Jumlah yang ditransfer"
+                                                className="border-gray-200 bg-[#F5F9FD]"
+                                            />
+                                            {errors.nominal_transfer && <p className="mt-1 text-xs text-red-600">{errors.nominal_transfer}</p>}
+                                            {!errors.nominal_transfer && Number(data.nominal_transfer) > sisaTagihan && (
+                                                <p className="mt-1 text-xs text-amber-600">
+                                                    Nominal ini lebih besar dari sisa tagihan ({formatRupiah(sisaTagihan)}). Tetap bisa dikirim, staf
+                                                    yang akan menilai saat verifikasi.
+                                                </p>
+                                            )}
+                                        </div>
 
-                            <div className="mb-4">
-                                <label className="mb-1.5 block text-sm font-medium text-gray-700">Nominal Transfer</label>
-                                <Input
-                                    type="number"
-                                    min={1}
-                                    value={data.nominal_transfer}
-                                    onChange={(e) => setData('nominal_transfer', e.target.value)}
-                                    onWheel={(e) => e.currentTarget.blur()}
-                                    placeholder="Jumlah yang ditransfer"
-                                    className="border-gray-200 bg-[#F5F9FD]"
-                                />
-                                {errors.nominal_transfer && <p className="mt-1 text-xs text-red-600">{errors.nominal_transfer}</p>}
-                                {!errors.nominal_transfer && Number(data.nominal_transfer) > sisaTagihan && (
-                                    <p className="mt-1 text-xs text-amber-600">
-                                        Nominal ini lebih besar dari sisa tagihan ({formatRupiah(sisaTagihan)}). Tetap bisa dikirim, staf yang akan
-                                        menilai saat verifikasi.
-                                    </p>
-                                )}
-                            </div>
+                                        <div className="mb-4">
+                                            <label className="mb-1.5 block text-sm font-medium text-gray-700">Tanggal Transfer</label>
+                                            <Input
+                                                type="date"
+                                                value={data.tanggal_transfer}
+                                                onChange={(e) => setData('tanggal_transfer', e.target.value)}
+                                                className="border-gray-200 bg-[#F5F9FD]"
+                                            />
+                                            {errors.tanggal_transfer && <p className="mt-1 text-xs text-red-600">{errors.tanggal_transfer}</p>}
+                                        </div>
 
-                            <div className="mb-4">
-                                <label className="mb-1.5 block text-sm font-medium text-gray-700">Tanggal Transfer</label>
-                                <Input
-                                    type="date"
-                                    value={data.tanggal_transfer}
-                                    onChange={(e) => setData('tanggal_transfer', e.target.value)}
-                                    className="border-gray-200 bg-[#F5F9FD]"
-                                />
-                                {errors.tanggal_transfer && <p className="mt-1 text-xs text-red-600">{errors.tanggal_transfer}</p>}
-                            </div>
+                                        <div className="mb-5">
+                                            <label className="mb-1.5 block text-sm font-medium text-gray-700">Bukti Transfer</label>
+                                            <label
+                                                htmlFor="bukti_transfer"
+                                                className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-[#1F509A]/40 bg-[#F5F9FD] px-4 py-6 text-center transition-colors hover:bg-[#D4EBF8]/30"
+                                            >
+                                                <svg
+                                                    width="20"
+                                                    height="20"
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="#1F509A"
+                                                    strokeWidth={1.8}
+                                                    className="mb-1"
+                                                >
+                                                    <path d="M12 16V4M12 4l-4 4M12 4l4 4" strokeLinecap="round" strokeLinejoin="round" />
+                                                    <path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" strokeLinecap="round" strokeLinejoin="round" />
+                                                </svg>
+                                                <span className="text-xs font-medium text-[#1F509A]">
+                                                    {data.bukti_transfer ? data.bukti_transfer.name : 'Klik untuk unggah bukti transfer'}
+                                                </span>
+                                                <span className="mt-1 text-xs text-gray-500">PDF/JPG/PNG, maksimal 2 MB</span>
+                                            </label>
+                                            <input
+                                                id="bukti_transfer"
+                                                type="file"
+                                                accept=".pdf,.jpg,.jpeg,.png"
+                                                className="hidden"
+                                                onChange={(e) => setData('bukti_transfer', e.target.files?.[0] ?? null)}
+                                            />
+                                            {errors.bukti_transfer && <p className="mt-1 text-xs text-red-600">{errors.bukti_transfer}</p>}
+                                        </div>
 
-                            <div className="mb-5">
-                                <label className="mb-1.5 block text-sm font-medium text-gray-700">Bukti Transfer</label>
-                                <label
-                                    htmlFor="bukti_transfer"
-                                    className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-[#1F509A]/40 bg-[#F5F9FD] px-4 py-6 text-center transition-colors hover:bg-[#D4EBF8]/30"
-                                >
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F509A" strokeWidth={1.8} className="mb-1">
-                                        <path d="M12 16V4M12 4l-4 4M12 4l4 4" strokeLinecap="round" strokeLinejoin="round" />
-                                        <path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" strokeLinecap="round" strokeLinejoin="round" />
-                                    </svg>
-                                    <span className="text-xs font-medium text-[#1F509A]">
-                                        {data.bukti_transfer ? data.bukti_transfer.name : 'Klik untuk unggah bukti transfer'}
-                                    </span>
-                                    <span className="mt-1 text-xs text-gray-500">PDF/JPG/PNG, maksimal 2 MB</span>
-                                </label>
-                                <input
-                                    id="bukti_transfer"
-                                    type="file"
-                                    accept=".pdf,.jpg,.jpeg,.png"
-                                    className="hidden"
-                                    onChange={(e) => setData('bukti_transfer', e.target.files?.[0] ?? null)}
-                                />
-                                {errors.bukti_transfer && <p className="mt-1 text-xs text-red-600">{errors.bukti_transfer}</p>}
-                            </div>
-
-                            <Button type="submit" disabled={processing} className="w-full rounded-xl py-3.5 text-[15px] font-bold">
-                                Kirim Bukti Transfer
-                            </Button>
-                        </form>
-                    </>
-                )}
+                                        <Button type="submit" disabled={processing} className="w-full rounded-xl py-3.5 text-[15px] font-bold">
+                                            Kirim Bukti Transfer
+                                        </Button>
+                                    </form>
+                                </>
+                            )}
                         </div>
                     )}
                 </div>

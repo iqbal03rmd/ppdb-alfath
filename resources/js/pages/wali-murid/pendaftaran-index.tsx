@@ -1,9 +1,9 @@
-import AppLayout from '@/layouts/app-layout';
-import PageHeader from '@/components/page-header';
 import PageContainer from '@/components/page-container';
+import PageHeader from '@/components/page-header';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 
@@ -54,6 +54,7 @@ interface PendaftaranItem {
 interface IndexProps {
     pendaftaranList: PendaftaranItem[];
     expandId: string | number | null;
+    gelombangDibuka: boolean;
 }
 
 const statusBadge: Record<string, { label: string; className: string }> = {
@@ -74,7 +75,7 @@ const pembayaranBadge: Record<string, { label: string; className: string }> = {
     ditolak: { label: 'Ditolak', className: 'bg-red-100 text-red-700' },
 };
 
-export default function PendaftaranIndex({ pendaftaranList, expandId }: IndexProps) {
+export default function PendaftaranIndex({ pendaftaranList, expandId, gelombangDibuka }: IndexProps) {
     const [search, setSearch] = useState('');
 
     const filtered = pendaftaranList.filter(
@@ -96,9 +97,17 @@ export default function PendaftaranIndex({ pendaftaranList, expandId }: IndexPro
                         onChange={(e) => setSearch(e.target.value)}
                         className="max-w-sm border-gray-200 bg-white shadow-sm"
                     />
-                    <Button asChild className="shrink-0 rounded-xl px-5 py-2.5 text-sm font-bold">
-                        <Link href={route('wali-murid.pendaftaran.create')}>+ Tambah Pendaftaran</Link>
-                    </Button>
+                    {/* Tombol cuma muncul kalau server memang menerima pendaftaran
+                        baru - gerbangnya sama persis dengan yang dipakai store().
+                        Menampilkan tombol yang pasti ditolak berarti membiarkan
+                        wali mengisi 16 kolom cuma untuk kena error di akhir. */}
+                    {gelombangDibuka ? (
+                        <Button asChild className="shrink-0 rounded-xl px-5 py-2.5 text-sm font-bold">
+                            <Link href={route('wali-murid.pendaftaran.create')}>+ Tambah Pendaftaran</Link>
+                        </Button>
+                    ) : (
+                        <p className="shrink-0 text-sm text-gray-500">Pendaftaran sedang ditutup</p>
+                    )}
                 </div>
 
                 {filtered.length === 0 ? (
@@ -138,7 +147,9 @@ export default function PendaftaranIndex({ pendaftaranList, expandId }: IndexPro
                                                 <span className="text-gray-600">{item.pendaftaran.kategori}</span>
                                                 <span className="text-gray-600">{item.pendaftaran.gelombang}</span>
                                                 <span className="text-gray-600">{item.pendaftaran.tanggal_daftar}</span>
-                                                <span className={`inline-block w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${badge.className}`}>
+                                                <span
+                                                    className={`inline-block w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${badge.className}`}
+                                                >
                                                     {badge.label}
                                                 </span>
                                             </div>
@@ -164,8 +175,7 @@ function PendaftaranDetailPanel({ item }: { item: PendaftaranItem }) {
 
     // Formulir & Berkas statusnya SATU PAKET (opsi A) - kalau perlu_perbaikan,
     // dua-duanya sama-sama dikasih framing "Perbaiki", bukan dibedain per-bagian.
-    const labelFormulir =
-        pendaftaran.status === 'perlu_perbaikan' ? 'Perbaiki Formulir' : bisaEditBerkas ? 'Edit Formulir' : 'Lihat Detail Formulir';
+    const labelFormulir = pendaftaran.status === 'perlu_perbaikan' ? 'Perbaiki Formulir' : bisaEditBerkas ? 'Edit Formulir' : 'Lihat Detail Formulir';
 
     const labelBerkas = pendaftaran.status === 'perlu_perbaikan' ? 'Perbaiki Berkas' : !berkasLengkap ? 'Upload Berkas' : 'Lihat / Kelola Berkas';
 
@@ -240,9 +250,7 @@ function PendaftaranDetailPanel({ item }: { item: PendaftaranItem }) {
                     <div className="flex items-center gap-2">
                         <ProgresBadge label="Pembayaran" selesai={item.statusPembayaran === 'lunas'} />
                         {item.statusPembayaran && (
-                            <span
-                                className={`rounded-full px-2 py-0.5 text-xs font-semibold ${pembayaranBadge[item.statusPembayaran].className}`}
-                            >
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${pembayaranBadge[item.statusPembayaran].className}`}>
                                 {pembayaranBadge[item.statusPembayaran].label}
                             </span>
                         )}

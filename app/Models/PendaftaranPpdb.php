@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class PendaftaranPpdb extends Model
@@ -59,11 +60,13 @@ class PendaftaranPpdb extends Model
         'nama_saudara',
         'nama_orang_tua_guru',
         'status',
+        'minimal_bayar',
         'catatan_verifikasi',
     ];
 
     protected $casts = [
         'tanggal_lahir' => 'date',
+        'minimal_bayar' => 'integer',
     ];
 
     public function user(): BelongsTo
@@ -121,7 +124,7 @@ class PendaftaranPpdb extends Model
     {
         $wajib = self::DOKUMEN_WAJIB_DASAR;
 
-        if ($this->kategoriSiswa->nama === 'Anak Yatim') {
+        if ($this->kategoriSiswa->nama === KategoriSiswa::ANAK_YATIM) {
             $wajib[] = 'surat_kematian_ayah';
         }
 
@@ -193,13 +196,24 @@ class PendaftaranPpdb extends Model
                 return;
             }
 
+            $total = 0;
+
             foreach ($komponen as $k) {
+                $nominal = (int) ($k->tarif->first()?->nominal ?? 0);
+                $total += $nominal;
+
                 $this->tagihanItem()->create([
                     'nama_komponen' => $k->nama,
                     'keterangan' => $k->keterangan,
-                    'nominal' => $k->tarif->first()?->nominal ?? 0,
+                    'nominal' => $nominal,
                 ]);
             }
+
+            // Minimal bayar ikut dibekukan di sini, bukan dihitung ulang tiap
+            // dibaca - alasannya persis sama dengan snapshot tagihan di atas:
+            // kebijakan yang diubah Admin belakangan nggak boleh mengubah
+            // kewajiban orang yang tagihannya sudah terbit.
+            $this->forceFill(['minimal_bayar' => $this->hitungMinimalBayar($total)])->save();
         });
 
         // Relasi yang mungkin sudah ter-load sebelum penerbitan jadi basi -
@@ -244,6 +258,176 @@ class PendaftaranPpdb extends Model
     public function sisaTagihan(): int
     {
         return max(0, $this->totalTagihan() - $this->totalTerbayar());
+    }
+
+    /**
+     * Minimal bayar supaya pendaftaran bisa 'diterima'. Dua-duanya diambil dari
+     * gelombang, jadi sekali bikin gelombang semua kebijakannya selesai:
+     *
+     *   - jalur umum  -> minimal_pembayaran (nominal tetap). Reguler/Saudara/
+     *     Anak Guru selisih tagihannya tipis, jadi satu angka masih adil.
+     *   - Anak Yatim  -> minimal_bayar_persen_yatim, persen dari total tagihannya
+     *     sendiri. Jalur ini dibebaskan uang pendaftaran & uang pangkal sehingga
+     *     tagihannya jauh lebih kecil; nominal umum mustahil dipenuhi.
+     *
+     * Hasilnya SELALU dibatasi setinggi-tingginya sebesar total tagihan. Tanpa
+     * batas ini, minimal 3jt pada jalur yang tagihannya cuma 925rb bikin jalur
+     * itu mustahil diterima - bayar lunas pun masih dianggap kurang.
+     */
+    private function hitungMinimalBayar(int $totalTagihan): int
+    {
+        $persenYatim = $this->gelombang->minimal_bayar_persen_yatim;
+
+        $minimal = $this->kategoriSiswa->nama === KategoriSiswa::ANAK_YATIM && $persenYatim !== null
+            ? (int) round($totalTagihan * $persenYatim / 100)
+            : (int) ($this->gelombang->minimal_pembayaran ?? 0);
+
+        return min(max(0, $minimal), $totalTagihan);
+    }
+
+    /**
+     * Minimal bayar yang berlaku buat pendaftaran ini - dibaca dari SNAPSHOT,
+     * bukan dihitung ulang. Null selama tagihan belum terbit.
+     */
+    public function minimalBayar(): ?int
+    {
+        return $this->minimal_bayar;
+    }
+
+    /**
+     * Syarat penerimaan sudah terpenuhi? Selama tagihan belum terbit, jawabannya
+     * selalu tidak - tanpa tagihan nggak ada angka yang bisa dibandingkan, dan
+     * membiarkannya lolos berarti pendaftaran tanpa tagihan langsung diterima.
+     */
+    public function sudahPenuhiMinimal(): bool
+    {
+        if (! $this->tagihanSudahTerbit() || $this->minimal_bayar === null) {
+            return false;
+        }
+
+        return $this->totalTerbayar() >= $this->minimal_bayar;
+    }
+
+    /**
+     * Berapa lagi yang harus disetor supaya diterima. 0 = syaratnya sudah lewat,
+     * sisanya (kalau ada) tinggal cicilan yang nggak memicu penolakan.
+     */
+    public function kurangMinimal(): int
+    {
+        if ($this->minimal_bayar === null) {
+            return 0;
+        }
+
+        return max(0, $this->minimal_bayar - $this->totalTerbayar());
+    }
+
+    /**
+     * Tenggat MINIMAL bayar - milik gelombang tempat pendaftaran ini dibuat,
+     * bukan gelombang yang kebetulan sedang dibuka sekarang. Ini yang jadi dasar
+     * staf menetapkan 'ditolak'.
+     */
+    public function batasMinimalBayar(): ?Carbon
+    {
+        return $this->gelombang->batas_waktu_pembayaran;
+    }
+
+    /**
+     * Tenggat PELUNASAN sisa cicilan - satu tanggal milik tahun ajaran, berlaku
+     * lintas gelombang. Lewat tanggal ini pendaftaran TIDAK ditolak dan kursinya
+     * tidak dilepas; penagihannya diteruskan sekolah di luar sistem.
+     */
+    public function batasPelunasan(): ?Carbon
+    {
+        return $this->gelombang->tahunAjaran->batas_pelunasan;
+    }
+
+    /**
+     * SATU-SATUNYA tanggal yang pantas disebut "jatuh tempo" ke wali: batas
+     * mencapai minimal bayar. Cuma tanggal ini yang punya akibat - lewat tanpa
+     * memenuhi minimal, pendaftaran ditutup dan kursinya lepas.
+     *
+     * Batas pelunasan sisa cicilan SENGAJA nggak ikut di sini. Dulu satu method
+     * mengembalikan dua-duanya bergantian, dan itu keliru: satu label "Jatuh
+     * Tempo" jadi memayungi tanggal yang bisa membatalkan pendaftaran DAN
+     * tanggal yang nggak berakibat apa-apa. Di kartu ringkasan yang mengambil
+     * tanggal paling dekat lintas anak, keduanya bahkan bisa saling menutupi -
+     * tenggat cicilan yang tidak genting bisa menyembunyikan tenggat minimal
+     * yang genting cuma karena tanggalnya lebih awal.
+     *
+     * Null berarti tidak ada jatuh tempo: sudah lewat minimal, sudah lunas, atau
+     * pendaftarannya ditolak (wali sudah tidak boleh menambah transfer, jadi
+     * menagihnya cuma bikin bingung).
+     */
+    public function jatuhTempoMinimal(): ?Carbon
+    {
+        if (! $this->bolehBayar() || $this->sisaTagihan() <= 0 || $this->sudahPenuhiMinimal()) {
+            return null;
+        }
+
+        return $this->batasMinimalBayar();
+    }
+
+    /**
+     * Tanggal cicilan sisa - keterangan, BUKAN jatuh tempo. Cuma diisi buat
+     * pendaftaran yang sudah lewat minimal dan masih punya sisa; selain itu null
+     * supaya nggak ada tanggal nganggur di layar.
+     */
+    public function tanggalPelunasanCicilan(): ?Carbon
+    {
+        if (! $this->bolehBayar() || $this->sisaTagihan() <= 0 || ! $this->sudahPenuhiMinimal()) {
+            return null;
+        }
+
+        return $this->batasPelunasan();
+    }
+
+    /**
+     * Menunggak: sudah diterima, tenggat pelunasan lewat, sisa tagihan masih ada.
+     */
+    public function menunggak(): bool
+    {
+        $batas = $this->batasPelunasan();
+
+        return $batas !== null
+            && $batas->isPast()
+            && $this->bolehBayar()
+            && $this->sudahPenuhiMinimal()
+            && $this->sisaTagihan() > 0;
+    }
+
+    /**
+     * Hitung ulang status penerimaan dari uang yang sudah terverifikasi.
+     *
+     * Dipanggil dari DUA arah yang harus simetris: saat staf memverifikasi
+     * transfer, DAN saat staf membatalkan verifikasi. Otomatisasi satu arah
+     * lebih berbahaya daripada manual - status 'diterima' yang lahir dari salah
+     * periksa nggak akan pernah tercabut kalau pembatalannya nggak ikut
+     * menurunkan status.
+     *
+     * Yang TIDAK disentuh:
+     *   - 'ditolak' -> ketetapan staf; transfer yang masuk belakangan nggak boleh
+     *     diam-diam membatalkan penolakan.
+     *   - status sebelum berkas diverifikasi -> belum sampai urusan uang.
+     */
+    public function segarkanStatusPenerimaan(): void
+    {
+        if (! in_array($this->status, self::STATUS_BOLEH_BAYAR)) {
+            return;
+        }
+
+        DB::transaction(function () {
+            static::whereKey($this->getKey())->lockForUpdate()->first();
+
+            // Baca ulang di dalam kunci - relasi yang ter-load sebelum transaksi
+            // bisa saja sudah basi, dan ini menulis status berdasarkan uang.
+            $this->load(['pembayaran', 'tagihanItem', 'kategoriSiswa']);
+
+            $seharusnya = $this->sudahPenuhiMinimal() ? 'diterima' : 'diverifikasi';
+
+            if ($seharusnya !== $this->status) {
+                $this->forceFill(['status' => $seharusnya])->save();
+            }
+        });
     }
 
     /**

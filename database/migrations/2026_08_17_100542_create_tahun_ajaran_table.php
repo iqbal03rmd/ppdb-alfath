@@ -16,6 +16,12 @@ return new class extends Migration
             $table->string('nama'); 
             $table->boolean('status_aktif')->default(false);
             $table->year('tahun_mulai');
+            // Tenggat PELUNASAN sisa cicilan, berlaku lintas gelombang: wali
+            // yang daftar di Gelombang 1 maupun 2 punya tanggal jatuh tempo
+            // yang sama. Sengaja di tahun ajaran, bukan di gelombang - kalau
+            // diturunkan dari "gelombang terakhir", tenggat semua orang ikut
+            // mundur diam-diam tiap admin menambah gelombang baru.
+            $table->date('batas_pelunasan')->nullable();
             $table->timestamps();
         });
     }

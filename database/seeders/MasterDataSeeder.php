@@ -20,17 +20,29 @@ class MasterDataSeeder extends Seeder
             [
                 'status_aktif' => true,
                 'tahun_mulai' => 2026,
+                // Tenggat pelunasan sisa cicilan, berlaku buat semua gelombang
+                // tahun ini - sengaja jauh sesudah Gelombang 2 berakhir.
+                'batas_pelunasan' => '2027-03-31',
             ]
         );
 
         $gelombang = GelombangPpdb::updateOrCreate(
             ['tahun_ajaran_id' => $tahunAjaran->id, 'nama' => 'Gelombang 1'],
             [
-                'tanggal_mulai' => '2026-03-01',
-                'tanggal_selesai' => '2026-06-30',
+                // Sengaja mengapit tanggal hari ini supaya gelombang benar-benar
+                // sedang berjalan saat didemokan - kalau tanggal_selesai lewat
+                // sementara status_buka masih true, datanya jadi saling bertentangan.
+                'tanggal_mulai' => '2026-08-01',
+                'tanggal_selesai' => '2026-10-31',
                 // Sengaja di masa depan biar tampilan normalnya kelihatan saat demo.
                 // Ubah ke tanggal lampau kalau mau menguji peringatan "batas waktu terlewat".
-                'batas_waktu_pembayaran' => '2026-09-30',
+                'batas_waktu_pembayaran' => '2026-11-30',
+                // Setoran minimal supaya pendaftaran berstatus 'diterima';
+                // sisanya boleh dicicil sampai tahun_ajaran.batas_pelunasan.
+                // Jalur Anak Yatim mengabaikan angka ini, pakai persen di bawah.
+                'minimal_pembayaran' => 3_000_000,
+                // Khusus jalur Anak Yatim - lihat komentar di migration-nya.
+                'minimal_bayar_persen_yatim' => 50,
                 'status_buka' => true,
             ]
         );
@@ -87,10 +99,15 @@ class MasterDataSeeder extends Seeder
     }
 
     /**
-     * Komponen biaya + tarif per kategori buat Gelombang 1 - dummy demo (nominal
-     * belum tentu sesuai kebijakan sekolah sebenarnya), sekadar biar modul
-     * Pembayaran ada data buat ditampilkan tiap kali migrate:fresh --seed.
-     * Belum ada modul Admin buat kelola tarif ini, jadi sementara lewat seeder.
+     * Komponen biaya + tarif per kategori buat Gelombang 1. Belum ada modul Admin
+     * buat kelola tarif ini, jadi sementara lewat seeder.
+     *
+     * Total per jalur sengaja dipasang begini (minimal bayar 3jt):
+     *
+     *   Reguler     4.500.000  -> sisa cicilan 1.500.000
+     *   Saudara     4.000.000  -> sisa cicilan 1.000.000
+     *   Anak Guru   4.000.000  -> sisa cicilan 1.000.000
+     *   Anak Yatim    925.000  -> minimal 50% = 462.500, sisa 462.500
      */
     private function seedTarifKomponenBiaya(GelombangPpdb $gelombang): void
     {
@@ -100,12 +117,15 @@ class MasterDataSeeder extends Seeder
             [
                 'nama' => 'Uang Pendaftaran',
                 'keterangan' => 'Biaya administrasi pendaftaran, dibayar sekali di awal.',
-                'tarif' => ['Reguler' => 150_000, 'Saudara' => 150_000, 'Anak Yatim' => 0, 'Anak Guru' => 0],
+                'tarif' => ['Reguler' => 150_000, 'Saudara' => 150_000, 'Anak Yatim' => 0, 'Anak Guru' => 150_000],
             ],
             [
+                // Seluruh selisih antar jalur ditaruh di sini: Reguler 4,5jt dan
+                // Saudara/Anak Guru 4jt, jadi bedanya pas 500rb dan gampang
+                // dijelaskan ke wali. Anak Yatim dibebaskan sepenuhnya.
                 'nama' => 'Uang Pangkal',
                 'keterangan' => 'Biaya pembangunan & fasilitas sekolah, dibayar sekali saat diterima.',
-                'tarif' => ['Reguler' => 5_000_000, 'Saudara' => 3_500_000, 'Anak Yatim' => 0, 'Anak Guru' => 2_000_000],
+                'tarif' => ['Reguler' => 3_250_000, 'Saudara' => 2_750_000, 'Anak Yatim' => 0, 'Anak Guru' => 2_750_000],
             ],
             [
                 'nama' => 'Seragam',
@@ -115,7 +135,7 @@ class MasterDataSeeder extends Seeder
             [
                 'nama' => 'SPP Bulan Pertama',
                 'keterangan' => 'Iuran bulanan pertama, dibayar di muka.',
-                'tarif' => ['Reguler' => 350_000, 'Saudara' => 350_000, 'Anak Yatim' => 175_000, 'Anak Guru' => 250_000],
+                'tarif' => ['Reguler' => 350_000, 'Saudara' => 350_000, 'Anak Yatim' => 175_000, 'Anak Guru' => 350_000],
             ],
         ];
 
