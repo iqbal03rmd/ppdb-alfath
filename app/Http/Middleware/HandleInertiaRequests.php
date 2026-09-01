@@ -44,14 +44,8 @@ class HandleInertiaRequests extends Middleware
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
                 'user' => $request->user(),
-                // Beranda tiap role beda rutenya (wali-murid.dashboard, staf-ppdb.dashboard, ...)
-                // dan TIDAK ada rute bernama 'dashboard'. Dikirim dari sini supaya
-                // frontend nggak perlu menebak - dulu welcome.tsx memanggil
-                // route('dashboard') dan bikin halaman blank buat user yang login.
                 'home_url' => $request->user() ? route($request->user()->homeRouteName()) : null,
             ],
-            // Dipakai controller lewat ->with('error'/'success', ...) saat redirect,
-            // lalu ditampilkan sebagai notifikasi di AppLayout.
             'flash' => [
                 'error' => $request->session()->get('error'),
                 'success' => $request->session()->get('success'),

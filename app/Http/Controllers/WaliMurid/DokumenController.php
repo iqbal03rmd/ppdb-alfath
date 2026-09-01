@@ -69,13 +69,6 @@ class DokumenController extends Controller
         return back();
     }
 
-    /**
-     * Wali klik "Kirim Berkas untuk Diverifikasi" - CUMA relevan buat
-     * pengajuan pertama kali (status draft). Kalau lagi perlu_perbaikan,
-     * ini nggak boleh ngubah status sendirian - itu tugasnya
-     * PendaftaranController::submitPerbaikan(), biar formulir nggak
-     * kekunci duluan sebelum sempat ikut dibetulin.
-     */
     public function submit(PendaftaranPpdb $pendaftaran): RedirectResponse
     {
         $this->authorizeAccess($pendaftaran);
@@ -87,11 +80,6 @@ class DokumenController extends Controller
 
         abort_if(! $pendaftaran->berkasLengkap(), 422, 'Masih ada dokumen wajib yang belum diunggah.');
 
-        // INI titik kursi kuota benar-benar diambil (draft -> diajukan). Kuota
-        // bisa saja sudah habis diambil orang lain sejak formulir ini dibuat,
-        // jadi dicek ulang di sini - bukan cuma saat formulir disimpan.
-        // Baris kuota dikunci selama transaksi supaya dua wali nggak bisa
-        // sama-sama mengambil kursi terakhir.
         DB::transaction(function () use ($pendaftaran) {
             KuotaKategori::where('gelombang_ppdb_id', $pendaftaran->gelombang_ppdb_id)
                 ->where('kategori_siswa_id', $pendaftaran->kategori_siswa_id)

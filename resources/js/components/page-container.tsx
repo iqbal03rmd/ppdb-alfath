@@ -16,7 +16,14 @@ import { type ReactNode } from 'react';
  *
  *   1366px (laptop umum) -> area 1078px : dua-duanya terisi hampir penuh
  *   1920px (1080p)       -> area 1632px : sempit sisa ~304px, lebar sisa ~176px
+ *
+ * `flush` dipakai waktu container ini ditaruh DI DALAM blok berwarna yang
+ * melebar penuh (mis. banner Beranda): warnanya boleh mentok ke tepi, tapi
+ * isinya harus tetap sebaris dengan konten halaman di bawahnya - kalau tidak,
+ * ada dua garis tepi kiri yang berbeda dalam satu halaman dan itu kelihatan
+ * salah walau susah ditunjuk. Jarak bawah halaman dilepas karena blok berwarna
+ * mengatur tingginya sendiri.
  */
-export default function PageContainer({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
-    return <div className={`mx-auto w-full px-4 pb-20 sm:px-6 lg:px-8 ${wide ? 'max-w-7xl' : 'max-w-5xl'}`}>{children}</div>;
+export default function PageContainer({ children, wide = false, flush = false }: { children: ReactNode; wide?: boolean; flush?: boolean }) {
+    return <div className={`mx-auto w-full px-4 sm:px-6 lg:px-8 ${flush ? '' : 'pb-20'} ${wide ? 'max-w-7xl' : 'max-w-5xl'}`}>{children}</div>;
 }

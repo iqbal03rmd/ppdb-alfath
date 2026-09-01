@@ -86,43 +86,94 @@ export default function Dashboard({ daftarPendaftaran, ringkasan, gelombangDibuk
         <AppLayout>
             <Head title="Beranda" />
 
-            <PageContainer wide>
-                {/* Banner sambutan - satu-satunya elemen bergradasi di halaman ini */}
-                <div className="relative mt-8 mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-[#0A3981] to-[#1F509A] px-6 py-7 sm:px-8 sm:py-8">
-                    <div aria-hidden className="pointer-events-none absolute -top-12 -right-8 h-40 w-40 rounded-full bg-white/10" />
-                    <div aria-hidden className="pointer-events-none absolute right-20 -bottom-16 h-28 w-28 rounded-full bg-white/5" />
+            {/* Kepala halaman: SATU blok dua lapis, sengaja di luar PageContainer
+                supaya melebar penuh sampai tepi area konten tanpa sisa putih di
+                kiri-kanan. Lapis navy membawa sapaan, lapis biru langit membawa
+                status gelombang - dempet tanpa jarak, dan cuma sudut bawah blok
+                gabungannya yang dibulatkan, jadi sambungannya rata tanpa lengkung
+                ganda. Info gelombang jadi ikut berwarna, bukan lagi kartu pucat
+                yang tenggelam di dasar halaman.
+
+                Ini satu-satunya elemen halaman yang melebar penuh; sisanya tetap
+                lewat PageContainer.
+
+                `shrink-0` WAJIB, jangan dihapus. AppLayout membungkus isi halaman
+                dalam flex-col setinggi layar, jadi blok ini anak langsungnya. CSS
+                cuma memberlakukan min-height:auto pada flex item yang overflow-nya
+                `visible` - begitu diberi overflow-hidden (dipakai buat memotong
+                ikon di garis sambung), batas minimumnya jadi 0 dan flex memerasnya
+                sampai setinggi nol begitu isi halaman panjang. Banner-nya nggak
+                hilang dari DOM, cuma tergencet habis sampai nggak kelihatan. */}
+            <div className="shrink-0 overflow-hidden rounded-b-2xl">
+                {/* Lapis 1 - sapaan. Warnanya mentok ke tepi, tapi isinya dibungkus
+                    PageContainer supaya sebaris dengan kartu-kartu di bawah. */}
+                <div className="relative overflow-hidden bg-gradient-to-br from-[#0A3981] to-[#1F509A] py-7 sm:py-14">
+                    <div aria-hidden className="pointer-events-none absolute -top-14 -right-10 h-44 w-44 rounded-full bg-white/10" />
+                    <div aria-hidden className="pointer-events-none absolute right-24 -bottom-16 h-28 w-28 rounded-full bg-white/5" />
                     <GraduationCap
                         aria-hidden
-                        size={120}
+                        size={118}
                         strokeWidth={1}
-                        className="pointer-events-none absolute -right-4 -bottom-6 hidden text-white/10 sm:block"
+                        className="pointer-events-none absolute -right-5 -bottom-8 hidden text-white/10 sm:block"
                     />
-                    <div className="relative max-w-lg">
-                        <p className="text-xs font-semibold tracking-wide text-[#D4EBF8]/80 uppercase">{tanggalHariIni}</p>
-                        <h1 className="mt-1 text-2xl font-bold text-white">Assalamu&apos;alaikum, {namaDepan}</h1>
-                        <p className="mt-1.5 text-sm text-[#D4EBF8]">{subtitleText}</p>
-                    </div>
+                    <PageContainer wide flush>
+                        <div className="relative max-w-lg">
+                            <p className="text-xs font-semibold tracking-wide text-[#D4EBF8]/80 uppercase">{tanggalHariIni}</p>
+                            <h1 className="mt-1 text-2xl font-bold text-white">Assalamu&apos;alaikum, {namaDepan}</h1>
+                            <p className="mt-1.5 text-sm text-[#D4EBF8]">{subtitleText}</p>
+                        </div>
+                    </PageContainer>
                 </div>
 
-                {!adaPendaftaran ? (
-                    <div className="rounded-2xl bg-white p-10 text-center shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
-                        <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#D4EBF8]/60 text-[#1F509A]">
-                            <GraduationCap size={22} strokeWidth={1.8} />
-                        </span>
-                        <p className="text-sm text-gray-500">
-                            {gelombangDibuka
-                                ? `Pendaftaran ${gelombangDibuka.nama} sedang dibuka sampai ${gelombangDibuka.tanggal_selesai}.`
-                                : 'Saat ini belum ada gelombang PPDB yang dibuka.'}
-                        </p>
-                        {gelombangDibuka && (
-                            <Button asChild className="mt-5 rounded-xl px-5 py-2.5 text-sm font-bold">
-                                <Link href={route('wali-murid.pendaftaran.create')}>+ Daftarkan Anak</Link>
-                            </Button>
-                        )}
+                {/* Lapis 2 - status gelombang + pintu mendaftar */}
+                {gelombangDibuka ? (
+                    <div className="bg-[#D4EBF8] py-2.5">
+                        <PageContainer wide flush>
+                            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                                <p className="text-sm text-[#0A3981]">
+                                    <b>{gelombangDibuka.nama}</b> dibuka sampai {gelombangDibuka.tanggal_selesai}.
+                                </p>
+                                {/* Wali baru: mendaftar itu satu-satunya hal yang bisa dia lakukan,
+                                    jadi tombolnya aksi utama. Wali yang sudah punya anak terdaftar:
+                                    aksi utamanya ada di kartu anak, jadi yang ini turun jadi
+                                    sekunder - satu aksi utama per layar.
+
+                                    Labelnya "Anak Lagi", bukan "Anak Lain": dalam bahasa
+                                    sehari-hari "anak lain" terbaca sebagai anak milik orang
+                                    lain, sedangkan yang dimaksud jelas anak wali ini juga. */}
+                                <Button
+                                    asChild
+                                    size="sm"
+                                    variant={adaPendaftaran ? 'outline' : 'default'}
+                                    className={
+                                        'h-8 rounded-xl font-bold ' +
+                                        (adaPendaftaran ? 'border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-white hover:text-[#0A3981]' : '')
+                                    }
+                                >
+                                    <Link href={route('wali-murid.pendaftaran.create')}>
+                                        {adaPendaftaran ? '+ Daftarkan Anak Lagi' : '+ Daftarkan Anak'}
+                                    </Link>
+                                </Button>
+                            </div>
+                        </PageContainer>
                     </div>
                 ) : (
-                    <>
-                        {/* Tiga angka yang paling dicari wali, plus tenggat gelombang */}
+                    <div className="bg-[#F5F9FD] py-2.5">
+                        <PageContainer wide flush>
+                            <p className="text-sm text-gray-600">
+                                Belum ada gelombang PPDB yang dibuka. Pendaftaran anak baru akan tersedia lagi begitu sekolah membuka gelombang
+                                berikutnya.
+                            </p>
+                        </PageContainer>
+                    </div>
+                )}
+            </div>
+
+            <PageContainer wide>
+                <div className="pt-6">
+                    {/* Empat angka yang paling dicari wali - lebar penuh, tepat di bawah
+                    status gelombang, sebelum masuk ke rincian per anak. */}
+                    {adaPendaftaran && (
                         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             <Ringkas ikon={<Users size={18} strokeWidth={1.8} />} label="Anak Didaftarkan" nilai={String(ringkasan.jumlah_anak)} />
                             <Ringkas
@@ -144,134 +195,148 @@ export default function Dashboard({ daftarPendaftaran, ringkasan, gelombangDibuk
                                 sorot={ringkasan.tenggat_terdekat_lewat}
                             />
                         </div>
+                    )}
 
-                        {/* Kartu per anak - inti halaman ini */}
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            {daftarPendaftaran.map((item) => {
-                                const badge = statusBadge[item.status] ?? statusBadge.draft;
+                    {/* Isi utama di kiri, rujukan di kanan - pola aside yang sama dengan
+                    formulir pendaftaran. Di bawah lg dua-duanya menumpuk, jadi urutan
+                    baca di layar kecil tetap: daftar anak dulu, alur belakangan. */}
+                    <div className="grid gap-6 lg:grid-cols-4">
+                        <div className="lg:col-span-3">
+                            {!adaPendaftaran ? (
+                                <div className="rounded-2xl bg-white p-10 text-center shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
+                                    <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#D4EBF8]/60 text-[#1F509A]">
+                                        <GraduationCap size={22} strokeWidth={1.8} />
+                                    </span>
+                                    <h2 className="text-[15px] font-semibold text-gray-900">Belum ada anak yang kamu daftarkan</h2>
+                                    <p className="mx-auto mt-1.5 max-w-sm text-sm text-gray-500">
+                                        {gelombangDibuka
+                                            ? 'Mulai lewat tombol Daftarkan Anak di atas, lalu ikuti empat tahap di samping.'
+                                            : 'Begitu sekolah membuka gelombang berikutnya, tombol untuk mendaftar akan muncul di atas.'}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    {daftarPendaftaran.map((item) => {
+                                        const badge = statusBadge[item.status] ?? statusBadge.draft;
 
-                                return (
-                                    <div
-                                        key={item.id}
-                                        className={
-                                            'flex flex-col rounded-2xl bg-white p-5 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)] ' +
-                                            (item.perlu_tindakan ? 'ring-1 ring-[#E38E49]/40' : '')
-                                        }
-                                    >
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="min-w-0">
-                                                <h2 className="truncate text-[15px] font-semibold text-gray-900">{item.nama_pendaftar}</h2>
-                                                <p className="mt-0.5 text-xs text-gray-500">
-                                                    {item.nomor_pendaftaran} · {item.kategori}
-                                                </p>
-                                            </div>
-                                            <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${badge.className}`}>
-                                                {badge.label}
-                                            </span>
-                                        </div>
-
-                                        <TahapMini tahap={item.tahap} total={item.tahap_total} ditolak={item.status === 'ditolak'} />
-
-                                        <p className="mt-3 flex-1 text-sm text-gray-700">{item.tindakan}</p>
-
-                                        {item.catatan_verifikasi && item.status === 'perlu_perbaikan' && (
-                                            <p className="mt-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-700">{item.catatan_verifikasi}</p>
-                                        )}
-
-                                        {item.sisa_tagihan !== null && item.sisa_tagihan > 0 && (
-                                            <p className="mt-2 text-sm text-gray-500">
-                                                Sisa tagihan <b className="text-[#0A3981]">{formatRupiah(item.sisa_tagihan)}</b>
-                                            </p>
-                                        )}
-
-                                        {/* Jatuh tempo = batas minimal bayar, satu-satunya tanggal
-                                            yang berakibat. Dua anak bisa punya tanggal berbeda kalau
-                                            gelombangnya berbeda. */}
-                                        {item.jatuh_tempo && (
-                                            <p className={'mt-1 text-xs ' + (item.jatuh_tempo_lewat ? 'text-red-600' : 'text-gray-500')}>
-                                                {item.jatuh_tempo_lewat
-                                                    ? `Jatuh tempo ${item.jatuh_tempo} sudah lewat — hubungi Staf PPDB`
-                                                    : `Jatuh tempo ${item.jatuh_tempo}`}
-                                            </p>
-                                        )}
-
-                                        {/* Tanggal cicilan sengaja dibedakan nadanya: sudah diterima,
-                                            kursinya aman, jadi ini keterangan - bukan peringatan. */}
-                                        {item.tanggal_cicilan && (
-                                            <p className={'mt-1 text-xs ' + (item.menunggak ? 'text-amber-600' : 'text-gray-500')}>
-                                                {item.menunggak
-                                                    ? `Sisa cicilan melewati ${item.tanggal_cicilan} — pendaftaran tetap diterima`
-                                                    : `Sisa boleh dicicil sampai ${item.tanggal_cicilan}`}
-                                            </p>
-                                        )}
-
-                                        {item.tombol && (
-                                            <Button
-                                                asChild
-                                                variant={item.perlu_tindakan ? 'default' : 'outline'}
-                                                size="sm"
+                                        return (
+                                            <div
+                                                key={item.id}
                                                 className={
-                                                    'mt-4 w-full rounded-xl font-bold ' +
-                                                    (item.perlu_tindakan
-                                                        ? ''
-                                                        : 'border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]')
+                                                    'flex flex-col rounded-2xl bg-white p-5 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)] ' +
+                                                    (item.perlu_tindakan ? 'ring-1 ring-[#E38E49]/40' : '')
                                                 }
                                             >
-                                                <Link href={tautan(item)}>{item.tombol}</Link>
-                                            </Button>
-                                        )}
-                                    </div>
-                                );
-                            })}
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="min-w-0">
+                                                        <h2 className="truncate text-[15px] font-semibold text-gray-900">{item.nama_pendaftar}</h2>
+                                                        <p className="mt-0.5 text-xs text-gray-500">
+                                                            {item.nomor_pendaftaran} · {item.kategori}
+                                                        </p>
+                                                    </div>
+                                                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${badge.className}`}>
+                                                        {badge.label}
+                                                    </span>
+                                                </div>
+
+                                                <TahapMini tahap={item.tahap} total={item.tahap_total} ditolak={item.status === 'ditolak'} />
+
+                                                <p className="mt-3 flex-1 text-sm text-gray-700">{item.tindakan}</p>
+
+                                                {item.catatan_verifikasi && item.status === 'perlu_perbaikan' && (
+                                                    <p className="mt-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-700">
+                                                        {item.catatan_verifikasi}
+                                                    </p>
+                                                )}
+
+                                                {item.sisa_tagihan !== null && item.sisa_tagihan > 0 && (
+                                                    <p className="mt-2 text-sm text-gray-500">
+                                                        Sisa tagihan <b className="text-[#0A3981]">{formatRupiah(item.sisa_tagihan)}</b>
+                                                    </p>
+                                                )}
+
+                                                {/* Jatuh tempo = batas minimal bayar, satu-satunya tanggal
+                                            yang berakibat. Dua anak bisa punya tanggal berbeda kalau
+                                            gelombangnya berbeda. */}
+                                                {item.jatuh_tempo && (
+                                                    <p className={'mt-1 text-xs ' + (item.jatuh_tempo_lewat ? 'text-red-600' : 'text-gray-500')}>
+                                                        {item.jatuh_tempo_lewat
+                                                            ? `Jatuh tempo ${item.jatuh_tempo} sudah lewat — hubungi Staf PPDB`
+                                                            : `Jatuh tempo ${item.jatuh_tempo}`}
+                                                    </p>
+                                                )}
+
+                                                {/* Tanggal cicilan sengaja dibedakan nadanya: sudah diterima,
+                                            kursinya aman, jadi ini keterangan - bukan peringatan. */}
+                                                {item.tanggal_cicilan && (
+                                                    <p className={'mt-1 text-xs ' + (item.menunggak ? 'text-amber-600' : 'text-gray-500')}>
+                                                        {item.menunggak
+                                                            ? `Sisa cicilan melewati ${item.tanggal_cicilan} — pendaftaran tetap diterima`
+                                                            : `Sisa boleh dicicil sampai ${item.tanggal_cicilan}`}
+                                                    </p>
+                                                )}
+
+                                                {item.tombol && (
+                                                    <Button
+                                                        asChild
+                                                        variant={item.perlu_tindakan ? 'default' : 'outline'}
+                                                        size="sm"
+                                                        className={
+                                                            'mt-4 w-full rounded-xl font-bold ' +
+                                                            (item.perlu_tindakan
+                                                                ? ''
+                                                                : 'border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]')
+                                                        }
+                                                    >
+                                                        <Link href={tautan(item)}>{item.tombol}</Link>
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
 
-                        {gelombangDibuka && (
-                            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#D4EBF8] bg-[#F5F9FD] p-5">
-                                <p className="text-sm text-[#0A3981]">
-                                    <b>{gelombangDibuka.nama}</b> masih dibuka sampai {gelombangDibuka.tanggal_selesai}.
-                                </p>
-                                <Button
-                                    asChild
-                                    variant="outline"
-                                    size="sm"
-                                    className="border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-white hover:text-[#0A3981]"
-                                >
-                                    <Link href={route('wali-murid.pendaftaran.create')}>+ Daftarkan Anak Lain</Link>
-                                </Button>
+                        {/* Rujukan - orientasi buat wali yang baru pertama kali ikut PPDB
+                        online. Di kolom sempit tahapnya jadi menurun, dan itu justru
+                        lebih enak dibaca daripada empat kolom melebar seperti waktu
+                        blok ini masih di dasar halaman. */}
+                        <aside className="lg:col-span-1">
+                            <div className="rounded-2xl bg-white p-5 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
+                                <h2 className="text-[15px] font-semibold text-gray-900">Alur Pendaftaran</h2>
+                                <p className="mb-4 text-sm text-gray-500">Empat tahap yang dilalui setiap pendaftaran.</p>
+                                {/* Jarak antar langkah sengaja rapat: keempatnya harus kebaca
+                                    tanpa scroll begitu wali sampai di Beranda, termasuk di
+                                    laptop tinggi 768px. */}
+                                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+                                    <Tahap
+                                        no={1}
+                                        judul="Registrasi"
+                                        isi="Membuat akun wali murid. Tahap ini sudah kamu lewati."
+                                        icon={<UserPlus size={16} strokeWidth={1.8} />}
+                                    />
+                                    <Tahap
+                                        no={2}
+                                        judul="Formulir"
+                                        isi="Mengisi data calon peserta didik dan data orang tua/wali."
+                                        icon={<FileText size={16} strokeWidth={1.8} />}
+                                    />
+                                    <Tahap
+                                        no={3}
+                                        judul="Unggah Berkas"
+                                        isi="Mengunggah KK, akta, KTP, dan pas foto untuk diperiksa Staf PPDB."
+                                        icon={<UploadCloud size={16} strokeWidth={1.8} />}
+                                    />
+                                    <Tahap
+                                        no={4}
+                                        judul="Pembayaran"
+                                        isi="Membayar biaya PPDB setelah berkas dinyatakan lengkap."
+                                        icon={<Wallet size={16} strokeWidth={1.8} />}
+                                    />
+                                </div>
                             </div>
-                        )}
-                    </>
-                )}
-
-                {/* Orientasi alur - banyak wali baru pertama kali ikut PPDB online */}
-                <div className="mt-6 rounded-2xl bg-white p-6 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
-                    <h2 className="mb-1 text-[15px] font-semibold text-gray-900">Alur Pendaftaran</h2>
-                    <p className="mb-5 text-sm text-gray-500">Empat tahap yang dilalui setiap pendaftaran.</p>
-                    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-                        <Tahap
-                            no={1}
-                            judul="Registrasi"
-                            isi="Membuat akun wali murid. Tahap ini sudah kamu lewati."
-                            icon={<UserPlus size={16} strokeWidth={1.8} />}
-                        />
-                        <Tahap
-                            no={2}
-                            judul="Formulir"
-                            isi="Mengisi data calon peserta didik dan data orang tua/wali."
-                            icon={<FileText size={16} strokeWidth={1.8} />}
-                        />
-                        <Tahap
-                            no={3}
-                            judul="Unggah Berkas"
-                            isi="Mengunggah KK, akta, KTP, dan pas foto untuk diperiksa Staf PPDB."
-                            icon={<UploadCloud size={16} strokeWidth={1.8} />}
-                        />
-                        <Tahap
-                            no={4}
-                            judul="Pembayaran"
-                            isi="Membayar biaya PPDB setelah berkas dinyatakan lengkap."
-                            icon={<Wallet size={16} strokeWidth={1.8} />}
-                        />
+                        </aside>
                     </div>
                 </div>
             </PageContainer>

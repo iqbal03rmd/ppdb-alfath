@@ -18,17 +18,9 @@ use Inertia\Response;
 
 class PendaftaranController extends Controller
 {
-    /**
-     * DataTable: semua pendaftaran (anak) milik wali yang login.
-     * Detail lengkap tiap baris juga dikirim sekalian (dipakai accordion
-     * expand di tabel), bukan cuma ringkasan - makanya pakai mapDetail()
-     * yang sama kayak show().
-     */
+
     public function index(Request $request): Response
     {
-        // 'pembayaran' + 'tagihanItem' ikut di-eager-load karena mapDetail()
-        // menghitung status pelunasan dari keduanya - tanpa ini, tiap baris
-        // menembak query sendiri (N+1).
         $pendaftaranList = PendaftaranPpdb::with([
             'kategoriSiswa', 'dokumen', 'waliMurid', 'pembayaranTerakhir', 'gelombang',
             'pembayaran', 'tagihanItem',
@@ -41,19 +33,10 @@ class PendaftaranController extends Controller
         return Inertia::render('wali-murid/pendaftaran-index', [
             'pendaftaranList' => $pendaftaranList,
             'expandId' => $request->query('expand'),
-            // Gerbang "boleh mendaftarkan anak baru". Halaman ini punya tombol
-            // tambah sendiri, jadi gerbangnya harus ikut dikirim ke sini juga -
-            // kalau nggak, wali yang sudah punya anak terdaftar tetap bisa masuk
-            // ke formulir saat pendaftaran ditutup, isi semua kolom, lalu baru
-            // ditolak server di detik terakhir.
             'gelombangDibuka' => $this->gelombangDibuka() !== null,
         ]);
     }
 
-    /**
-     * Detail satu pendaftaran lewat URL langsung (dipakai kalau ada yang
-     * perlu link ke pendaftaran spesifik, mis. dari sisi Staf nanti).
-     */
     public function show(PendaftaranPpdb $pendaftaran): Response
     {
         $this->authorizeAccess($pendaftaran);
@@ -66,12 +49,6 @@ class PendaftaranController extends Controller
         return Inertia::render('wali-murid/pendaftaran-show', $this->mapDetail($pendaftaran));
     }
 
-    /**
-     * Satu-satunya tempat yang nyusun representasi lengkap sebuah pendaftaran
-     * (biodata, wali, dokumen, progres, status pembayaran). Dipakai index()
-     * (buat tiap baris di accordion) dan show() (buat halaman detail langsung) -
-     * biar dua-duanya nggak pernah beda data.
-     */
     private function mapDetail(PendaftaranPpdb $pendaftaran): array
     {
         $dokumenWajib = $pendaftaran->dokumenWajib();
@@ -105,13 +82,8 @@ class PendaftaranController extends Controller
                 'nama_file' => basename($d->berkas),
                 'url' => Storage::url($d->berkas),
             ]),
-            // Status pelunasan GABUNGAN (bisa dari beberapa baris pembayaran_ppdb
-            // kalau dicicil) - bukan status transfer terakhir doang. null kalau
-            // belum ada transfer sama sekali, biar cocok sama badge di frontend.
             'statusPembayaran' => ($status = $pendaftaran->statusPelunasan()) === 'belum_bayar' ? null : $status,
             'bisaEditBerkas' => $pendaftaran->bisaDiedit(),
-            // Dihitung di backend dan dikirim sebagai prop - JANGAN dihitung ulang
-            // di frontend, biar aturannya nggak pernah beda antara UI dan server.
             'bolehBayar' => $pendaftaran->bolehBayar(),
             'progres' => [
                 'wali' => $pendaftaran->waliMurid->count() > 0,
@@ -121,11 +93,6 @@ class PendaftaranController extends Controller
         ];
     }
 
-    /**
-     * Gelombang yang sedang menerima pendaftaran baru. SATU-SATUNYA definisi
-     * gerbang itu - dipakai index(), create(), store(), dan edit() supaya UI
-     * nggak pernah menjanjikan sesuatu yang ditolak server.
-     */
     private function gelombangDibuka(): ?GelombangPpdb
     {
         return GelombangPpdb::with('tahunAjaran')
@@ -155,12 +122,7 @@ class PendaftaranController extends Controller
 
         abort_if(! $gelombang, 422, 'Tidak ada gelombang PPDB yang sedang dibuka saat ini.');
 
-        // Pembuatan nomor + baris pendaftaran dibungkus satu transaksi supaya
-        // dua wali yang mendaftar bersamaan nggak dapat nomor urut yang sama
-        // (nomor_pendaftaran itu unique - kalau kembar, insert-nya gagal).
         $pendaftaran = DB::transaction(function () use ($request, $gelombang) {
-            // Kunci baris kuota selama transaksi supaya dua pendaftar nggak
-            // bisa sama-sama mengambil kursi terakhir.
             KuotaKategori::where('gelombang_ppdb_id', $gelombang->id)
                 ->where('kategori_siswa_id', $request->kategori_siswa_id)
                 ->lockForUpdate()
@@ -201,16 +163,9 @@ class PendaftaranController extends Controller
         $this->authorizeEditable($pendaftaran);
 
         $pendaftaran->load('waliMurid');
-
-        // Sengaja TIDAK dijadikan gerbang di sini: wali yang diminta memperbaiki
-        // data harus tetap bisa mengirim perbaikannya walau gelombangnya sudah
-        // ditutup. Gelombang di sini cuma dipakai buat menghitung sisa kuota.
         $gelombang = $this->gelombangDibuka();
 
         return Inertia::render('wali-murid/pendaftaran-create', [
-            // Kategori yang sedang dipakai pendaftaran ini dikecualikan dari
-            // penguncian - kalau nggak, wali nggak bisa menyimpan formulirnya
-            // sendiri begitu kategorinya penuh oleh orang lain.
             'kategoriSiswa' => $this->kategoriDenganKuota($gelombang, $pendaftaran->kategori_siswa_id),
             'gelombang' => $gelombang ? [
                 'id' => $gelombang->id,
@@ -245,17 +200,10 @@ class PendaftaranController extends Controller
         $this->authorizeAccess($pendaftaran);
         $this->authorizeEditable($pendaftaran);
 
-        // Wali boleh mengganti kategori saat mengedit - kategori barunya harus
-        // ikut dicek kuota. Kategori yang sekarang dipakai dikecualikan, karena
-        // pendaftaran ini sendiri belum memegang kursi (statusnya masih
-        // draft/perlu_perbaikan) jadi nggak mungkin memenuhi kuotanya sendiri.
         if ((int) $request->kategori_siswa_id !== $pendaftaran->kategori_siswa_id) {
             $this->abortJikaKuotaPenuh($pendaftaran->gelombang, (int) $request->kategori_siswa_id);
         }
 
-        // Status TIDAK di-flip di sini walau lagi perlu_perbaikan - soalnya
-        // berkas mungkin belum ikut dibetulin. Status cuma berubah lewat
-        // submitPerbaikan(), setelah dua-duanya (formulir+berkas) confirmed lengkap.
         $pendaftaran->update([
             'kategori_siswa_id' => $request->kategori_siswa_id,
             'nama_pendaftar' => $request->nama_pendaftar,
@@ -277,12 +225,6 @@ class PendaftaranController extends Controller
         return to_route('wali-murid.pendaftaran.index', ['expand' => $pendaftaran->id]);
     }
 
-    /**
-     * Tombol "Kirim Perbaikan" - satu-satunya jalan status perlu_perbaikan
-     * balik jadi diajukan. Cuma bisa jalan kalau formulir DAN berkas
-     * dua-duanya udah lengkap, jadi nggak ada bagian yang kekunci
-     * sebelum sempat dibetulin.
-     */
     public function submitPerbaikan(PendaftaranPpdb $pendaftaran): RedirectResponse
     {
         $this->authorizeAccess($pendaftaran);
@@ -299,11 +241,6 @@ class PendaftaranController extends Controller
         return to_route('wali-murid.pendaftaran.index', ['expand' => $pendaftaran->id]);
     }
 
-    /**
-     * Daftar kategori beserta sisa kuotanya untuk gelombang yang sedang dibuka.
-     * Kategori yang kuotanya sudah habis dikunci di formulir. Kalau Admin belum
-     * menetapkan kuota, kategori itu dianggap tidak dibatasi (bukan nol).
-     */
     private function kategoriDenganKuota(?GelombangPpdb $gelombang, ?int $kecualikanKategoriId = null): Collection
     {
         return KategoriSiswa::select('id', 'nama', 'deskripsi')->get()->map(function (KategoriSiswa $k) use ($gelombang, $kecualikanKategoriId) {
@@ -320,12 +257,6 @@ class PendaftaranController extends Controller
         });
     }
 
-    /**
-     * Kursi baru benar-benar diambil saat formulir dikirim (draft -> diajukan,
-     * lihat DokumenController::submit()). Pengecekan di sini lebih awal, supaya
-     * wali nggak buang waktu mengisi formulir panjang untuk kategori yang daya
-     * tampungnya sudah habis.
-     */
     private function abortJikaKuotaPenuh(GelombangPpdb $gelombang, int $kategoriSiswaId): void
     {
         abort_if(
@@ -344,15 +275,6 @@ class PendaftaranController extends Controller
         );
     }
 
-    /**
-     * HARUS dipanggil di dalam transaksi (lihat store()) - lockForUpdate di sini
-     * yang bikin dua pendaftaran bersamaan diserialkan, jadi nggak ada dua orang
-     * yang dapat nomor urut sama.
-     *
-     * Catatan: urutan diambil dari count(), jadi mengasumsikan baris pendaftaran
-     * tidak pernah dihapus permanen (memang belum ada fitur hapus). Kalau nanti
-     * ada, ganti ke nomor urut tertinggi yang pernah dipakai, bukan count.
-     */
     private function generateNomorPendaftaran(GelombangPpdb $gelombang): string
     {
         $nomorUrut = PendaftaranPpdb::where('gelombang_ppdb_id', $gelombang->id)
