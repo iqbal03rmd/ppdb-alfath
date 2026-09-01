@@ -103,7 +103,7 @@ export default function Pembayaran({
     return (
         <AppLayout>
             <Head title="Pembayaran" />
-            <PageHeader title="Pembayaran" subtitle={`${pendaftaran.nomor_pendaftaran} — ${pendaftaran.nama_pendaftar}`} />
+            <PageHeader title="Pembayaran" subtitle={`${pendaftaran.nomor_pendaftaran} — ${pendaftaran.nama_pendaftar}`} wide />
 
             <PageContainer wide>
                 <AlurStepper aktif="Pembayaran" />

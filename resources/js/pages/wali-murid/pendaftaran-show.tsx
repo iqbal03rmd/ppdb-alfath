@@ -1,8 +1,8 @@
-import AppLayout from '@/layouts/app-layout';
-import PageHeader from '@/components/page-header';
 import PageContainer from '@/components/page-container';
+import PageHeader from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import AppLayout from '@/layouts/app-layout';
 import { Head, Link } from '@inertiajs/react';
 
 interface WaliMuridItem {
@@ -58,13 +58,12 @@ function InfoItem({ label, value }: { label: string; value: string }) {
 }
 
 export default function PendaftaranShow({ pendaftaran, waliMurid }: ShowProps) {
-
     return (
         <AppLayout>
             <Head title={`Detail Pendaftaran - ${pendaftaran.nama_pendaftar}`} />
-            <PageHeader title={pendaftaran.nama_pendaftar} subtitle={pendaftaran.nomor_pendaftaran} />
+            <PageHeader title={pendaftaran.nama_pendaftar} subtitle={pendaftaran.nomor_pendaftaran} wide />
 
-            <PageContainer>
+            <PageContainer wide>
                 <Link href={route('wali-murid.pendaftaran.index')} className="mb-5 inline-block text-sm text-[#1F509A] underline">
                     &larr; Kembali ke daftar pendaftaran
                 </Link>
@@ -103,7 +102,10 @@ export default function PendaftaranShow({ pendaftaran, waliMurid }: ShowProps) {
                 )}
 
                 <div>
-                    <Tabs defaultValue="calon" className="rounded-2xl bg-white p-7 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
+                    <Tabs
+                        defaultValue="calon"
+                        className="rounded-2xl bg-white p-7 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]"
+                    >
                         <TabsList className="mb-6 bg-[#F5F9FD]">
                             <TabsTrigger value="calon" className="text-gray-600 data-[state=active]:bg-[#0A3981] data-[state=active]:text-white">
                                 Data Calon Peserta Didik

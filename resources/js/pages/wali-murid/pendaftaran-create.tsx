@@ -125,6 +125,7 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                               ? `Gelombang: ${gelombang.nama} (${gelombang.tanggal_mulai} s/d ${gelombang.tanggal_selesai})`
                               : 'Tidak ada gelombang PPDB yang sedang dibuka saat ini.'
                     }
+                    wide
                 />
                 <PageContainer wide>
                     {/* Stepper tetap tampil waktu mengedit. Formulir cuma bisa diedit

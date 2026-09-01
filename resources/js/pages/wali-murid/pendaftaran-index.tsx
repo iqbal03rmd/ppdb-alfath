@@ -87,7 +87,7 @@ export default function PendaftaranIndex({ pendaftaranList, expandId, gelombangD
     return (
         <AppLayout>
             <Head title="Pendaftaran" />
-            <PageHeader title="Pendaftaran" subtitle="Daftar seluruh pendaftaran PPDB yang kamu ajukan" />
+            <PageHeader title="Pendaftaran" subtitle="Daftar seluruh pendaftaran PPDB yang kamu ajukan" wide />
 
             <PageContainer wide>
                 <div className="mb-5 flex items-center justify-between gap-4">

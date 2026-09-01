@@ -1,8 +1,8 @@
-import AppLayout from '@/layouts/app-layout';
-import PageHeader from '@/components/page-header';
-import PageContainer from '@/components/page-container';
 import AlurStepper from '@/components/alur-stepper';
+import PageContainer from '@/components/page-container';
+import PageHeader from '@/components/page-header';
 import { Button } from '@/components/ui/button';
+import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 
@@ -57,26 +57,22 @@ export default function UnggahBerkas({ pendaftaran, dokumenList, bisaEdit }: Ung
     return (
         <AppLayout>
             <Head title="Unggah Berkas" />
-            <PageHeader
-                title="Unggah Berkas Persyaratan"
-                subtitle={`${pendaftaran.nomor_pendaftaran} — ${pendaftaran.nama_pendaftar}`}
-            />
+            <PageHeader title="Unggah Berkas Persyaratan" subtitle={`${pendaftaran.nomor_pendaftaran} — ${pendaftaran.nama_pendaftar}`} />
 
             <PageContainer>
                 <AlurStepper aktif="Unggah Berkas" />
 
                 {!bisaEdit && (
                     <div className="mb-6 rounded-2xl border border-gray-200 bg-gray-100 p-5 text-sm text-gray-600">
-                        Berkas pendaftaran ini sudah tidak bisa diubah lagi karena statusnya sudah lanjut ke tahap
-                        berikutnya. Daftar di bawah cuma bisa dilihat, bukan diedit.
+                        Berkas pendaftaran ini sudah tidak bisa diubah lagi karena statusnya sudah lanjut ke tahap berikutnya. Daftar di bawah cuma
+                        bisa dilihat, bukan diedit.
                     </div>
                 )}
 
                 {bisaEdit && (
                     <div className="mb-6 rounded-2xl border border-[#D4EBF8] bg-[#F5F9FD] p-5 text-sm text-[#0A3981]">
-                        Unggah dokumen berikut sesuai jalur pendaftaran. Format PDF/JPG/PNG, maksimal 2 MB per berkas.
-                        Dokumen bertanda <b>Belum Diunggah</b> wajib dilengkapi sebelum berkas dapat dikirim untuk
-                        diverifikasi Staf PPDB.
+                        Unggah dokumen berikut sesuai jalur pendaftaran. Format PDF/JPG/PNG, maksimal 2 MB per berkas. Dokumen bertanda{' '}
+                        <b>Belum Diunggah</b> wajib dilengkapi sebelum berkas dapat dikirim untuk diverifikasi Staf PPDB.
                     </div>
                 )}
 
@@ -85,8 +81,7 @@ export default function UnggahBerkas({ pendaftaran, dokumenList, bisaEdit }: Ung
                         <div
                             key={doc.jenis}
                             className={
-                                'flex items-center justify-between gap-6 p-6' +
-                                (index !== dokumenList.length - 1 ? ' border-b border-gray-100' : '')
+                                'flex items-center justify-between gap-6 p-6' + (index !== dokumenList.length - 1 ? ' border-b border-gray-100' : '')
                             }
                         >
                             <div className="min-w-0 flex-1">
@@ -171,17 +166,11 @@ export default function UnggahBerkas({ pendaftaran, dokumenList, bisaEdit }: Ung
 
                 {bisaEdit && pendaftaran.status === 'draft' ? (
                     <>
-                        <Button
-                            onClick={handleKirimBerkas}
-                            disabled={!semuaTerunggah}
-                            className="w-full rounded-xl py-3.5 text-[15px] font-bold"
-                        >
+                        <Button onClick={handleKirimBerkas} disabled={!semuaTerunggah} className="w-full rounded-xl py-3.5 text-[15px] font-bold">
                             Kirim Berkas untuk Diverifikasi
                         </Button>
                         {!semuaTerunggah && (
-                            <p className="mt-2 text-center text-xs text-gray-500">
-                                Lengkapi semua dokumen wajib di atas sebelum bisa mengirim.
-                            </p>
+                            <p className="mt-2 text-center text-xs text-gray-500">Lengkapi semua dokumen wajib di atas sebelum bisa mengirim.</p>
                         )}
                     </>
                 ) : (
