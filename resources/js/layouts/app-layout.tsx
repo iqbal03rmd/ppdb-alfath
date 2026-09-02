@@ -1,20 +1,8 @@
+import logoAlFath from '@/assets/logo-alfath.jpg';
 import { type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { BarChart3, CircleCheckBig, ClipboardCheck, Database, FileText, Home, LogOut, Menu, Settings, Users, Wallet } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
-import logoAlFath from '@/assets/logo-alfath.jpg';
-import {
-    Home,
-    FileText,
-    CircleCheckBig,
-    Wallet,
-    Users,
-    ClipboardCheck,
-    BarChart3,
-    Database,
-    Settings,
-    LogOut,
-    Menu,
-} from 'lucide-react';
 
 type MenuItem = { label: string; href: string; icon: ReactNode };
 
@@ -46,8 +34,8 @@ const menuByRole: Record<string, MenuItem[]> = {
     ],
     staf_ppdb: [
         { label: 'Beranda', href: '/staf-ppdb/dashboard', icon: Icon.home },
-        { label: 'Data Pendaftar', href: '/staf-ppdb/pendaftar', icon: Icon.users },
-        { label: 'Verifikasi Berkas', href: '/staf-ppdb/verifikasi-berkas', icon: Icon.clipboardCheck },
+        { label: 'Semua Pendaftaran', href: '/staf-ppdb/pendaftaran', icon: Icon.users },
+        { label: 'Verifikasi Pendaftaran', href: '/staf-ppdb/verifikasi-pendaftaran', icon: Icon.clipboardCheck },
         { label: 'Verifikasi Pembayaran', href: '/staf-ppdb/verifikasi-pembayaran', icon: Icon.wallet },
     ],
     kepala_sekolah: [
@@ -142,7 +130,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                                 href={item.href}
                                 className={
                                     'mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ' +
-                                    (active ? 'bg-[#0A3981] font-semibold text-white shadow-sm' : 'text-gray-600 hover:bg-[#F5F9FD] hover:text-[#0A3981]')
+                                    (active
+                                        ? 'bg-[#0A3981] font-semibold text-white shadow-sm'
+                                        : 'text-gray-600 hover:bg-[#F5F9FD] hover:text-[#0A3981]')
                                 }
                             >
                                 <span
@@ -205,9 +195,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     role="status"
                     className={
                         'fixed top-5 right-5 z-50 flex max-w-md items-start gap-3 rounded-xl border px-4 py-3 text-sm shadow-lg ' +
-                        (notif.tipe === 'error'
-                            ? 'border-red-200 bg-red-50 text-red-700'
-                            : 'border-green-200 bg-green-50 text-green-700')
+                        (notif.tipe === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-green-200 bg-green-50 text-green-700')
                     }
                 >
                     <span className="flex-1">{notif.pesan}</span>

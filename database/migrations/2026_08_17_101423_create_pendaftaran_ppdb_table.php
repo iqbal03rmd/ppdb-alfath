@@ -22,6 +22,13 @@ return new class extends Migration
                 ->cascadeOnDelete();
             $table->foreignId('kategori_siswa_id')
                 ->constrained('kategori_siswa');
+            // Staf yang TERAKHIR memeriksa pendaftaran ini - diisi baik saat
+            // menyetujui maupun saat meminta perbaikan, karena dua-duanya sama
+            // saja tindakan memeriksa; yang beda cuma hasilnya.
+            //
+            // Ini BUKAN riwayat: kalau staf A minta perbaikan lalu staf B yang
+            // menyetujui sesudah wali memperbaiki, yang tersimpan tinggal B.
+            // Riwayat penuh butuh tabel log tersendiri.
             $table->foreignId('diverifikasi_oleh')
                 ->nullable()
                 ->constrained('users')
