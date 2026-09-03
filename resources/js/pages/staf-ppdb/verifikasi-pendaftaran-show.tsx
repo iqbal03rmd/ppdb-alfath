@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { Check, X } from 'lucide-react';
+import { ArrowLeft, Check, X } from 'lucide-react';
 import { useState } from 'react';
 
 interface WaliMuridItem {
@@ -83,9 +83,19 @@ export default function VerifikasiPendaftaranShow({ pendaftaran, waliMurid, berk
             <PageHeader title={pendaftaran.nama_pendaftar} subtitle={`${pendaftaran.nomor_pendaftaran} · ${pendaftaran.kategori}`} wide />
 
             <PageContainer wide>
-                <Link href={route('staf-ppdb.verifikasi-pendaftaran.index')} className="mb-5 inline-block text-sm text-[#1F509A] underline">
-                    &larr; Kembali ke antrian
-                </Link>
+                <Button
+                    asChild
+                    variant="outline"
+                    size="icon"
+                    className="mb-5 rounded-xl border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
+                >
+                    {/* Ikon saja - tujuannya sudah jelas dari posisinya di pojok
+                        kiri atas. aria-label & title tetap diisi supaya pembaca
+                        layar dan tooltip tetap menyebutkan tujuannya. */}
+                    <Link href={route('staf-ppdb.verifikasi-pendaftaran.index')} aria-label="Kembali ke antrian" title="Kembali ke antrian">
+                        <ArrowLeft size={18} strokeWidth={2} />
+                    </Link>
+                </Button>
 
                 <div className="grid gap-6 lg:grid-cols-3">
                     {/* Kolom kiri: data yang diperiksa */}

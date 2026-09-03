@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\StafPpdb\VerifikasiPembayaranController;
 use App\Http\Controllers\StafPpdb\VerifikasiPendaftaranController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -25,4 +26,21 @@ Route::middleware(['auth', 'role:staf_ppdb'])
 
         Route::post('/verifikasi-pendaftaran/{pendaftaran}/minta-perbaikan', [VerifikasiPendaftaranController::class, 'mintaPerbaikan'])
             ->name('verifikasi-pendaftaran.minta-perbaikan');
+
+        // Antrian bukti transfer. Satu baris = satu transfer, bukan satu
+        // pendaftaran - wali yang mencicil muncul beberapa kali, dan memang
+        // tiap transfernya diperiksa sendiri-sendiri.
+        Route::get('/verifikasi-pembayaran', [VerifikasiPembayaranController::class, 'index'])
+            ->name('verifikasi-pembayaran.index');
+
+        Route::get('/verifikasi-pembayaran/{pembayaran}', [VerifikasiPembayaranController::class, 'show'])
+            ->name('verifikasi-pembayaran.show');
+
+        Route::post('/verifikasi-pembayaran/{pembayaran}/sahkan', [VerifikasiPembayaranController::class, 'sahkan'])
+            ->name('verifikasi-pembayaran.sahkan');
+
+        // Dipakai juga buat MEMBATALKAN pengesahan yang terlanjur salah - lihat
+        // komentar di controller-nya.
+        Route::post('/verifikasi-pembayaran/{pembayaran}/tolak', [VerifikasiPembayaranController::class, 'tolak'])
+            ->name('verifikasi-pembayaran.tolak');
     });

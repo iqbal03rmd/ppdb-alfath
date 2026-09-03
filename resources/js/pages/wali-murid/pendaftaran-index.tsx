@@ -201,7 +201,7 @@ function PendaftaranDetailPanel({ item }: { item: PendaftaranItem }) {
                         asChild
                         variant="outline"
                         size="sm"
-                        className="shrink-0 border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
+                        className="shrink-0 rounded-xl border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
                     >
                         <Link
                             href={
@@ -222,7 +222,7 @@ function PendaftaranDetailPanel({ item }: { item: PendaftaranItem }) {
                                 asChild
                                 variant="outline"
                                 size="sm"
-                                className="shrink-0 border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
+                                className="shrink-0 rounded-xl border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
                             >
                                 <Link href={route('wali-murid.pendaftaran.unggah-berkas', pendaftaran.id)}>{labelBerkas}</Link>
                             </Button>
@@ -260,7 +260,7 @@ function PendaftaranDetailPanel({ item }: { item: PendaftaranItem }) {
                             asChild
                             variant="outline"
                             size="sm"
-                            className="shrink-0 border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
+                            className="shrink-0 rounded-xl border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
                         >
                             <Link href={route('wali-murid.pembayaran.show', pendaftaran.id)}>
                                 {item.statusPembayaran ? 'Lihat Status Pembayaran' : 'Bayar Sekarang'}

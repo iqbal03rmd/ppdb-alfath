@@ -8,25 +8,27 @@ import { type ColumnDef } from '@tanstack/react-table';
 
 interface AntrianItem {
     id: number;
+    pendaftaran_id: number;
     nomor_pendaftaran: string;
     nama_pendaftar: string;
     kategori: string;
-    gelombang: string;
-    berkas_terunggah: number;
-    berkas_wajib: number;
+    nominal_transfer: number;
+    tanggal_transfer: string;
     menunggu_sejak: string;
 }
 
-interface VerifikasiPendaftaranProps {
+interface VerifikasiPembayaranProps {
     antrian: AntrianItem[];
+}
+
+function formatRupiah(nominal: number) {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(nominal);
 }
 
 const columns: ColumnDef<AntrianItem>[] = [
     {
         id: 'pendaftar',
         header: 'Pendaftar',
-        // accessorFn dipakai supaya kotak pencarian di atas tabel ikut mencari
-        // nama DAN nomor, walau yang ditampilkan di sel dua baris terpisah.
         accessorFn: (row) => `${row.nama_pendaftar} ${row.nomor_pendaftaran}`,
         cell: ({ row }) => (
             <div>
@@ -41,19 +43,14 @@ const columns: ColumnDef<AntrianItem>[] = [
         cell: ({ row }) => <span className="text-gray-700">{row.original.kategori}</span>,
     },
     {
-        accessorKey: 'gelombang',
-        header: 'Gelombang',
-        cell: ({ row }) => <span className="text-gray-700">{row.original.gelombang}</span>,
+        accessorKey: 'nominal_transfer',
+        header: 'Nominal',
+        cell: ({ row }) => <span className="font-medium text-gray-900">{formatRupiah(row.original.nominal_transfer)}</span>,
     },
     {
-        id: 'berkas',
-        header: 'Berkas',
-        accessorFn: (row) => row.berkas_terunggah,
-        cell: ({ row }) => (
-            <span className="text-gray-700">
-                {row.original.berkas_terunggah} dari {row.original.berkas_wajib}
-            </span>
-        ),
+        accessorKey: 'tanggal_transfer',
+        header: 'Tanggal Transfer',
+        cell: ({ row }) => <span className="text-gray-700">{row.original.tanggal_transfer}</span>,
     },
     {
         accessorKey: 'menunggu_sejak',
@@ -71,23 +68,24 @@ const columns: ColumnDef<AntrianItem>[] = [
                 size="sm"
                 className="rounded-xl border-[#1F509A]/40 bg-white text-xs font-bold text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
             >
-                <Link href={route('staf-ppdb.verifikasi-pendaftaran.show', row.original.id)}>Periksa</Link>
+                <Link href={route('staf-ppdb.verifikasi-pembayaran.show', row.original.id)}>Periksa</Link>
             </Button>
         ),
     },
 ];
 
-export default function VerifikasiPendaftaran({ antrian }: VerifikasiPendaftaranProps) {
+export default function VerifikasiPembayaran({ antrian }: VerifikasiPembayaranProps) {
     return (
         <AppLayout>
-            <Head title="Verifikasi Pendaftaran" />
-            <PageHeader title="Verifikasi Pendaftaran" subtitle="Formulir dan berkas yang menunggu diperiksa" wide />
+            <Head title="Verifikasi Pembayaran" />
+            <PageHeader title="Verifikasi Pembayaran" subtitle="Bukti transfer yang menunggu diperiksa" wide />
 
             <PageContainer wide>
                 {antrian.length === 0 ? (
                     <div className="rounded-2xl bg-white p-10 text-center shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
                         <p className="text-sm text-gray-500">
-                            Tidak ada pendaftaran yang menunggu diperiksa. Antrian ini terisi sendiri begitu ada wali yang mengirim berkasnya.
+                            Tidak ada bukti transfer yang menunggu diperiksa. Antrian ini terisi sendiri begitu ada wali yang mengunggah bukti
+                            pembayaran.
                         </p>
                     </div>
                 ) : (

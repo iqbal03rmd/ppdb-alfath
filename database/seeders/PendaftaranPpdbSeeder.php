@@ -30,14 +30,13 @@ class PendaftaranPpdbSeeder extends Seeder
         }
 
         // Placeholder buat semua file dokumen & bukti transfer di seeder ini,
-        // biar link "Lihat Berkas"/"Lihat Berkas Terunggah" nggak 404.
+        // biar link "Lihat Berkas" dan pratinjau bukti transfer nggak kosong.
+        //
+        // Sengaja ditimpa tiap kali di-seed, bukan dilewati kalau sudah ada:
+        // dulu isinya gambar 1x1 piksel, dan file itu terlanjur mengendap di
+        // storage sehingga halaman staf menampilkan gambar yang tak terlihat.
         $placeholderPath = 'seed-placeholder.png';
-        if (! Storage::disk('public')->exists($placeholderPath)) {
-            Storage::disk('public')->put(
-                $placeholderPath,
-                base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=')
-            );
-        }
+        Storage::disk('public')->put($placeholderPath, $this->gambarPlaceholder());
 
         $pendaftaranList = [
             [
@@ -87,7 +86,11 @@ class PendaftaranPpdbSeeder extends Seeder
                 'catatan' => null,
                 'berkasLengkap' => true,
                 'pembayaran' => [
-                    'nominal_transfer' => 6_250_000,
+                    // PAS minimal bayar Reguler (3jt dari total 4,5jt). Sengaja
+                    // begitu: begitu staf memverifikasi transfer ini, status
+                    // pendaftaran naik sendiri jadi 'diterima' - skenario itu
+                    // yang paling perlu bisa dicoba saat demo.
+                    'nominal_transfer' => 3_000_000,
                     'tanggal_transfer' => now()->subDays(3)->toDateString(),
                     'status' => 'menunggu_verifikasi',
                     'catatan_verifikasi' => null,
@@ -101,7 +104,8 @@ class PendaftaranPpdbSeeder extends Seeder
                 'catatan' => null,
                 'berkasLengkap' => true,
                 'pembayaran' => [
-                    'nominal_transfer' => 4_750_000,
+                    // Lunas penuh: total tagihan jalur Saudara memang 4jt.
+                    'nominal_transfer' => 4_000_000,
                     'tanggal_transfer' => now()->subDays(10)->toDateString(),
                     'status' => 'terverifikasi',
                     'catatan_verifikasi' => null,
@@ -130,6 +134,8 @@ class PendaftaranPpdbSeeder extends Seeder
                 'catatan' => null,
                 'berkasLengkap' => true,
                 'pembayaran' => [
+                    // Di bawah minimal bayar - buktinya ditolak, jadi nominal ini
+                    // memang tidak pernah terhitung.
                     'nominal_transfer' => 2_500_000,
                     'tanggal_transfer' => now()->subDays(6)->toDateString(),
                     'status' => 'ditolak',
@@ -198,5 +204,44 @@ class PendaftaranPpdbSeeder extends Seeder
                 );
             }
         }
+    }
+
+    /**
+     * Gambar contoh berukuran wajar buat dipakai sebagai dokumen dan bukti
+     * transfer di data seed. Digambar sendiri pakai GD supaya tidak perlu
+     * menyimpan berkas gambar di repo.
+     *
+     * Ukurannya dibikin tegak seperti tangkapan layar HP, karena itu bentuk
+     * bukti transfer yang paling sering diunggah wali - biar tata letak halaman
+     * staf teruji dengan bentuk yang mendekati aslinya.
+     */
+    private function gambarPlaceholder(): string
+    {
+        $lebar = 640;
+        $tinggi = 880;
+
+        $gambar = imagecreatetruecolor($lebar, $tinggi);
+
+        $putih = imagecolorallocate($gambar, 255, 255, 255);
+        $navy = imagecolorallocate($gambar, 10, 57, 129);
+        $abu = imagecolorallocate($gambar, 214, 221, 230);
+
+        imagefill($gambar, 0, 0, $putih);
+
+        // Bilah judul
+        imagefilledrectangle($gambar, 0, 0, $lebar, 90, $navy);
+        imagestring($gambar, 5, 30, 38, 'CONTOH BERKAS - DATA SEED', $putih);
+
+        // Garis-garis abu meniru baris teks pada dokumen/struk
+        for ($baris = 0; $baris < 12; $baris++) {
+            $y = 150 + $baris * 55;
+            imagefilledrectangle($gambar, 40, $y, $lebar - 40 - ($baris % 3) * 120, $y + 14, $abu);
+        }
+
+        ob_start();
+        imagepng($gambar);
+        imagedestroy($gambar);
+
+        return ob_get_clean();
     }
 }

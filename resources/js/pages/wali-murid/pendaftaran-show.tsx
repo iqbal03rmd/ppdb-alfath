@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 
 interface WaliMuridItem {
     nama: string;
@@ -64,9 +65,23 @@ export default function PendaftaranShow({ pendaftaran, waliMurid }: ShowProps) {
             <PageHeader title={pendaftaran.nama_pendaftar} subtitle={pendaftaran.nomor_pendaftaran} wide />
 
             <PageContainer wide>
-                <Link href={route('wali-murid.pendaftaran.index')} className="mb-5 inline-block text-sm text-[#1F509A] underline">
-                    &larr; Kembali ke daftar pendaftaran
-                </Link>
+                <Button
+                    asChild
+                    variant="outline"
+                    size="icon"
+                    className="mb-5 rounded-xl border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
+                >
+                    {/* Ikon saja - posisinya di pojok kiri atas sudah menjelaskan
+                        maksudnya. aria-label & title diisi supaya pembaca layar
+                        dan tooltip tetap menyebutkan tujuannya. */}
+                    <Link
+                        href={route('wali-murid.pendaftaran.index')}
+                        aria-label="Kembali ke daftar pendaftaran"
+                        title="Kembali ke daftar pendaftaran"
+                    >
+                        <ArrowLeft size={18} strokeWidth={2} />
+                    </Link>
+                </Button>
 
                 {pendaftaran.status === 'perlu_perbaikan' && (
                     <div className="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-5">
@@ -76,7 +91,7 @@ export default function PendaftaranShow({ pendaftaran, waliMurid }: ShowProps) {
                                 {pendaftaran.catatan_verifikasi ?? 'Staf PPDB meminta perbaikan data. Silakan hubungi sekolah untuk detailnya.'}
                             </p>
                         </div>
-                        <Button asChild size="sm" className="shrink-0 bg-amber-600 hover:bg-amber-700">
+                        <Button asChild size="sm" className="shrink-0 rounded-xl bg-amber-600 hover:bg-amber-700">
                             <Link href={route('wali-murid.pendaftaran.edit', pendaftaran.id)}>Perbaiki Data Sekarang</Link>
                         </Button>
                     </div>
@@ -94,7 +109,7 @@ export default function PendaftaranShow({ pendaftaran, waliMurid }: ShowProps) {
                             asChild
                             variant="outline"
                             size="sm"
-                            className="shrink-0 border-gray-300 text-gray-700 hover:bg-white hover:text-gray-900"
+                            className="shrink-0 rounded-xl border-gray-300 text-gray-700 hover:bg-white hover:text-gray-900"
                         >
                             <Link href={route('wali-murid.pendaftaran.edit', pendaftaran.id)}>Edit Data Pendaftaran</Link>
                         </Button>

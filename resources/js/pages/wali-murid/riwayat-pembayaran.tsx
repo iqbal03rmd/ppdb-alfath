@@ -1,6 +1,7 @@
 import { DataTable } from '@/components/data-table';
 import PageContainer from '@/components/page-container';
 import PageHeader from '@/components/page-header';
+import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link } from '@inertiajs/react';
 import { type ColumnDef } from '@tanstack/react-table';
@@ -63,9 +64,14 @@ const columns: ColumnDef<RiwayatItem>[] = [
         header: '',
         enableSorting: false,
         cell: ({ row }) => (
-            <Link href={route('wali-murid.pembayaran.show', row.original.pendaftaran_id)} className="text-xs font-semibold text-[#1F509A] underline">
-                Lihat Detail
-            </Link>
+            <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="rounded-xl border-[#1F509A]/40 bg-white text-xs font-bold text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
+            >
+                <Link href={route('wali-murid.pembayaran.show', row.original.pendaftaran_id)}>Lihat Detail</Link>
+            </Button>
         ),
     },
 ];
