@@ -1,3 +1,4 @@
+import PageBanner from '@/components/page-banner';
 import PageContainer from '@/components/page-container';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
@@ -86,88 +87,50 @@ export default function Dashboard({ daftarPendaftaran, ringkasan, gelombangDibuk
         <AppLayout>
             <Head title="Beranda" />
 
-            {/* Kepala halaman: SATU blok dua lapis, sengaja di luar PageContainer
-                supaya melebar penuh sampai tepi area konten tanpa sisa putih di
-                kiri-kanan. Lapis navy membawa sapaan, lapis biru langit membawa
-                status gelombang - dempet tanpa jarak, dan cuma sudut bawah blok
-                gabungannya yang dibulatkan, jadi sambungannya rata tanpa lengkung
-                ganda. Info gelombang jadi ikut berwarna, bukan lagi kartu pucat
-                yang tenggelam di dasar halaman.
-
-                Ini satu-satunya elemen halaman yang melebar penuh; sisanya tetap
-                lewat PageContainer.
-
-                `shrink-0` WAJIB, jangan dihapus. AppLayout membungkus isi halaman
-                dalam flex-col setinggi layar, jadi blok ini anak langsungnya. CSS
-                cuma memberlakukan min-height:auto pada flex item yang overflow-nya
-                `visible` - begitu diberi overflow-hidden (dipakai buat memotong
-                ikon di garis sambung), batas minimumnya jadi 0 dan flex memerasnya
-                sampai setinggi nol begitu isi halaman panjang. Banner-nya nggak
-                hilang dari DOM, cuma tergencet habis sampai nggak kelihatan. */}
-            <div className="shrink-0 overflow-hidden rounded-b-2xl">
-                {/* Lapis 1 - sapaan. Warnanya mentok ke tepi, tapi isinya dibungkus
-                    PageContainer supaya sebaris dengan kartu-kartu di bawah. */}
-                <div className="relative overflow-hidden bg-gradient-to-br from-[#0A3981] to-[#1F509A] py-7 sm:py-14">
-                    <div aria-hidden className="pointer-events-none absolute -top-14 -right-10 h-44 w-44 rounded-full bg-white/10" />
-                    <div aria-hidden className="pointer-events-none absolute right-24 -bottom-16 h-28 w-28 rounded-full bg-white/5" />
-                    <GraduationCap
-                        aria-hidden
-                        size={118}
-                        strokeWidth={1}
-                        className="pointer-events-none absolute -right-5 -bottom-8 hidden text-white/10 sm:block"
-                    />
-                    <PageContainer wide flush>
-                        <div className="relative max-w-lg">
-                            <p className="text-xs font-semibold tracking-wide text-[#D4EBF8]/80 uppercase">{tanggalHariIni}</p>
-                            <h1 className="mt-1 text-2xl font-bold text-white">Assalamu&apos;alaikum, {namaDepan}</h1>
-                            <p className="mt-1.5 text-sm text-[#D4EBF8]">{subtitleText}</p>
-                        </div>
-                    </PageContainer>
-                </div>
-
-                {/* Lapis 2 - status gelombang + pintu mendaftar */}
-                {gelombangDibuka ? (
-                    <div className="bg-[#D4EBF8] py-2.5">
-                        <PageContainer wide flush>
-                            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-                                <p className="text-sm text-[#0A3981]">
-                                    <b>{gelombangDibuka.nama}</b> dibuka sampai {gelombangDibuka.tanggal_selesai}.
-                                </p>
-                                {/* Wali baru: mendaftar itu satu-satunya hal yang bisa dia lakukan,
-                                    jadi tombolnya aksi utama. Wali yang sudah punya anak terdaftar:
-                                    aksi utamanya ada di kartu anak, jadi yang ini turun jadi
-                                    sekunder - satu aksi utama per layar.
-
-                                    Labelnya "Anak Lagi", bukan "Anak Lain": dalam bahasa
-                                    sehari-hari "anak lain" terbaca sebagai anak milik orang
-                                    lain, sedangkan yang dimaksud jelas anak wali ini juga. */}
-                                <Button
-                                    asChild
-                                    size="sm"
-                                    variant={adaPendaftaran ? 'outline' : 'default'}
-                                    className={
-                                        'h-8 rounded-xl font-bold ' +
-                                        (adaPendaftaran ? 'border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-white hover:text-[#0A3981]' : '')
-                                    }
-                                >
-                                    <Link href={route('wali-murid.pendaftaran.create')}>
-                                        {adaPendaftaran ? '+ Daftarkan Anak Lagi' : '+ Daftarkan Anak'}
-                                    </Link>
-                                </Button>
-                            </div>
-                        </PageContainer>
-                    </div>
-                ) : (
-                    <div className="bg-[#F5F9FD] py-2.5">
-                        <PageContainer wide flush>
-                            <p className="text-sm text-gray-600">
-                                Belum ada gelombang PPDB yang dibuka. Pendaftaran anak baru akan tersedia lagi begitu sekolah membuka gelombang
-                                berikutnya.
+            {/* Banner ciri khas, sama untuk semua peran - lihat PageBanner.
+                Lapis keduanya membawa status gelombang + pintu mendaftar. */}
+            <PageBanner
+                ikon={<GraduationCap size={118} strokeWidth={1} />}
+                tanggal={tanggalHariIni}
+                judul={`Assalamu'alaikum, ${namaDepan}`}
+                subjudul={subtitleText}
+                stripVarian={gelombangDibuka ? 'biru' : 'abu'}
+                strip={
+                    gelombangDibuka ? (
+                        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                            <p className="text-sm text-[#0A3981]">
+                                <b>{gelombangDibuka.nama}</b> dibuka sampai {gelombangDibuka.tanggal_selesai}.
                             </p>
-                        </PageContainer>
-                    </div>
-                )}
-            </div>
+                            {/* Wali baru: mendaftar itu satu-satunya hal yang bisa dia lakukan,
+                                jadi tombolnya aksi utama. Wali yang sudah punya anak terdaftar:
+                                aksi utamanya ada di kartu anak, jadi yang ini turun jadi
+                                sekunder - satu aksi utama per layar.
+
+                                Labelnya "Anak Lagi", bukan "Anak Lain": dalam bahasa
+                                sehari-hari "anak lain" terbaca sebagai anak milik orang
+                                lain, sedangkan yang dimaksud jelas anak wali ini juga. */}
+                            <Button
+                                asChild
+                                size="sm"
+                                variant={adaPendaftaran ? 'outline' : 'default'}
+                                className={
+                                    'h-8 rounded-xl font-bold ' +
+                                    (adaPendaftaran ? 'border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-white hover:text-[#0A3981]' : '')
+                                }
+                            >
+                                <Link href={route('wali-murid.pendaftaran.create')}>
+                                    {adaPendaftaran ? '+ Daftarkan Anak Lagi' : '+ Daftarkan Anak'}
+                                </Link>
+                            </Button>
+                        </div>
+                    ) : (
+                        <p className="text-sm text-gray-600">
+                            Belum ada gelombang PPDB yang dibuka. Pendaftaran anak baru akan tersedia lagi begitu sekolah membuka gelombang
+                            berikutnya.
+                        </p>
+                    )
+                }
+            />
 
             <PageContainer wide>
                 <div className="pt-6">
@@ -247,6 +210,14 @@ export default function Dashboard({ daftarPendaftaran, ringkasan, gelombangDibuk
                                                     <p className="mt-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-700">
                                                         {item.catatan_verifikasi}
                                                     </p>
+                                                )}
+
+                                                {/* Pendaftaran yang ditutup wajib menyebutkan sebabnya.
+                                                    Sebelumnya wali cuma membaca "ditutup sekolah" tanpa
+                                                    keterangan apa pun - dan sebagian dari mereka sudah
+                                                    terlanjur menyetor uang. */}
+                                                {item.status === 'ditolak' && item.catatan_verifikasi && (
+                                                    <p className="mt-2 rounded-lg bg-red-50 p-3 text-xs text-red-700">{item.catatan_verifikasi}</p>
                                                 )}
 
                                                 {item.sisa_tagihan !== null && item.sisa_tagihan > 0 && (
@@ -344,6 +315,13 @@ export default function Dashboard({ daftarPendaftaran, ringkasan, gelombangDibuk
     );
 }
 
+/**
+ * Satu angka penting di Beranda wali - ikon, label, nilai. Berjajar empat di
+ * bawah banner.
+ *
+ * `sorot` memberi cincin oranye: dipakai HANYA kalau angkanya menuntut
+ * tindakan. Kalau semua kartu disorot, tidak ada yang tersorot.
+ */
 function Ringkas({
     ikon,
     label,

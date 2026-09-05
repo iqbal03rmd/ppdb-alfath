@@ -10,6 +10,8 @@ use App\Models\PendaftaranPpdb;
 use App\Models\TagihanItem;
 use App\Models\TahunAjaran;
 use App\Models\WaliMurid;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -64,6 +66,50 @@ class PendaftaranController extends Controller
             'pendaftaran' => $pendaftaran,
             'filterAwal' => $this->filterAwal(),
         ]);
+    }
+
+    /**
+     * Tutup pendaftaran: status jadi 'ditolak', dan kursi kuotanya terlepas.
+     *
+     * Dua sebab yang bermuara ke sini, keduanya ditulis staf di catatan:
+     *
+     *   1. Syarat tidak akan terpenuhi - mis. jalur Anak Yatim yang surat
+     *      kematiannya tidak ada. Ditutup dari 'diajukan'/'perlu_perbaikan'.
+     *   2. Tidak mencapai minimal bayar sampai tenggat gelombangnya.
+     *
+     * Sengaja TIDAK ada di halaman verifikasi berkas. Di sana pilihan staf tetap
+     * dua - setujui atau minta perbaikan - supaya wali selalu diberi kesempatan
+     * membetulkan dulu. Menutup itu langkah sesudah kesempatan itu gagal.
+     *
+     * Tidak ada otomatisasi yang boleh memanggil ini. Menolak melepas kursi yang
+     * bisa langsung diambil keluarga lain, dan tidak ada jalan kembali - jadi
+     * pemicunya harus manusia yang menyaksikan datanya. Alasan lengkapnya di PRD.
+     */
+    public function tutup(Request $request, PendaftaranPpdb $pendaftaran): RedirectResponse
+    {
+        // Guard di server, bukan cuma menyembunyikan tombol: rutenya bisa
+        // ditembak langsung, dan dua staf bisa membuka layar yang sama.
+        abort_unless($pendaftaran->bisaDitutup(), 403, 'Pendaftaran ini sedang tidak bisa ditutup.');
+
+        // Alasannya kalimat bebas, sama seperti permintaan perbaikan. Wajib
+        // diisi: itu satu-satunya keterangan yang sampai ke wali soal kenapa
+        // pendaftarannya ditutup - apalagi kalau dia terlanjur menyetor uang.
+        $data = $request->validate(
+            ['catatan_verifikasi' => ['required', 'string', 'min:10', 'max:1000']],
+            [
+                'catatan_verifikasi.required' => 'Tulis dulu alasan penutupannya.',
+                'catatan_verifikasi.min' => 'Alasannya terlalu pendek. Wali berhak tahu persis kenapa pendaftarannya ditutup.',
+            ]
+        );
+
+        $pendaftaran->update([
+            'status' => 'ditolak',
+            'catatan_verifikasi' => $data['catatan_verifikasi'],
+            'diverifikasi_oleh' => $request->user()->id,
+        ]);
+
+        return to_route('staf-ppdb.pendaftaran.show', $pendaftaran)
+            ->with('success', "Pendaftaran {$pendaftaran->nomor_pendaftaran} ditutup. Kursi kuotanya sudah dilepas.");
     }
 
     /**
@@ -193,6 +239,7 @@ class PendaftaranController extends Controller
                 'jatuhTempoMinimal' => $pendaftaran->jatuhTempoMinimal()?->locale('id')->translatedFormat('d F Y'),
                 'tanggalPelunasanCicilan' => $pendaftaran->tanggalPelunasanCicilan()?->locale('id')->translatedFormat('d F Y'),
             ] : null,
+            'bisaDitutup' => $pendaftaran->bisaDitutup(),
             'sebabTanpaTagihan' => $tagihanTerbit ? null : ($bolehLihatTagihan
                 ? 'Tagihan belum terbit. Wali belum pernah membuka halaman pembayarannya, jadi rincian tagihannya belum dibekukan.'
                 : 'Pendaftaran ini belum sampai tahap pembayaran. Tagihan baru terbit setelah pendaftarannya diverifikasi.'),

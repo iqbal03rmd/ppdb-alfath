@@ -61,7 +61,9 @@ return new class extends Migration
             // boleh mengubah kewajiban orang yang tagihannya sudah terbit.
             // Null = tagihan belum terbit.
             $table->unsignedBigInteger('minimal_bayar')->nullable();
-            // Catatan dari staf PPDB
+            // Catatan dari staf PPDB - dipakai untuk permintaan perbaikan DAN
+            // alasan penutupan pendaftaran. Keduanya kalimat bebas yang dibaca
+            // wali, jadi satu kolom saja.
             $table->text('catatan_verifikasi')->nullable();
             $table->timestamps();
         });

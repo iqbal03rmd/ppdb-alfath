@@ -193,6 +193,13 @@ function PendaftaranDetailPanel({ item }: { item: PendaftaranItem }) {
                 </div>
             )}
 
+            {pendaftaran.status === 'ditolak' && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                    <span className="font-semibold text-red-800">Pendaftaran ditutup: </span>
+                    {pendaftaran.catatan_verifikasi ?? 'Silakan hubungi Staf PPDB untuk penjelasannya.'}
+                </div>
+            )}
+
             {/* Checklist progres per-tahap, masing-masing dengan tombol aksinya sendiri */}
             <div className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-100">
                 <div className="flex items-center justify-between gap-4 bg-[#F5F9FD] p-4">

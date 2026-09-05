@@ -42,6 +42,16 @@ class PendaftaranPpdb extends Model
      */
     private const DOKUMEN_WAJIB_DASAR = ['kartu_keluarga', 'akta', 'ktp_orangtua', 'pas_foto'];
 
+    /**
+     * Status yang masih boleh DITUTUP staf ('ditolak').
+     *
+     * 'draft' tidak masuk: belum pernah disubmit, tidak memegang kursi kuota,
+     * jadi tidak ada apa pun yang perlu ditutup. 'diterima' juga tidak - kalau
+     * penerimaannya salah, yang dicabut pengesahan transfernya, dan status turun
+     * sendiri lewat segarkanStatusPenerimaan().
+     */
+    public const STATUS_BISA_DITUTUP = ['diajukan', 'perlu_perbaikan', 'diverifikasi'];
+
     protected $table = 'pendaftaran_ppdb';
 
     protected $fillable = [
@@ -157,6 +167,23 @@ class PendaftaranPpdb extends Model
     public function bolehLihatTagihan(): bool
     {
         return in_array($this->status, self::STATUS_BOLEH_LIHAT_TAGIHAN);
+    }
+
+    /**
+     * Boleh ditutup staf? Cuma soal status - tenggat TIDAK ikut membatasi di
+     * sini.
+     *
+     * Sempat dibuat sebaliknya (yang 'diverifikasi' baru boleh ditutup setelah
+     * tenggatnya lewat), dan itu keliru: wali yang menyatakan mengundurkan diri
+     * di tengah gelombang jadi tidak bisa ditutup sama sekali, dan kursinya
+     * tertahan sampai tenggat - persis masalah yang mau dihilangkan.
+     *
+     * Tenggat cuma membatasi ALASAN 'gagal_minimal_bayar', bukan hak menutupnya.
+     * Dua pertanyaan berbeda: "boleh ditutup?" dan "alasan mana yang benar?".
+     */
+    public function bisaDitutup(): bool
+    {
+        return in_array($this->status, self::STATUS_BISA_DITUTUP);
     }
 
     /**

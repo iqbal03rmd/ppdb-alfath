@@ -83,6 +83,17 @@ export default function PendaftaranShow({ pendaftaran, waliMurid }: ShowProps) {
                     </Link>
                 </Button>
 
+                {/* Alasan penutupan - hak wali untuk tahu, apalagi kalau dia
+                    terlanjur menyetor uang. */}
+                {pendaftaran.status === 'ditolak' && (
+                    <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-5">
+                        <h3 className="mb-1 text-sm font-semibold text-red-800">Pendaftaran ini ditutup sekolah</h3>
+                        <p className="text-sm text-red-700">
+                            {pendaftaran.catatan_verifikasi ?? 'Silakan hubungi Staf PPDB untuk penjelasan lebih lanjut.'}
+                        </p>
+                    </div>
+                )}
+
                 {pendaftaran.status === 'perlu_perbaikan' && (
                     <div className="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-5">
                         <div>

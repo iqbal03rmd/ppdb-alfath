@@ -1,9 +1,11 @@
 import PageContainer from '@/components/page-container';
 import PageHeader from '@/components/page-header';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Check, X } from 'lucide-react';
+import { useState } from 'react';
 
 interface WaliMuridItem {
     nama: string;
@@ -73,6 +75,7 @@ interface PendaftaranShowProps {
     sebabTanpaTagihan: string | null;
     rincianTagihan: RincianTagihanItem[];
     riwayatTransfer: TransferItem[];
+    bisaDitutup: boolean;
 }
 
 const statusBadge: Record<string, { label: string; className: string }> = {
@@ -129,9 +132,16 @@ export default function PendaftaranShow({
     sebabTanpaTagihan,
     rincianTagihan,
     riwayatTransfer,
+    bisaDitutup,
 }: PendaftaranShowProps) {
     const badge = statusBadge[pendaftaran.status] ?? statusBadge.draft;
     const berkasKurang = berkas.filter((b) => !b.terunggah).length;
+
+    // Formulirnya disembunyikan di balik satu tombol. Menutup pendaftaran itu
+    // tindakan yang tidak bisa dibatalkan - jangan sampai kotak isian menganga
+    // di layar yang paling sering dibuka staf cuma untuk membaca data.
+    const [formTutupTampil, setFormTutupTampil] = useState(false);
+    const tutup = useForm({ catatan_verifikasi: '' });
 
     return (
         <AppLayout>
@@ -346,8 +356,78 @@ export default function PendaftaranShow({
                         </Kartu>
 
                         {pendaftaran.catatan_verifikasi && (
-                            <Kartu judul="Catatan Verifikasi">
+                            <Kartu judul={pendaftaran.status === 'ditolak' ? 'Alasan Ditutup' : 'Catatan Verifikasi'}>
                                 <p className="text-sm text-gray-700">{pendaftaran.catatan_verifikasi}</p>
+                            </Kartu>
+                        )}
+
+                        {/* Satu-satunya aksi di halaman ini. Ada di sini, bukan di
+                            halaman verifikasi berkas, karena menutup pendaftaran
+                            melepas kursi kuota dan tidak bisa dibatalkan - staf
+                            harus melihat berkas DAN uang yang terlanjur masuk
+                            sekaligus, dan cuma layar ini yang menampilkan keduanya. */}
+                        {bisaDitutup && (
+                            <Kartu judul="Tutup Pendaftaran">
+                                {!formTutupTampil ? (
+                                    <>
+                                        <p className="mb-4 text-sm text-gray-500">
+                                            Menutup pendaftaran melepas kursi kuotanya, dan kursi itu bisa langsung diambil keluarga lain. Tindakan
+                                            ini tidak bisa dibatalkan.
+                                        </p>
+
+                                        <Button
+                                            variant="outline"
+                                            className="w-full rounded-xl border-red-300 bg-white font-bold text-red-700 hover:bg-red-50 hover:text-red-800"
+                                            onClick={() => setFormTutupTampil(true)}
+                                        >
+                                            Tutup Pendaftaran
+                                        </Button>
+                                    </>
+                                ) : (
+                                    <form
+                                        onSubmit={(e) => {
+                                            e.preventDefault();
+                                            tutup.post(route('staf-ppdb.pendaftaran.tutup', pendaftaran.id));
+                                        }}
+                                    >
+                                        <p className="mb-3 text-sm text-gray-500">
+                                            Tulis alasan penutupannya. Kalimat ini yang dibaca wali, jadi sebutkan sejelas mungkin.
+                                        </p>
+
+                                        <Textarea
+                                            value={tutup.data.catatan_verifikasi}
+                                            onChange={(e) => tutup.setData('catatan_verifikasi', e.target.value)}
+                                            rows={5}
+                                            placeholder="Contoh: Surat kematian ayah tidak dapat dilengkapi dan wali tidak bersedia pindah ke jalur Reguler."
+                                            className="border-gray-200 bg-[#F5F9FD] text-sm"
+                                        />
+                                        {tutup.errors.catatan_verifikasi && (
+                                            <p className="mt-1.5 text-xs text-red-600">{tutup.errors.catatan_verifikasi}</p>
+                                        )}
+
+                                        <Button
+                                            type="submit"
+                                            variant="outline"
+                                            className="mt-3 w-full rounded-xl border-red-300 bg-white font-bold text-red-700 hover:bg-red-50 hover:text-red-800"
+                                            disabled={tutup.processing}
+                                        >
+                                            {tutup.processing ? 'Memproses...' : 'Tutup Pendaftaran Sekarang'}
+                                        </Button>
+
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            className="mt-2 w-full rounded-xl border-gray-300 bg-white font-bold text-gray-600 hover:bg-gray-50"
+                                            onClick={() => {
+                                                setFormTutupTampil(false);
+                                                tutup.reset();
+                                                tutup.clearErrors();
+                                            }}
+                                        >
+                                            Batal
+                                        </Button>
+                                    </form>
+                                )}
                             </Kartu>
                         )}
 
