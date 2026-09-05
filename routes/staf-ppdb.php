@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\StafPpdb\PendaftaranController;
 use App\Http\Controllers\StafPpdb\VerifikasiPembayaranController;
 use App\Http\Controllers\StafPpdb\VerifikasiPendaftaranController;
 use Illuminate\Support\Facades\Route;
@@ -12,6 +13,17 @@ Route::middleware(['auth', 'role:staf_ppdb'])
         Route::get('/dashboard', function () {
             return Inertia::render('staf-ppdb/dashboard');
         })->name('dashboard');
+
+        // Arsip lengkap semua pendaftaran, segala status. Tidak ada aksi yang
+        // mengubah status di sini - itu tetap di halaman verifikasi.
+        Route::get('/pendaftaran', [PendaftaranController::class, 'index'])
+            ->name('pendaftaran.index');
+
+        // Rekam lengkap satu pendaftaran, termasuk posisi pembayarannya - yang
+        // justru tidak ada di halaman periksa milik Verifikasi Pendaftaran.
+        // Tetap read-only; tautannya saja yang mengarah ke tempat keputusan.
+        Route::get('/pendaftaran/{pendaftaran}', [PendaftaranController::class, 'show'])
+            ->name('pendaftaran.show');
 
         // Antrian pendaftaran menunggu diverifikasi (formulir + berkas). Aksi setujui/minta perbaikan
         // menyusul di langkah berikutnya - halaman ini baru menampilkan daftar.

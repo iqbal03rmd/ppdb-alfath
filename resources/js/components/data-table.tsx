@@ -18,9 +18,25 @@ interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[];
     data: TData[];
     searchPlaceholder?: string;
+    /**
+     * Kontrol penyaring tambahan milik halaman (mis. dropdown tahun ajaran),
+     * ditaruh sebaris dengan kotak pencarian. Penyaringannya sendiri tetap
+     * urusan halaman - DataTable cuma menyediakan tempatnya, supaya tabel ini
+     * tidak perlu tahu apa pun soal isi datanya.
+     */
+    toolbar?: React.ReactNode;
+    /** Kalimat saat tabel kosong. Halaman yang punya penyaring sebaiknya
+     *  mengisinya dengan sebab kosongnya, bukan sekadar "tidak ada data". */
+    emptyMessage?: string;
 }
 
-export function DataTable<TData, TValue>({ columns, data, searchPlaceholder = 'Cari...' }: DataTableProps<TData, TValue>) {
+export function DataTable<TData, TValue>({
+    columns,
+    data,
+    searchPlaceholder = 'Cari...',
+    toolbar,
+    emptyMessage = 'Tidak ada data.',
+}: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = useState<SortingState>([]);
     const [globalFilter, setGlobalFilter] = useState('');
 
@@ -39,13 +55,14 @@ export function DataTable<TData, TValue>({ columns, data, searchPlaceholder = 'C
 
     return (
         <div>
-            <div className="mb-4">
+            <div className="mb-4 flex flex-wrap items-center gap-3">
                 <Input
                     placeholder={searchPlaceholder}
                     value={globalFilter}
                     onChange={(e) => setGlobalFilter(e.target.value)}
                     className="max-w-sm border-gray-200 bg-white shadow-sm"
                 />
+                {toolbar}
             </div>
 
             <div className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
@@ -91,7 +108,7 @@ export function DataTable<TData, TValue>({ columns, data, searchPlaceholder = 'C
                         ) : (
                             <TableRow>
                                 <TableCell colSpan={columns.length} className="h-24 text-center text-sm text-gray-500">
-                                    Tidak ada data.
+                                    {emptyMessage}
                                 </TableCell>
                             </TableRow>
                         )}

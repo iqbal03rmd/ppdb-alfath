@@ -189,7 +189,11 @@ export default function VerifikasiPembayaranShow({ pembayaran, pendaftaran, ring
                             <div className="rounded-2xl border border-green-200 bg-green-50 p-5">
                                 <p className="text-sm text-green-800">
                                     <b>Mengesahkan transfer ini membuat pendaftaran otomatis diterima.</b> Pembayaran akan menyentuh minimal{' '}
-                                    {formatRupiah(ringkasan.minimal_bayar)}, dan sisanya boleh dicicil.
+                                    {formatRupiah(ringkasan.minimal_bayar)}
+                                    {/* Wali yang membayar penuh sekaligus tidak punya sisa untuk
+                                        dicicil. Menjanjikannya bikin staf salah menjelaskan ke
+                                        wali yang justru sudah tidak berutang apa-apa. */}
+                                    {ringkasan.sisa_setelah_disahkan > 0 ? ', dan sisanya boleh dicicil.' : ', sekaligus melunasi seluruh tagihan.'}
                                 </p>
                             </div>
                         )}
