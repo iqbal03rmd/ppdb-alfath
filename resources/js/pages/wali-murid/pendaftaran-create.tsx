@@ -165,8 +165,9 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                                 {/* Data calon peserta didik */}
                                 <Section title="Data Calon Peserta Didik">
                                     <div className="mb-5">
-                                        <Label required>Kategori Siswa</Label>
+                                        <Label required htmlFor="kategori_siswa_id">Kategori Siswa</Label>
                                         <select
+                                            id="kategori_siswa_id"
                                             className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none"
                                             value={data.kategori_siswa_id}
                                             onChange={(e) => setData('kategori_siswa_id', e.target.value)}
@@ -190,8 +191,9 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
 
                                     <div className="mb-5 grid grid-cols-2 gap-5">
                                         <div>
-                                            <Label required>Nama Lengkap</Label>
+                                            <Label required htmlFor="nama_pendaftar">Nama Lengkap</Label>
                                             <Input
+                                                id="nama_pendaftar"
                                                 value={data.nama_pendaftar}
                                                 onChange={(v) => setData('nama_pendaftar', v)}
                                                 placeholder="Nama lengkap calon peserta didik"
@@ -199,15 +201,16 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                                             <FieldError message={errors.nama_pendaftar} />
                                         </div>
                                         <div>
-                                            <Label>
+                                            <Label htmlFor="nik">
                                                 NIK <span className="text-gray-500">(opsional)</span>
                                             </Label>
-                                            <Input value={data.nik} onChange={(v) => setData('nik', v)} placeholder="16 digit NIK" maxLength={16} />
+                                            <Input id="nik" value={data.nik} onChange={(v) => setData('nik', v)} placeholder="16 digit NIK" maxLength={16} />
                                             <FieldError message={errors.nik} />
                                         </div>
                                         <div>
-                                            <Label required>Tempat Lahir</Label>
+                                            <Label required htmlFor="tempat_lahir">Tempat Lahir</Label>
                                             <Input
+                                                id="tempat_lahir"
                                                 value={data.tempat_lahir}
                                                 onChange={(v) => setData('tempat_lahir', v)}
                                                 placeholder="Kota kelahiran"
@@ -215,8 +218,9 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                                             <FieldError message={errors.tempat_lahir} />
                                         </div>
                                         <div>
-                                            <Label required>Tanggal Lahir</Label>
+                                            <Label required htmlFor="tanggal_lahir">Tanggal Lahir</Label>
                                             <input
+                                                id="tanggal_lahir"
                                                 type="date"
                                                 className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none"
                                                 value={data.tanggal_lahir}
@@ -228,8 +232,15 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
 
                                     <div className="mb-5 grid grid-cols-2 gap-5">
                                         <div>
-                                            <Label required>Jenis Kelamin</Label>
-                                            <div className="flex h-[42px] items-center gap-6">
+                                            <Label required id="label_jenis_kelamin">Jenis Kelamin</Label>
+                                            {/* Kelompok radio, bukan satu kolom - jadi labelnya yang
+                                                ditunjuk balik lewat aria-labelledby. Dua pilihan di
+                                                dalamnya sudah dibungkus <label> masing-masing. */}
+                                            <div
+                                                role="radiogroup"
+                                                aria-labelledby="label_jenis_kelamin"
+                                                className="flex h-[42px] items-center gap-6"
+                                            >
                                                 <label className="flex items-center gap-2 text-sm text-gray-700">
                                                     <input
                                                         type="radio"
@@ -255,17 +266,18 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                                         </div>
 
                                         <div>
-                                            <Label>
+                                            <Label htmlFor="agama">
                                                 Agama <span className="text-gray-500">(opsional)</span>
                                             </Label>
-                                            <Input value={data.agama} onChange={(v) => setData('agama', v)} placeholder="Agama" />
+                                            <Input id="agama" value={data.agama} onChange={(v) => setData('agama', v)} placeholder="Agama" />
                                             <FieldError message={errors.agama} />
                                         </div>
                                     </div>
 
                                     <div>
-                                        <Label required>Alamat Domisili</Label>
+                                        <Label required htmlFor="alamat">Alamat Domisili</Label>
                                         <textarea
+                                            id="alamat"
                                             className="min-h-[90px] w-full resize-y rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none"
                                             value={data.alamat}
                                             onChange={(e) => setData('alamat', e.target.value)}
@@ -278,8 +290,9 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                                 {/* Data pendukung klaim kategori - tampil kondisional */}
                                 {kategoriTerpilih?.nama === 'Saudara' && (
                                     <Section title="Data Pendukung: Saudara di Sekolah Ini">
-                                        <Label>Nama Saudara</Label>
+                                        <Label htmlFor="nama_saudara">Nama Saudara</Label>
                                         <Input
+                                            id="nama_saudara"
                                             value={data.nama_saudara}
                                             onChange={(v) => setData('nama_saudara', v)}
                                             placeholder="Nama saudara kandung yang terdaftar di sekolah ini"
@@ -290,8 +303,9 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
 
                                 {kategoriTerpilih?.nama === 'Anak Guru/Tenaga Kependidikan' && (
                                     <Section title="Data Pendukung: Orang Tua Guru/Tenaga Kependidikan">
-                                        <Label>Nama Orang Tua</Label>
+                                        <Label htmlFor="nama_orang_tua_guru">Nama Orang Tua</Label>
                                         <Input
+                                            id="nama_orang_tua_guru"
                                             value={data.nama_orang_tua_guru}
                                             onChange={(v) => setData('nama_orang_tua_guru', v)}
                                             placeholder="Nama orang tua yang merupakan guru/tenaga kependidikan"
@@ -318,8 +332,9 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                                             </div>
                                             <div className="grid grid-cols-2 gap-5">
                                                 <div>
-                                                    <Label required>Nama</Label>
+                                                    <Label required htmlFor={`wali_${index}_nama`}>Nama</Label>
                                                     <Input
+                                                        id={`wali_${index}_nama`}
                                                         value={w.nama}
                                                         onChange={(v) => updateWaliMurid(index, 'nama', v)}
                                                         placeholder="Nama lengkap"
@@ -327,8 +342,9 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                                                     <FieldError message={errors[`wali_murid.${index}.nama`]} />
                                                 </div>
                                                 <div>
-                                                    <Label required>NIK</Label>
+                                                    <Label required htmlFor={`wali_${index}_nik`}>NIK</Label>
                                                     <Input
+                                                        id={`wali_${index}_nik`}
                                                         value={w.nik}
                                                         onChange={(v) => updateWaliMurid(index, 'nik', v)}
                                                         placeholder="16 digit NIK"
@@ -337,8 +353,9 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                                                     <FieldError message={errors[`wali_murid.${index}.nik`]} />
                                                 </div>
                                                 <div>
-                                                    <Label required>Hubungan</Label>
+                                                    <Label required htmlFor={`wali_${index}_hubungan`}>Hubungan</Label>
                                                     <select
+                                                        id={`wali_${index}_hubungan`}
                                                         className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none"
                                                         value={w.hubungan}
                                                         onChange={(e) => updateWaliMurid(index, 'hubungan', e.target.value)}
@@ -351,8 +368,9 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                                                     <FieldError message={errors[`wali_murid.${index}.hubungan`]} />
                                                 </div>
                                                 <div>
-                                                    <Label required>No. WhatsApp Aktif</Label>
+                                                    <Label required htmlFor={`wali_${index}_telepon`}>No. WhatsApp Aktif</Label>
                                                     <Input
+                                                        id={`wali_${index}_telepon`}
                                                         value={w.telepon}
                                                         onChange={(v) => updateWaliMurid(index, 'telepon', v)}
                                                         placeholder="08xxxxxxxxxx"
@@ -423,21 +441,35 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     );
 }
 
-function Label({ children, required }: { children: React.ReactNode; required?: boolean }) {
+/**
+ * `htmlFor` menyambungkan label ke isiannya: mengklik tulisannya memindahkan
+ * kursor ke kolomnya, dan pembaca layar menyebutkan namanya saat kolom itu
+ * disorot. Tanpa itu, kolomnya cuma terbaca "edit text" tanpa keterangan.
+ *
+ * `id` dipakai untuk KELOMPOK isian (mis. radio jenis kelamin) yang tidak
+ * punya satu kolom untuk ditunjuk - di sana kelompoknya yang menunjuk balik
+ * ke label lewat aria-labelledby.
+ */
+function Label({ children, required, htmlFor, id }: { children: React.ReactNode; required?: boolean; htmlFor?: string; id?: string }) {
     return (
-        <label className="mb-1.5 block text-[13px] font-medium text-gray-600">
+        <label id={id} htmlFor={htmlFor} className="mb-1.5 block text-[13px] font-medium text-gray-600">
             {children}
             {required && <span className="ml-0.5 text-red-500">*</span>}
         </label>
     );
 }
 
+// `id` sengaja WAJIB, bukan opsional: itu yang menyambungkan kolom ini ke
+// labelnya. Kalau boleh dikosongkan, kolom yang ditambahkan orang berikutnya
+// akan lupa lagi - sekarang TypeScript yang mengingatkan, bukan manusia.
 function Input({
+    id,
     value,
     onChange,
     placeholder,
     maxLength,
 }: {
+    id: string;
     value: string;
     onChange: (value: string) => void;
     placeholder?: string;
@@ -445,6 +477,7 @@ function Input({
 }) {
     return (
         <input
+            id={id}
             type="text"
             className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none"
             value={value}
