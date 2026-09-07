@@ -179,7 +179,6 @@ class PendaftaranPpdbSeeder extends Seeder
                     'tanggal_lahir' => '2020-04-15',
                     'tempat_lahir' => 'Pekanbaru',
                     'jenis_kelamin' => 'laki-laki',
-                    'agama' => 'Islam',
                     'alamat' => 'Jl. Contoh Alamat No. 10, Pekanbaru',
                     'kelurahan' => 'Sidomulyo Timur',
                     'kecamatan' => $kecamatan,

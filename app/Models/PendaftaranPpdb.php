@@ -91,7 +91,6 @@ class PendaftaranPpdb extends Model
         'tanggal_lahir',
         'tempat_lahir',
         'jenis_kelamin',
-        'agama',
         'alamat',
         'rt',
         'rw',

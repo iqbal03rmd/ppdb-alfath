@@ -75,7 +75,6 @@ class VerifikasiPendaftaranController extends Controller
                 'tempat_lahir' => $pendaftaran->tempat_lahir,
                 'tanggal_lahir' => $pendaftaran->tanggal_lahir->locale('id')->translatedFormat('d F Y'),
                 'jenis_kelamin' => $pendaftaran->jenis_kelamin,
-                'agama' => $pendaftaran->agama,
                 'alamat' => $pendaftaran->alamat,
                 'nama_saudara' => $pendaftaran->nama_saudara,
                 'nama_orang_tua_guru' => $pendaftaran->nama_orang_tua_guru,

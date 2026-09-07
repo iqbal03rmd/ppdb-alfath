@@ -160,7 +160,6 @@ class PendaftaranLaporanSeeder extends Seeder
                     'tanggal_lahir' => '2020-06-01',
                     'tempat_lahir' => 'Pekanbaru',
                     'jenis_kelamin' => $i % 2 === 0 ? 'laki-laki' : 'perempuan',
-                    'agama' => 'Islam',
                     'alamat' => 'Jl. Contoh No. '.($i + 1).', Pekanbaru',
                     'kelurahan' => 'Kelurahan Contoh',
                     'kecamatan' => $luarRiau ? 'Batam Kota' : $domisili,

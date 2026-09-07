@@ -14,12 +14,12 @@ type LoginForm = {
     email: string;
     password: string;
     remember: boolean;
-}
+};
 
 type LoginProps = {
     status?: string;
     canResetPassword: boolean;
-}
+};
 
 export default function Login({ status, canResetPassword }: LoginProps) {
     const { data, setData, post, processing, errors, reset } = useForm<LoginForm>({

@@ -38,7 +38,6 @@ interface PendaftaranExisting {
     tanggal_lahir: string;
     tempat_lahir: string;
     jenis_kelamin: string;
-    agama: string;
     alamat: string;
     rt: string;
     rw: string;
@@ -87,7 +86,6 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPa
         tanggal_lahir: pendaftaran?.tanggal_lahir ?? '',
         tempat_lahir: pendaftaran?.tempat_lahir ?? '',
         jenis_kelamin: pendaftaran?.jenis_kelamin ?? '',
-        agama: pendaftaran?.agama ?? '',
         alamat: pendaftaran?.alamat ?? '',
         rt: pendaftaran?.rt ?? '',
         rw: pendaftaran?.rw ?? '',
@@ -330,18 +328,10 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPa
                                             </div>
                                             <FieldError message={errors.jenis_kelamin} />
                                         </div>
-
-                                        <div>
-                                            <Label htmlFor="agama">
-                                                Agama <span className="text-gray-500">(opsional)</span>
-                                            </Label>
-                                            <Input id="agama" value={data.agama} onChange={(v) => setData('agama', v)} placeholder="Agama" />
-                                            <FieldError message={errors.agama} />
-                                        </div>
                                     </div>
-                                </Section>
 
-                                <Section title="Alamat Tempat Tinggal">
+                                    <Pemisah />
+
                                     <div>
                                         <Label required htmlFor="alamat">
                                             Alamat Lengkap
@@ -430,9 +420,9 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPa
                                             <FieldError message={errors.provinsi} />
                                         </div>
                                     </div>
-                                </Section>
 
-                                <Section title="Asal Sekolah dan Sumber Informasi">
+                                    <Pemisah />
+
                                     <div className="grid gap-5 md:grid-cols-2">
                                         <div>
                                             <Label required htmlFor="asal_paud">
@@ -660,6 +650,22 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPa
 }
 
 /* ---------- Komponen kecil bantu, biar form di atas nggak terlalu panjang ---------- */
+
+/**
+ * Pemisah kelompok DI DALAM satu kartu - garis saja, tanpa tulisan.
+ *
+ * Alamat dan asal sekolah dulunya kartu sendiri-sendiri, lalu digabung ke kartu
+ * data calon peserta didik (keputusan user, 8 September 2026). Sempat diberi
+ * sub-judul bertulisan, tapi itu mengembalikan kesan "tiga formulir terpisah"
+ * yang justru mau dihilangkan - garisnya saja sudah cukup memberi jeda buat mata
+ * tanpa memecah kartunya lagi secara pesan.
+ *
+ * <hr> dipakai apa adanya, bukan <div> berbatas: bagi pembaca layar inilah
+ * pergantian pokok bahasan, dan itu memang yang terjadi di sini.
+ */
+function Pemisah() {
+    return <hr className="my-8 border-t border-gray-100" />;
+}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
     return (

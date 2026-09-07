@@ -57,7 +57,6 @@ return new class extends Migration
             $table->date('tanggal_lahir');
             $table->string('tempat_lahir');
             $table->enum('jenis_kelamin', ['laki-laki', 'perempuan']);
-            $table->string('agama')->nullable();
             // --- Alamat tempat tinggal ---------------------------------------
             // TEMPAT TINGGAL sekarang, bukan alamat KTP dan bukan tempat_lahir di
             // atas - ketiganya sering berbeda dalam satu keluarga.

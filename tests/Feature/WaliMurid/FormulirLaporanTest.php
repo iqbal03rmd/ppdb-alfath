@@ -36,7 +36,6 @@ function formulirDasar(array $tambahan = []): array
         'tanggal_lahir' => '2020-05-05',
         'tempat_lahir' => 'Pekanbaru',
         'jenis_kelamin' => 'laki-laki',
-        'agama' => 'Islam',
         'alamat' => 'Jl. Uji No. 1',
         'rt' => '003',
         'rw' => '005',

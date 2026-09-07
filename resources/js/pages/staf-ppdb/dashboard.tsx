@@ -151,9 +151,7 @@ export default function Dashboard({ antrian, statistik, kuota }: DashboardProps)
     ].filter(Boolean);
 
     const subtitleText =
-        menunggu.length === 0
-            ? 'Semua antrian kosong — tidak ada yang menunggu dikerjakan.'
-            : `${menunggu.join(' dan ')} menunggu diperiksa.`;
+        menunggu.length === 0 ? 'Semua antrian kosong — tidak ada yang menunggu dikerjakan.' : `${menunggu.join(' dan ')} menunggu diperiksa.`;
 
     const irisanPendaftaran = susunIrisan(statistik.pendaftaran, WARNA_STATUS, LABEL_STATUS);
     const irisanPembayaran = susunIrisan(statistik.pembayaran, WARNA_PELUNASAN, LABEL_PELUNASAN);
@@ -218,10 +216,7 @@ export default function Dashboard({ antrian, statistik, kuota }: DashboardProps)
                         </Kartu>
 
                         <Kartu judul="Status Pembayaran">
-                            <Donut
-                                irisan={irisanPembayaran}
-                                kalimatKosong="Belum ada pendaftaran yang sampai tahap pembayaran."
-                            />
+                            <Donut irisan={irisanPembayaran} kalimatKosong="Belum ada pendaftaran yang sampai tahap pembayaran." />
                         </Kartu>
                     </div>
 

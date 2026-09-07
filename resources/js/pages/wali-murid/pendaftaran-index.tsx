@@ -28,7 +28,6 @@ interface PendaftaranDetail {
     tempat_lahir: string;
     tanggal_lahir: string;
     jenis_kelamin: string;
-    agama: string | null;
     alamat: string;
     kategori: string;
     status: string;

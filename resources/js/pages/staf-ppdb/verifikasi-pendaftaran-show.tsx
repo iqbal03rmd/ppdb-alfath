@@ -34,7 +34,6 @@ interface PeriksaPendaftaranProps {
         tempat_lahir: string;
         tanggal_lahir: string;
         jenis_kelamin: string;
-        agama: string | null;
         alamat: string;
         nama_saudara: string | null;
         nama_orang_tua_guru: string | null;
@@ -105,7 +104,6 @@ export default function VerifikasiPendaftaranShow({ pendaftaran, waliMurid, berk
                             <Baris label="NIK" nilai={pendaftaran.nik} />
                             <Baris label="Tempat, Tanggal Lahir" nilai={`${pendaftaran.tempat_lahir}, ${pendaftaran.tanggal_lahir}`} />
                             <Baris label="Jenis Kelamin" nilai={pendaftaran.jenis_kelamin} />
-                            <Baris label="Agama" nilai={pendaftaran.agama} />
                             <Baris label="Alamat" nilai={pendaftaran.alamat} />
                             <Baris label="Gelombang" nilai={pendaftaran.gelombang} />
                         </Kartu>

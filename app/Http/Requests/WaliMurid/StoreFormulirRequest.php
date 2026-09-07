@@ -23,7 +23,6 @@ class StoreFormulirRequest extends FormRequest
             'tanggal_lahir' => ['required', 'date', 'before:today'],
             'tempat_lahir' => ['required', 'string', 'max:255'],
             'jenis_kelamin' => ['required', 'in:laki-laki,perempuan'],
-            'agama' => ['nullable', 'string', 'max:50'],
             'alamat' => ['required', 'string'],
 
             // Bagian alamat - seluruhnya teks bebas, termasuk kecamatan.

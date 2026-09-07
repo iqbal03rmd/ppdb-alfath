@@ -60,7 +60,6 @@ interface PendaftaranShowProps {
         tempat_lahir: string;
         tanggal_lahir: string;
         jenis_kelamin: string;
-        agama: string | null;
         alamat: string;
         nama_saudara: string | null;
         nama_orang_tua_guru: string | null;
@@ -160,7 +159,11 @@ export default function PendaftaranShow({
                         size="icon"
                         className="rounded-xl border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
                     >
-                        <Link href={route('staf-ppdb.pendaftaran.index')} aria-label="Kembali ke daftar pendaftaran" title="Kembali ke daftar pendaftaran">
+                        <Link
+                            href={route('staf-ppdb.pendaftaran.index')}
+                            aria-label="Kembali ke daftar pendaftaran"
+                            title="Kembali ke daftar pendaftaran"
+                        >
                             <ArrowLeft size={18} strokeWidth={2} />
                         </Link>
                     </Button>
@@ -193,7 +196,6 @@ export default function PendaftaranShow({
                             <Baris label="NIK" nilai={pendaftaran.nik} />
                             <Baris label="Tempat, Tanggal Lahir" nilai={`${pendaftaran.tempat_lahir}, ${pendaftaran.tanggal_lahir}`} />
                             <Baris label="Jenis Kelamin" nilai={pendaftaran.jenis_kelamin} />
-                            <Baris label="Agama" nilai={pendaftaran.agama} />
                             <Baris label="Alamat" nilai={pendaftaran.alamat} />
                             <Baris label="Gelombang" nilai={`${pendaftaran.gelombang} · ${pendaftaran.tahun_ajaran}`} />
                         </Kartu>
@@ -243,7 +245,12 @@ export default function PendaftaranShow({
                                         <div className="min-w-0">
                                             <p className="text-sm font-medium text-gray-900">{b.label}</p>
                                             {b.terunggah && b.url ? (
-                                                <a href={b.url} target="_blank" rel="noopener noreferrer" className="text-xs text-[#1F509A] underline">
+                                                <a
+                                                    href={b.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-xs text-[#1F509A] underline"
+                                                >
                                                     Buka berkas
                                                 </a>
                                             ) : (
@@ -294,9 +301,7 @@ export default function PendaftaranShow({
                                             )}
 
                                             {ringkasanPembayaran.jatuhTempoMinimal && (
-                                                <p className="mt-1.5 text-xs text-gray-500">
-                                                    Jatuh tempo {ringkasanPembayaran.jatuhTempoMinimal}
-                                                </p>
+                                                <p className="mt-1.5 text-xs text-gray-500">Jatuh tempo {ringkasanPembayaran.jatuhTempoMinimal}</p>
                                             )}
 
                                             {/* Tanggal cicilan sengaja TIDAK disebut jatuh tempo -
@@ -312,8 +317,8 @@ export default function PendaftaranShow({
 
                                     {ringkasanPembayaran.menunggak && (
                                         <p className="mt-3 rounded-xl bg-amber-50 p-3.5 text-sm text-amber-800">
-                                            Sudah lewat tanggal cicilan dan sisanya belum lunas. Kursinya tetap aman — penagihannya diteruskan di
-                                            luar sistem.
+                                            Sudah lewat tanggal cicilan dan sisanya belum lunas. Kursinya tetap aman — penagihannya diteruskan di luar
+                                            sistem.
                                         </p>
                                     )}
                                 </>
@@ -433,9 +438,7 @@ export default function PendaftaranShow({
 
                         <Kartu judul="Akun Pendaftar">
                             <p className="text-sm text-gray-700">{pendaftaran.akun_pendaftar}</p>
-                            <p className="mt-1 text-xs text-gray-500">
-                                Diperiksa oleh {pendaftaran.diperiksa_oleh ?? 'belum ada'}
-                            </p>
+                            <p className="mt-1 text-xs text-gray-500">Diperiksa oleh {pendaftaran.diperiksa_oleh ?? 'belum ada'}</p>
                         </Kartu>
                     </div>
                 </div>

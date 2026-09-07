@@ -27,7 +27,6 @@ interface PendaftaranDetail {
     tempat_lahir: string;
     tanggal_lahir: string;
     jenis_kelamin: string;
-    agama: string | null;
     alamat: string;
     kategori: string;
     status: string;
@@ -147,7 +146,6 @@ export default function PendaftaranShow({ pendaftaran, waliMurid }: ShowProps) {
                                 <InfoItem label="NIK" value={pendaftaran.nik ?? '-'} />
                                 <InfoItem label="Tempat, Tanggal Lahir" value={`${pendaftaran.tempat_lahir}, ${pendaftaran.tanggal_lahir}`} />
                                 <InfoItem label="Jenis Kelamin" value={pendaftaran.jenis_kelamin === 'laki-laki' ? 'Laki-laki' : 'Perempuan'} />
-                                <InfoItem label="Agama" value={pendaftaran.agama ?? '-'} />
                                 <InfoItem label="Kategori" value={pendaftaran.kategori} />
                             </div>
                             <div className="mt-5">
