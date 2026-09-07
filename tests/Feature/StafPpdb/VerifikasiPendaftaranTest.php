@@ -126,3 +126,30 @@ test('tidak bisa meminta perbaikan untuk pendaftaran yang sudah diterima', funct
 
     expect($this->pendaftaran->refresh()->status)->toBe('diterima');
 });
+
+/**
+ * Titik nol buat mengukur berapa lama wali menggantung sebelum transfer
+ * pertamanya. Diisi HANYA di sini - bukan saat staf minta perbaikan, bukan saat
+ * menutup pendaftaran. Dua tindakan itu juga "memeriksa", tapi yang diukur satu
+ * hal spesifik: sejak kapan wali boleh membayar.
+ */
+test('menyetujui mencatat kapan berkas dinyatakan lolos', function () {
+    expect($this->pendaftaran->diverifikasi_pada)->toBeNull();
+
+    $this->actingAs($this->staf)
+        ->post(route('staf-ppdb.verifikasi-pendaftaran.setujui', $this->pendaftaran));
+
+    expect($this->pendaftaran->fresh()->diverifikasi_pada)->not->toBeNull();
+});
+
+test('minta perbaikan tidak mencatat waktu verifikasi', function () {
+    $this->actingAs($this->staf)
+        ->post(route('staf-ppdb.verifikasi-pendaftaran.minta-perbaikan', $this->pendaftaran), [
+            'catatan_verifikasi' => 'Foto Kartu Keluarga buram, mohon diunggah ulang.',
+        ]);
+
+    // Wali belum boleh membayar, jadi jam "menggantung" belum boleh mulai
+    // berjalan - kalau ikut terisi di sini, jedanya terhitung sejak percobaan
+    // yang justru gagal.
+    expect($this->pendaftaran->fresh()->diverifikasi_pada)->toBeNull();
+});

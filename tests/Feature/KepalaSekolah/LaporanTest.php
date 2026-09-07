@@ -4,6 +4,7 @@ use App\Models\GelombangPpdb;
 use App\Models\KuotaKategori;
 use App\Models\PembayaranPpdb;
 use App\Models\PendaftaranPpdb;
+use App\Models\TahunAjaran;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia;
 
@@ -207,4 +208,207 @@ test('rekapitulasi terbuka pada tahun ajaran aktif', function () {
     $this->actingAs($this->kepsek)
         ->get(route('kepala-sekolah.rekapitulasi'))
         ->assertInertia(fn (AssertableInertia $page) => $page->where('filterAwal', $aktif));
+});
+
+/* ==========================================================================
+ * Kartu temuan - enam agregasi yang menjawab dua pertanyaan: dari mana
+ * pendaftar datang, dan apa yang terjadi setelah mereka daftar.
+ * ========================================================================== */
+
+test('temuan dikirim untuk tiap tahun ajaran plus gabungan semuanya', function () {
+    $this->actingAs($this->kepsek)
+        ->get(route('kepala-sekolah.rekapitulasi'))
+        ->assertInertia(function (AssertableInertia $page) {
+            $temuan = $page->toArray()['props']['temuan'];
+
+            // Kunci '' = gabungan semua tahun. Tanpa itu, pilihan "Semua tahun
+            // ajaran" di penyaring tidak punya angka untuk ditampilkan.
+            expect($temuan)->toHaveKey('');
+
+            foreach (TahunAjaran::pluck('nama') as $nama) {
+                if (PendaftaranPpdb::whereHas('gelombang', fn ($q) => $q->whereHas('tahunAjaran', fn ($t) => $t->where('nama', $nama)))
+                    ->where('status', '!=', 'draft')->exists()) {
+                    expect($temuan)->toHaveKey($nama);
+                }
+            }
+        });
+});
+
+/**
+ * Seluruh agregasi dihitung di server supaya layar tidak pernah menjumlah ulang.
+ * Test ini yang menahan kalau suatu saat ada yang memindahkan hitungannya ke TSX
+ * - begitu bentuknya berubah jadi data mentah, ini gagal.
+ */
+test('tiap temuan sudah berbentuk angka jadi, bukan data mentah', function () {
+    $this->actingAs($this->kepsek)
+        ->get(route('kepala-sekolah.rekapitulasi'))
+        ->assertInertia(function (AssertableInertia $page) {
+            $semua = $page->toArray()['props']['temuan'][''];
+
+            expect(array_keys($semua))->toEqualCanonicalizing([
+                'asalPaud', 'sumberInformasi', 'jedaBayar', 'polaCicilan',
+            ]);
+
+            foreach ([$semua['asalPaud'], $semua['sumberInformasi']['irisan']] as $daftar) {
+                foreach ($daftar as $baris) {
+                    expect($baris)->toHaveKeys(['label', 'jumlah', 'agregat'])
+                        ->and($baris['jumlah'])->toBeInt()->toBeGreaterThan(0);
+                }
+            }
+        });
+});
+
+test('peringkat diurutkan dari yang terbanyak', function () {
+    $this->actingAs($this->kepsek)
+        ->get(route('kepala-sekolah.rekapitulasi'))
+        ->assertInertia(function (AssertableInertia $page) {
+            $baris = collect($page->toArray()['props']['temuan']['']['asalPaud'])
+                // Baris pelipat dan "Belum diisi" memang di ekor dengan sengaja,
+                // jadi tidak ikut diuji urutannya.
+                // Baris agregat ("Lainnya", "Belum diisi") memang di ekor dengan
+                // sengaja, jadi tidak ikut diuji urutannya.
+                ->reject(fn ($b) => $b['agregat'])
+                ->pluck('jumlah');
+
+            expect($baris->all())->toBe($baris->sortDesc()->values()->all());
+        });
+});
+
+test('jeda bayar tidak mencampur yang belum transfer ke rata-rata', function () {
+    $this->actingAs($this->kepsek)
+        ->get(route('kepala-sekolah.rekapitulasi'))
+        ->assertInertia(function (AssertableInertia $page) {
+            $jeda = $page->toArray()['props']['temuan']['']['jedaBayar'];
+
+            $terukurLangsung = PendaftaranPpdb::with('pembayaran')->get()
+                ->filter(fn (PendaftaranPpdb $p) => $p->hariSampaiTransferPertama() !== null)
+                ->count();
+
+            expect($jeda['terukur'])->toBe($terukurLangsung)
+                // Yang belum transfer sama sekali dilaporkan sebagai angkanya
+                // sendiri; jedanya belum selesai berjalan, jadi tidak boleh ikut
+                // menggeser rata-rata.
+                ->and($jeda['belumTransfer'])->toBe(
+                    PendaftaranPpdb::with('pembayaran')->get()
+                        ->filter(fn (PendaftaranPpdb $p) => $p->belumTransferSamaSekali())
+                        ->count()
+                )
+                ->and(collect($jeda['sebaran'])->sum('jumlah'))->toBe($jeda['terukur']);
+        });
+});
+
+test('pola cicilan hanya menghitung yang sudah mencapai minimal bayar', function () {
+    $this->actingAs($this->kepsek)
+        ->get(route('kepala-sekolah.rekapitulasi'))
+        ->assertInertia(function (AssertableInertia $page) {
+            $pola = $page->toArray()['props']['temuan']['']['polaCicilan'];
+
+            $penuhiMinimal = PendaftaranPpdb::with(['pembayaran', 'tagihanItem'])->where('status', '!=', 'draft')->get()
+                ->filter(fn (PendaftaranPpdb $p) => $p->sudahPenuhiMinimal())
+                ->count();
+
+            expect($pola['sekaligus'] + $pola['dicicil'])->toBe($penuhiMinimal);
+        });
+});
+
+/**
+ * Data seed tidak boleh memuat pendaftaran 'diterima' yang ternyata belum
+ * mencapai minimal bayar. Kalau itu terjadi, kartu "kesanggupan membayar"
+ * memperlihatkan hal yang bertentangan dengan kartu status di sebelahnya - dan
+ * itu yang paling gampang ditembak saat sidang.
+ */
+test('tidak ada pendaftaran diterima yang belum mencapai minimal bayar', function () {
+    $janggal = PendaftaranPpdb::with(['pembayaran', 'tagihanItem', 'kategoriSiswa'])
+        ->where('status', 'diterima')
+        ->get()
+        ->reject(fn (PendaftaranPpdb $p) => $p->sudahPenuhiMinimal());
+
+    expect($janggal)->toBeEmpty();
+});
+
+/**
+ * Baris lipatan ("Lainnya (n kelompok)") sering menang telak melawan juara
+ * sebenarnya - di data contoh nilainya 10 sementara sekolah terbanyak cuma 6.
+ * Dia ditandai 'agregat' supaya layar bisa mengeluarkannya dari skala batang;
+ * kalau tandanya hilang, grafiknya kembali menonjolkan kelompok yang justru
+ * tidak bisa ditindaklanjuti.
+ */
+test('baris lipatan ditandai agregat, kelompok nyata tidak', function () {
+    $this->actingAs($this->kepsek)
+        ->get(route('kepala-sekolah.rekapitulasi'))
+        ->assertInertia(function (AssertableInertia $page) {
+            $baris = collect($page->toArray()['props']['temuan']['']['asalPaud']);
+
+            $lipatan = $baris->filter(fn ($b) => str_starts_with($b['label'], 'Lainnya ('));
+
+            expect($lipatan)->not->toBeEmpty();
+
+            foreach ($lipatan as $b) {
+                expect($b['agregat'])->toBeTrue();
+            }
+
+            // Sekolah sungguhan tidak boleh ikut ditandai - kalau iya, seluruh
+            // batang jadi abu dan peringkatnya kehilangan arti.
+            $nyata = $baris->reject(fn ($b) => $b['agregat']);
+
+            expect($nyata)->not->toBeEmpty()
+                ->and($nyata->pluck('label')->filter(fn ($l) => str_starts_with($l, 'Lainnya (')))->toBeEmpty();
+        });
+});
+
+/**
+ * Donat sumber informasi dibatasi EMPAT irisan berwarna plus satu abu. Batas itu
+ * datang dari warna: palet proyek cuma punya empat warna yang lolos uji
+ * keterbedaan buta warna. Irisan kelima berarti mengarang warna yang belum
+ * diuji, jadi kalau batas ini jebol grafiknya berhenti bisa dibaca sebagian
+ * orang tanpa ada yang sadar.
+ */
+test('irisan donat sumber informasi tidak pernah lebih dari lima', function () {
+    $this->actingAs($this->kepsek)
+        ->get(route('kepala-sekolah.rekapitulasi'))
+        ->assertInertia(function (AssertableInertia $page) {
+            $sumber = $page->toArray()['props']['temuan']['']['sumberInformasi'];
+
+            expect($sumber['irisan'])->not->toBeEmpty()
+                ->and(count($sumber['irisan']))->toBeLessThanOrEqual(5);
+
+            // Paling banyak SATU irisan lipatan - kalau lebih, warna abunya
+            // dipakai dua kali dan dua kelompok berbeda terlihat sama.
+            $lipatan = collect($sumber['irisan'])->filter(fn ($i) => $i['agregat']);
+
+            expect($lipatan->count())->toBeLessThanOrEqual(1);
+        });
+});
+
+/**
+ * "Tidak menjawab" bukan saluran promosi. Kalau dia ikut jadi irisan, persentase
+ * tiap saluran mengecil oleh sesuatu yang bukan saluran - jadi dia dilaporkan
+ * terpisah, dan penyebut persentasenya cuma yang benar-benar menjawab.
+ */
+test('tidak menjawab dilaporkan di luar irisan donat', function () {
+    $this->actingAs($this->kepsek)
+        ->get(route('kepala-sekolah.rekapitulasi'))
+        ->assertInertia(function (AssertableInertia $page) {
+            $sumber = $page->toArray()['props']['temuan']['']['sumberInformasi'];
+
+            expect(collect($sumber['irisan'])->pluck('label'))->not->toContain('Tidak menjawab')
+                ->and(collect($sumber['irisan'])->sum('jumlah'))->toBe($sumber['menjawab']);
+
+            $tanpaJawaban = PendaftaranPpdb::where('status', '!=', 'draft')->whereNull('tahu_dari')->count();
+
+            expect($sumber['tidakMenjawab'])->toBe($tanpaJawaban)
+                ->and($sumber['menjawab'] + $sumber['tidakMenjawab'])
+                ->toBe(PendaftaranPpdb::where('status', '!=', 'draft')->count());
+        });
+});
+
+/** Kartu ringkasan, bukan daftar: asal PAUD dipotong lima teratas. */
+test('asal PAUD dipotong lima teratas plus baris lipatan', function () {
+    $this->actingAs($this->kepsek)
+        ->get(route('kepala-sekolah.rekapitulasi'))
+        ->assertInertia(function (AssertableInertia $page) {
+            $baris = collect($page->toArray()['props']['temuan']['']['asalPaud']);
+
+            expect($baris->reject(fn ($b) => $b['agregat'])->count())->toBeLessThanOrEqual(5);
+        });
 });

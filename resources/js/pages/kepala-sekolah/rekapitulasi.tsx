@@ -1,3 +1,4 @@
+import Donut from '@/components/donut';
 import PageContainer from '@/components/page-container';
 import PageHeader from '@/components/page-header';
 import AppLayout from '@/layouts/app-layout';
@@ -32,16 +33,55 @@ interface BarisKategori {
     penuh: boolean;
 }
 
+interface BarisPeringkat {
+    label: string;
+    jumlah: number;
+    /** true = baris lipatan ("Lainnya", "Tidak menjawab"), bukan satu kelompok
+     *  nyata yang bisa ditindaklanjuti. Diperlakukan beda saat digambar. */
+    agregat: boolean;
+}
+
+interface Temuan {
+    asalPaud: BarisPeringkat[];
+    /** Bentuk donat, bukan peringkat: 'tidakMenjawab' sengaja di luar irisan
+     *  supaya persentasenya dihitung dari yang benar-benar menjawab. */
+    sumberInformasi: { irisan: BarisPeringkat[]; menjawab: number; tidakMenjawab: number };
+    jedaBayar: {
+        terukur: number;
+        rataHari: number | null;
+        terlamaHari: number | null;
+        belumTransfer: number;
+        sebaran: BarisPeringkat[];
+    };
+    polaCicilan: { sekaligus: number; dicicil: number };
+}
+
 interface RekapitulasiProps {
     perGelombang: BarisGelombang[];
     perKategori: BarisKategori[];
+    /** Sudah dihitung per tahun ajaran di server, kunci '' = semua tahun.
+     *  Penyaring di layar tinggal memilih, tidak menjumlah ulang apa pun. */
+    temuan: Record<string, Temuan>;
     tahunAjaran: string[];
     /** Tahun ajaran aktif - cuma posisi awal, tahun lain tetap bisa dipilih. */
     filterAwal: string;
 }
 
+const TEMUAN_KOSONG: Temuan = {
+    asalPaud: [],
+    sumberInformasi: { irisan: [], menjawab: 0, tidakMenjawab: 0 },
+    jedaBayar: { terukur: 0, rataHari: null, terlamaHari: null, belumTransfer: 0, sebaran: [] },
+    polaCicilan: { sekaligus: 0, dicicil: 0 },
+};
+
 function formatRupiah(nominal: number) {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(nominal);
+}
+
+/** Pemisah desimal Indonesia memakai KOMA. Tanpa ini, "6.6 hari" terbaca aneh
+ *  di halaman yang seluruh angka uangnya sudah berformat "Rp 125.775.000". */
+function formatAngka(nilai: number) {
+    return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 1 }).format(nilai);
 }
 
 function Kartu({ judul, keterangan, children }: { judul: string; keterangan?: string; children: React.ReactNode }) {
@@ -70,11 +110,131 @@ function Td({ children, angka = false, tebal = false }: { children: React.ReactN
     );
 }
 
+/**
+ * Peringkat batang mendatar, satu warna.
+ *
+ * Satu deret data tidak perlu legenda - judul kartunya sudah menyebutkan apa
+ * yang dihitung, dan warna di sini tidak membedakan apa pun. Tiap batang diberi
+ * angkanya langsung supaya nilainya tidak perlu ditaksir dari panjang batang,
+ * dan itu sekaligus yang membuat diagram ini tetap terbaca kalau dicetak
+ * hitam-putih.
+ *
+ * Panjangnya relatif terhadap batang TERPANJANG, bukan terhadap total. Yang
+ * ditanyakan "siapa yang terbanyak", bukan "berapa bagiannya dari keseluruhan".
+ */
+function Peringkat({ baris, kalimatKosong }: { baris: BarisPeringkat[]; kalimatKosong: string }) {
+    if (baris.length === 0) {
+        return <p className="px-6 py-8 text-center text-sm text-gray-500">{kalimatKosong}</p>;
+    }
+
+    // Skala diambil dari kelompok NYATA saja. Baris lipatan sering menang telak
+    // melawan juara sebenarnya - "Lainnya (8 kelompok)" bernilai 10 sementara
+    // sekolah terbanyak cuma 6 - dan kalau ikut menentukan skala, seluruh batang
+    // yang berarti jadi pendek dan mata tertarik ke kelompok yang justru tidak
+    // bisa ditindaklanjuti.
+    const nyata = baris.filter((b) => !b.agregat);
+    const tertinggi = Math.max(...(nyata.length ? nyata : baris).map((b) => b.jumlah), 1);
+
+    const lipatan = baris.filter((b) => b.agregat);
+
+    return (
+        <div className="px-6 pt-4 pb-6">
+            <ul className="space-y-2.5">
+                {nyata.map((b) => (
+                    <li key={b.label} title={`${b.label}: ${b.jumlah} pendaftar`}>
+                        <div className="mb-1 flex items-baseline justify-between gap-3">
+                            <span className="min-w-0 truncate text-sm text-gray-700">{b.label}</span>
+                            <span className="shrink-0 text-sm font-semibold text-gray-900 tabular-nums">{b.jumlah}</span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-[#F5F9FD]">
+                            <div className="h-2 rounded-full bg-[#1F509A]" style={{ width: `${Math.max((b.jumlah / tertinggi) * 100, 2)}%` }} />
+                        </div>
+                    </li>
+                ))}
+            </ul>
+
+            {/* Baris lipatan ditulis sebagai catatan, TANPA batang.
+                Sempat digambar berbatang abu, dan itu masih keliru: ekornya
+                sering lebih besar daripada juaranya (13 kelompok berisi 20 anak
+                melawan sekolah teratas yang cuma 6), jadi batangnya selalu jadi
+                yang terpanjang dan mengundang perbandingan yang justru tidak ada
+                artinya - "Lainnya" bukan satu sekolah yang bisa didatangi. */}
+            {lipatan.length > 0 && (
+                <p className="mt-3 border-t border-gray-100 pt-3 text-xs text-gray-500">
+                    {lipatan.map((b) => `${b.label}: ${b.jumlah} pendaftar`).join(' · ')}
+                </p>
+            )}
+        </div>
+    );
+}
+
+/**
+ * Sebaran jeda pembayaran, digambar TEGAK.
+ *
+ * Bentuknya beda dari peringkat batang di sebelahnya karena datanya beda
+ * jenisnya: ini sebaran atas ember yang BERURUTAN (0-3 → lebih dari 14 hari),
+ * bukan peringkat yang boleh diurutkan ulang. Sumbu mendatar yang berjalan dari
+ * cepat ke lambat itulah yang menyampaikan "kebanyakan orang membayar di awal",
+ * dan itu hilang kalau embernya ditumpuk ke bawah seperti daftar.
+ *
+ * Satu warna untuk semua kolom: yang mengukur jumlah adalah TINGGI kolom, jadi
+ * warna tidak mengkodekan apa pun dan tidak perlu dibeda-bedakan.
+ */
+function Histogram({ ember, kalimatKosong }: { ember: BarisPeringkat[]; kalimatKosong: string }) {
+    const total = ember.reduce((n, e) => n + e.jumlah, 0);
+
+    if (total === 0) {
+        return <p className="px-6 py-8 text-center text-sm text-gray-500">{kalimatKosong}</p>;
+    }
+
+    const tertinggi = Math.max(...ember.map((e) => e.jumlah), 1);
+
+    return (
+        <div className="px-6 pt-2 pb-6">
+            <div className="flex items-end gap-2" style={{ height: 108 }}>
+                {ember.map((e) => (
+                    <div key={e.label} className="flex flex-1 flex-col items-center justify-end gap-1" title={`${e.label}: ${e.jumlah} pendaftar`}>
+                        <span className="text-sm font-semibold text-gray-900 tabular-nums">{e.jumlah}</span>
+                        {/* Tinggi minimal 4px supaya ember yang bernilai nol tetap
+                            punya jejak - kolom yang benar-benar hilang terbaca
+                            seperti embernya tidak ada, padahal ada dan isinya nol. */}
+                        <div className="w-full rounded-t-md bg-[#1F509A]" style={{ height: Math.max((e.jumlah / tertinggi) * 76, 4) }} />
+                    </div>
+                ))}
+            </div>
+            <div className="mt-2 flex gap-2 border-t border-gray-100 pt-2">
+                {ember.map((e) => (
+                    <span key={e.label} className="flex-1 text-center text-[11px] leading-tight text-gray-500">
+                        {e.label}
+                    </span>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+/** Empat warna yang LOLOS uji keterbedaan buta warna dalam palet proyek ini
+ *  (ΔE terburuk 11,7 protan). Jumlah irisan donat dibatasi empat karena ini -
+ *  bukan karena selera. Irisan kelima berarti mengarang warna yang belum diuji. */
+const WARNA_SALURAN = ['#1F509A', '#0891B2', '#15803D', '#E38E49'];
+
+/** Abu untuk irisan/baris lipatan: warnanya sendiri yang memberitahu bahwa dia
+ *  bukan satu kelompok nyata yang bisa ditindaklanjuti. */
+const WARNA_AGREGAT = '#9CA3AF';
+
 // Disamakan dengan penyaring di halaman staf supaya satu bahasa visual.
 const gayaSelect =
     'h-10 w-full appearance-none rounded-md border border-gray-200 bg-white pr-9 pl-3 text-sm text-gray-900 shadow-sm transition-colors focus:border-[#1F509A] focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none';
 
-export default function Rekapitulasi({ perGelombang, perKategori, tahunAjaran, filterAwal }: RekapitulasiProps) {
+/**
+ * Batang bertumpuk per jalur: berapa yang sudah mencapai minimal bayar, berapa
+ * yang belum. Dua deret, jadi legendanya wajib ada - dan tiap potongan diberi
+ * angkanya sendiri supaya identitasnya tidak bergantung pada warna saja.
+ *
+ * Warnanya sengaja warna KEADAAN (hijau tercapai, kuning belum), bukan dua warna
+ * kategori. Yang dibandingkan memang baik-buruk, bukan dua hal setara.
+ */
+export default function Rekapitulasi({ perGelombang, perKategori, temuan, tahunAjaran, filterAwal }: RekapitulasiProps) {
     // Dibuka pada tahun ajaran aktif. Cuma posisi awal - "Semua tahun ajaran"
     // tetap tersedia, dan justru itu gunanya halaman laporan: membandingkan
     // angkatan tahun ini dengan tahun sebelumnya.
@@ -82,6 +242,11 @@ export default function Rekapitulasi({ perGelombang, perKategori, tahunAjaran, f
 
     const gelombang = useMemo(() => perGelombang.filter((g) => !tahun || g.tahun_ajaran === tahun), [perGelombang, tahun]);
     const kategori = useMemo(() => perKategori.filter((k) => !tahun || k.tahun_ajaran === tahun), [perKategori, tahun]);
+
+    // Cuma memilih, tidak menghitung - seluruh agregasinya sudah selesai di
+    // server. Tahun ajaran yang belum punya pendaftaran tidak punya kunci di
+    // sini, jadi jatuh ke bentuk kosong.
+    const t = temuan[tahun] ?? TEMUAN_KOSONG;
 
     // Baris total dihitung dari baris yang sedang tampil, supaya tidak pernah
     // bertentangan dengan isi tabel di atasnya.
@@ -248,6 +413,78 @@ export default function Rekapitulasi({ perGelombang, perKategori, tahunAjaran, f
                             </div>
                         )}
                     </Kartu>
+
+                    <div className="grid gap-6 lg:grid-cols-2">
+                        <Kartu judul="Asal TK/RA/PAUD" keterangan="Sekolah asal yang paling banyak menyumbang pendaftar.">
+                            <Peringkat baris={t.asalPaud} kalimatKosong="Belum ada pendaftar yang mengisi asal sekolah pada tahun ajaran ini." />
+                        </Kartu>
+
+                        <Kartu judul="Tahu PPDB dari Mana" keterangan="Bagian tiap saluran, dihitung dari pendaftar yang menjawab.">
+                            <div className="px-6 pt-4 pb-6">
+                                <Donut
+                                    irisan={t.sumberInformasi.irisan.map((i, urutan) => ({
+                                        label: i.label,
+                                        jumlah: i.jumlah,
+                                        warna: i.agregat ? WARNA_AGREGAT : (WARNA_SALURAN[urutan] ?? WARNA_AGREGAT),
+                                    }))}
+                                    kalimatKosong="Belum ada yang menjawab pada tahun ajaran ini."
+                                />
+                                {t.sumberInformasi.tidakMenjawab > 0 && (
+                                    // Di luar donat dengan sengaja: dia bukan saluran
+                                    // promosi, jadi kalau ikut jadi irisan, persentase
+                                    // tiap saluran mengecil oleh sesuatu yang bukan
+                                    // saluran.
+                                    <p className="mt-4 text-xs text-gray-500">
+                                        {t.sumberInformasi.tidakMenjawab} pendaftar tidak menjawab — isian ini memang opsional, jadi tidak ikut
+                                        dihitung di atas.
+                                    </p>
+                                )}
+                            </div>
+                        </Kartu>
+                    </div>
+
+                    <div className="grid gap-6 lg:grid-cols-2">
+                        <Kartu
+                            judul="Lama Menunggu Transfer Pertama"
+                            keterangan="Dihitung sejak berkas dinyatakan lolos sampai transfer pertama masuk."
+                        >
+                            <div className="px-6 pt-4 pb-2">
+                                {t.jedaBayar.rataHari === null ? (
+                                    <p className="text-sm text-gray-500">Belum ada transfer yang bisa diukur pada tahun ajaran ini.</p>
+                                ) : (
+                                    <>
+                                        <p className="text-3xl font-bold text-[#0A3981]">{formatAngka(t.jedaBayar.rataHari)} hari</p>
+                                        <p className="mt-0.5 text-xs text-gray-500">
+                                            Rata-rata dari <span className="font-semibold">{t.jedaBayar.terukur}</span> pendaftar. Terlama{' '}
+                                            <span className="font-semibold">{t.jedaBayar.terlamaHari}</span> hari.
+                                        </p>
+                                    </>
+                                )}
+                                {t.jedaBayar.belumTransfer > 0 && (
+                                    // Sengaja tidak ikut ke rata-rata: jedanya belum
+                                    // selesai berjalan, jadi angka berapa pun akan
+                                    // menggeser rata-ratanya ke arah yang keliru.
+                                    <p className="mt-3 rounded-xl bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-700">
+                                        <span className="font-semibold text-gray-900">{t.jedaBayar.belumTransfer} pendaftar</span> sudah boleh
+                                        membayar tapi belum menyetor sama sekali.
+                                    </p>
+                                )}
+                            </div>
+                            <Histogram ember={t.jedaBayar.sebaran} kalimatKosong="Belum ada transfer yang bisa dikelompokkan." />
+                        </Kartu>
+
+                        <Kartu judul="Cara Membayar" keterangan="Dari pendaftar yang sudah mencapai minimal bayar.">
+                            <div className="px-6 pt-4 pb-6">
+                                <Donut
+                                    irisan={[
+                                        { label: 'Sekali transfer', jumlah: t.polaCicilan.sekaligus, warna: '#15803D' },
+                                        { label: 'Dicicil', jumlah: t.polaCicilan.dicicil, warna: '#1F509A' },
+                                    ]}
+                                    kalimatKosong="Belum ada yang mencapai minimal bayar pada tahun ajaran ini."
+                                />
+                            </div>
+                        </Kartu>
+                    </div>
                 </div>
             </PageContainer>
         </AppLayout>

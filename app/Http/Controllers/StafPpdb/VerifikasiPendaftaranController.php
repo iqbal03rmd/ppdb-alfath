@@ -121,6 +121,10 @@ class VerifikasiPendaftaranController extends Controller
         $pendaftaran->update([
             'status' => 'diverifikasi',
             'diverifikasi_oleh' => $request->user()->id,
+            // Titik nol buat mengukur berapa lama wali menggantung sebelum
+            // transfer pertama - lihat komentarnya di migration. Cuma di sini
+            // yang mengisinya; mintaPerbaikan() dan tutup() sengaja tidak.
+            'diverifikasi_pada' => now(),
             // Catatan perbaikan lama dibersihkan. Kalau ditinggalkan, wali masih
             // membaca keluhan yang justru sudah dia betulkan.
             'catatan_verifikasi' => null,

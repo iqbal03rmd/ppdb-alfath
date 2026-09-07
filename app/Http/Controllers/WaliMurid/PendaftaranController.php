@@ -4,6 +4,7 @@ namespace App\Http\Controllers\WaliMurid;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\WaliMurid\StoreFormulirRequest;
+use App\Models\AsalPaud;
 use App\Models\GelombangPpdb;
 use App\Models\KategoriSiswa;
 use App\Models\KuotaKategori;
@@ -101,6 +102,80 @@ class PendaftaranController extends Controller
             ->first();
     }
 
+    /**
+     * Daftar pilihan buat dua isian laporan: sekolah asal dan sumber informasi.
+     *
+     * Cuma dua ini yang berupa pilihan; alamat seluruhnya teks bebas karena
+     * tidak ada yang mengagregasinya. Dikirim sekaligus sebagai prop, jadi
+     * formulirnya tidak punya keadaan "sedang memuat" yang harus diurus.
+     */
+    private function dataRujukanFormulir(): array
+    {
+        return [
+            // Dikelompokkan per jenis, bukan satu daftar datar sepanjang 634
+            // baris. Di dalam kelompoknya nama ditampilkan tanpa awalan jenis -
+            // judul kelompoknya sudah menyebutkan itu, dan mengulangnya bikin
+            // tiap baris diawali huruf yang sama sehingga mengetik untuk
+            // melompat jadi tidak berguna.
+            'asalPaud' => collect(AsalPaud::JENIS)
+                ->map(fn (string $label, string $jenis) => [
+                    'jenis' => $jenis,
+                    'label' => $label,
+                    'sekolah' => AsalPaud::where('jenis', $jenis)
+                        ->orderBy('nama')
+                        ->get()
+                        ->map(fn (AsalPaud $p) => ['id' => $p->id, 'nama' => $p->namaDenganKecamatan()])
+                        ->values(),
+                ])
+                ->filter(fn (array $k) => $k['sekolah']->isNotEmpty())
+                ->values(),
+            'sumberInformasi' => collect(PendaftaranPpdb::SUMBER_INFORMASI)
+                ->map(fn ($label, $nilai) => ['nilai' => $nilai, 'label' => $label])
+                ->values(),
+        ];
+    }
+
+    /**
+     * Rincian alamat. Semuanya teks bebas, disalin apa adanya - tidak ada
+     * pembersihan seperti isianLaporan() di bawah, karena tidak ada satu pun
+     * kolom di sini yang saling meniadakan atau dijadikan grafik.
+     */
+    private function bagianAlamat(StoreFormulirRequest $request): array
+    {
+        return [
+            'rt' => $request->rt,
+            'rw' => $request->rw,
+            'kelurahan' => $request->kelurahan,
+            'kecamatan' => $request->kecamatan,
+            'kota_kabupaten' => $request->kota_kabupaten,
+            'provinsi' => $request->provinsi,
+        ];
+    }
+
+    /**
+     * Dua isian laporan, DIBERSIHKAN sebelum disimpan.
+     *
+     * Yang dibersihkan: pasangan kolom yang saling meniadakan. Wali bisa saja
+     * mengetik nama sekolah lalu mencentang "belum/tidak PAUD" - kalau nilai
+     * lamanya ikut tersimpan, satu baris punya dua jawaban yang bertentangan,
+     * dan laporan tidak punya cara memilih mana yang benar. Dibersihkan di sini,
+     * satu tempat, bukan diandalkan pada tampilan yang mengosongkannya.
+     */
+    private function isianLaporan(StoreFormulirRequest $request): array
+    {
+        $tanpaPaud = $request->boolean('tanpa_paud');
+        // Sekolah yang ada di daftar master selalu menang atas ketikan bebas.
+        $paudId = $tanpaPaud ? null : $request->asal_paud_id;
+
+        return [
+            'tanpa_paud' => $tanpaPaud,
+            'asal_paud_id' => $paudId,
+            'asal_paud_lainnya' => $tanpaPaud || $paudId ? null : $request->asal_paud_lainnya,
+            'tahu_dari' => $request->tahu_dari,
+            'tahu_dari_lainnya' => $request->tahu_dari === 'lainnya' ? $request->tahu_dari_lainnya : null,
+        ];
+    }
+
     public function create(): Response
     {
         $gelombang = $this->gelombangDibuka();
@@ -113,6 +188,7 @@ class PendaftaranController extends Controller
                 'tanggal_mulai' => $gelombang->tanggal_mulai->locale('id')->translatedFormat('d F Y'),
                 'tanggal_selesai' => $gelombang->tanggal_selesai->locale('id')->translatedFormat('d F Y'),
             ] : null,
+            ...$this->dataRujukanFormulir(),
         ]);
     }
 
@@ -142,6 +218,8 @@ class PendaftaranController extends Controller
                 'jenis_kelamin' => $request->jenis_kelamin,
                 'agama' => $request->agama,
                 'alamat' => $request->alamat,
+                ...$this->bagianAlamat($request),
+                ...$this->isianLaporan($request),
                 'nama_saudara' => $request->nama_saudara,
                 'nama_orang_tua_guru' => $request->nama_orang_tua_guru,
                 'status' => 'draft',
@@ -173,6 +251,7 @@ class PendaftaranController extends Controller
                 'tanggal_mulai' => $gelombang->tanggal_mulai->locale('id')->translatedFormat('d F Y'),
                 'tanggal_selesai' => $gelombang->tanggal_selesai->locale('id')->translatedFormat('d F Y'),
             ] : null,
+            ...$this->dataRujukanFormulir(),
             'pendaftaran' => [
                 'id' => $pendaftaran->id,
                 'kategori_siswa_id' => (string) $pendaftaran->kategori_siswa_id,
@@ -183,6 +262,17 @@ class PendaftaranController extends Controller
                 'jenis_kelamin' => $pendaftaran->jenis_kelamin,
                 'agama' => $pendaftaran->agama ?? '',
                 'alamat' => $pendaftaran->alamat,
+                'rt' => $pendaftaran->rt ?? '',
+                'rw' => $pendaftaran->rw ?? '',
+                'kelurahan' => $pendaftaran->kelurahan ?? '',
+                'kecamatan' => $pendaftaran->kecamatan ?? '',
+                'kota_kabupaten' => $pendaftaran->kota_kabupaten ?? '',
+                'provinsi' => $pendaftaran->provinsi ?? '',
+                'asal_paud_id' => $pendaftaran->asal_paud_id,
+                'asal_paud_lainnya' => $pendaftaran->asal_paud_lainnya ?? '',
+                'tanpa_paud' => $pendaftaran->tanpa_paud,
+                'tahu_dari' => $pendaftaran->tahu_dari ?? '',
+                'tahu_dari_lainnya' => $pendaftaran->tahu_dari_lainnya ?? '',
                 'nama_saudara' => $pendaftaran->nama_saudara ?? '',
                 'nama_orang_tua_guru' => $pendaftaran->nama_orang_tua_guru ?? '',
                 'wali_murid' => $pendaftaran->waliMurid->map(fn ($w) => [
@@ -213,6 +303,8 @@ class PendaftaranController extends Controller
             'jenis_kelamin' => $request->jenis_kelamin,
             'agama' => $request->agama,
             'alamat' => $request->alamat,
+            ...$this->bagianAlamat($request),
+            ...$this->isianLaporan($request),
             'nama_saudara' => $request->nama_saudara,
             'nama_orang_tua_guru' => $request->nama_orang_tua_guru,
         ]);

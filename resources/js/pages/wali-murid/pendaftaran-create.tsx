@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { CalendarClock } from 'lucide-react';
-import { FormEventHandler } from 'react';
+import { FormEventHandler, useState } from 'react';
 
 interface KategoriSiswa {
     id: number;
@@ -40,6 +40,17 @@ interface PendaftaranExisting {
     jenis_kelamin: string;
     agama: string;
     alamat: string;
+    rt: string;
+    rw: string;
+    kelurahan: string;
+    kecamatan: string;
+    kota_kabupaten: string;
+    provinsi: string;
+    asal_paud_id: number | null;
+    asal_paud_lainnya: string;
+    tanpa_paud: boolean;
+    tahu_dari: string;
+    tahu_dari_lainnya: string;
     nama_saudara: string;
     nama_orang_tua_guru: string;
     wali_murid: WaliMuridInput[];
@@ -49,9 +60,17 @@ interface FormulirProps {
     kategoriSiswa: KategoriSiswa[];
     gelombang: Gelombang | null;
     pendaftaran?: PendaftaranExisting;
+    asalPaud: { jenis: string; label: string; sekolah: { id: number; nama: string }[] }[];
+    sumberInformasi: { nilai: string; label: string }[];
 }
 
-export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: FormulirProps) {
+/** Dua nilai khusus di daftar sekolah asal, dengan alasan yang berbeda:
+ *  'tanpa' itu JAWABAN (anak memang tidak lewat PAUD), 'lainnya' itu jalan
+ *  keluar saat sekolahnya belum ada di daftar. */
+const TANPA_PAUD = 'tanpa-paud';
+const PAUD_LAINNYA = 'paud-lainnya';
+
+export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPaud, sumberInformasi }: FormulirProps) {
     const isEdit = !!pendaftaran;
 
     const {
@@ -70,6 +89,17 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
         jenis_kelamin: pendaftaran?.jenis_kelamin ?? '',
         agama: pendaftaran?.agama ?? '',
         alamat: pendaftaran?.alamat ?? '',
+        rt: pendaftaran?.rt ?? '',
+        rw: pendaftaran?.rw ?? '',
+        kelurahan: pendaftaran?.kelurahan ?? '',
+        kecamatan: pendaftaran?.kecamatan ?? '',
+        kota_kabupaten: pendaftaran?.kota_kabupaten ?? '',
+        provinsi: pendaftaran?.provinsi ?? '',
+        asal_paud_id: pendaftaran?.asal_paud_id ?? null,
+        asal_paud_lainnya: pendaftaran?.asal_paud_lainnya ?? '',
+        tanpa_paud: pendaftaran?.tanpa_paud ?? false,
+        tahu_dari: pendaftaran?.tahu_dari ?? '',
+        tahu_dari_lainnya: pendaftaran?.tahu_dari_lainnya ?? '',
         nama_saudara: pendaftaran?.nama_saudara ?? '',
         nama_orang_tua_guru: pendaftaran?.nama_orang_tua_guru ?? '',
         wali_murid: (pendaftaran?.wali_murid?.length
@@ -83,6 +113,30 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
     const errors = rawErrors as Record<string, string>;
 
     const kategoriTerpilih = kategoriSiswa.find((k) => String(k.id) === data.kategori_siswa_id);
+
+    // Pilihan sekolah asal disimpan di layar saja, TIDAK ikut dikirim: yang
+    // dikirim tiga kolom aslinya (id / ketikan / tanpa PAUD), sedangkan nilai
+    // select-nya cuma alat bantu. Tanpa state ini, memilih "ketik sendiri" akan
+    // langsung terpental balik selama kotak ketiknya masih kosong.
+    const [paudTerpilih, setPaudTerpilih] = useState<string>(
+        pendaftaran?.tanpa_paud
+            ? TANPA_PAUD
+            : pendaftaran?.asal_paud_id
+              ? String(pendaftaran.asal_paud_id)
+              : pendaftaran?.asal_paud_lainnya
+                ? PAUD_LAINNYA
+                : '',
+    );
+
+    function pilihPaud(nilai: string) {
+        setPaudTerpilih(nilai);
+        setData((d) => ({
+            ...d,
+            tanpa_paud: nilai === TANPA_PAUD,
+            asal_paud_id: nilai === TANPA_PAUD || nilai === PAUD_LAINNYA || nilai === '' ? null : Number(nilai),
+            asal_paud_lainnya: nilai === PAUD_LAINNYA ? d.asal_paud_lainnya : '',
+        }));
+    }
 
     function addWaliMurid() {
         setData('wali_murid', [...data.wali_murid, { nama: '', nik: '', hubungan: '', telepon: '' }]);
@@ -165,7 +219,9 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                                 {/* Data calon peserta didik */}
                                 <Section title="Data Calon Peserta Didik">
                                     <div className="mb-5">
-                                        <Label required htmlFor="kategori_siswa_id">Kategori Siswa</Label>
+                                        <Label required htmlFor="kategori_siswa_id">
+                                            Kategori Siswa
+                                        </Label>
                                         <select
                                             id="kategori_siswa_id"
                                             className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none"
@@ -191,7 +247,9 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
 
                                     <div className="mb-5 grid grid-cols-2 gap-5">
                                         <div>
-                                            <Label required htmlFor="nama_pendaftar">Nama Lengkap</Label>
+                                            <Label required htmlFor="nama_pendaftar">
+                                                Nama Lengkap
+                                            </Label>
                                             <Input
                                                 id="nama_pendaftar"
                                                 value={data.nama_pendaftar}
@@ -204,11 +262,19 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                                             <Label htmlFor="nik">
                                                 NIK <span className="text-gray-500">(opsional)</span>
                                             </Label>
-                                            <Input id="nik" value={data.nik} onChange={(v) => setData('nik', v)} placeholder="16 digit NIK" maxLength={16} />
+                                            <Input
+                                                id="nik"
+                                                value={data.nik}
+                                                onChange={(v) => setData('nik', v)}
+                                                placeholder="16 digit NIK"
+                                                maxLength={16}
+                                            />
                                             <FieldError message={errors.nik} />
                                         </div>
                                         <div>
-                                            <Label required htmlFor="tempat_lahir">Tempat Lahir</Label>
+                                            <Label required htmlFor="tempat_lahir">
+                                                Tempat Lahir
+                                            </Label>
                                             <Input
                                                 id="tempat_lahir"
                                                 value={data.tempat_lahir}
@@ -218,7 +284,9 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                                             <FieldError message={errors.tempat_lahir} />
                                         </div>
                                         <div>
-                                            <Label required htmlFor="tanggal_lahir">Tanggal Lahir</Label>
+                                            <Label required htmlFor="tanggal_lahir">
+                                                Tanggal Lahir
+                                            </Label>
                                             <input
                                                 id="tanggal_lahir"
                                                 type="date"
@@ -232,15 +300,13 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
 
                                     <div className="mb-5 grid grid-cols-2 gap-5">
                                         <div>
-                                            <Label required id="label_jenis_kelamin">Jenis Kelamin</Label>
+                                            <Label required id="label_jenis_kelamin">
+                                                Jenis Kelamin
+                                            </Label>
                                             {/* Kelompok radio, bukan satu kolom - jadi labelnya yang
                                                 ditunjuk balik lewat aria-labelledby. Dua pilihan di
                                                 dalamnya sudah dibungkus <label> masing-masing. */}
-                                            <div
-                                                role="radiogroup"
-                                                aria-labelledby="label_jenis_kelamin"
-                                                className="flex h-[42px] items-center gap-6"
-                                            >
+                                            <div role="radiogroup" aria-labelledby="label_jenis_kelamin" className="flex h-[42px] items-center gap-6">
                                                 <label className="flex items-center gap-2 text-sm text-gray-700">
                                                     <input
                                                         type="radio"
@@ -273,18 +339,176 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                                             <FieldError message={errors.agama} />
                                         </div>
                                     </div>
+                                </Section>
 
+                                <Section title="Alamat Tempat Tinggal">
                                     <div>
-                                        <Label required htmlFor="alamat">Alamat Domisili</Label>
+                                        <Label required htmlFor="alamat">
+                                            Alamat Lengkap
+                                        </Label>
                                         <textarea
                                             id="alamat"
                                             className="min-h-[90px] w-full resize-y rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none"
                                             value={data.alamat}
                                             onChange={(e) => setData('alamat', e.target.value)}
-                                            placeholder="Alamat lengkap tempat tinggal"
+                                            placeholder="Nama jalan, nomor rumah, blok, patokan"
                                         />
+                                        {/* Disebut eksplisit "tempat tinggal", bukan sekadar "alamat":
+                                            alamat KTP dan tempat tinggal sering beda, dan yang berguna
+                                            buat sekolah yang kedua. */}
+                                        <p className="mt-1 text-xs text-gray-500">
+                                            Isi alamat tempat anak tinggal sehari-hari, walaupun berbeda dengan alamat di KTP.
+                                        </p>
                                         <FieldError message={errors.alamat} />
                                     </div>
+
+                                    <div className="mt-5 grid gap-5 md:grid-cols-2">
+                                        {/* RT dan RW berdampingan dalam satu baris: dua-duanya
+                                            cuma beberapa angka, dan orang memang menyebutnya
+                                            sepasang ("RT 03 / RW 05"). */}
+                                        <div className="grid grid-cols-2 gap-5">
+                                            <div>
+                                                <Label htmlFor="rt">
+                                                    RT <span className="text-gray-500">(opsional)</span>
+                                                </Label>
+                                                <Input id="rt" value={data.rt} onChange={(v) => setData('rt', v)} placeholder="003" maxLength={5} />
+                                                <FieldError message={errors.rt} />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="rw">
+                                                    RW <span className="text-gray-500">(opsional)</span>
+                                                </Label>
+                                                <Input id="rw" value={data.rw} onChange={(v) => setData('rw', v)} placeholder="005" maxLength={5} />
+                                                <FieldError message={errors.rw} />
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <Label required htmlFor="kelurahan">
+                                                Kelurahan/Desa
+                                            </Label>
+                                            <Input
+                                                id="kelurahan"
+                                                value={data.kelurahan}
+                                                onChange={(v) => setData('kelurahan', v)}
+                                                placeholder="Sidomulyo Timur"
+                                            />
+                                            <FieldError message={errors.kelurahan} />
+                                        </div>
+
+                                        <div>
+                                            <Label required htmlFor="kecamatan">
+                                                Kecamatan
+                                            </Label>
+                                            <Input
+                                                id="kecamatan"
+                                                value={data.kecamatan}
+                                                onChange={(v) => setData('kecamatan', v)}
+                                                placeholder="Marpoyan Damai"
+                                            />
+                                            <FieldError message={errors.kecamatan} />
+                                        </div>
+
+                                        <div>
+                                            <Label required htmlFor="kota_kabupaten">
+                                                Kota/Kabupaten
+                                            </Label>
+                                            <Input
+                                                id="kota_kabupaten"
+                                                value={data.kota_kabupaten}
+                                                onChange={(v) => setData('kota_kabupaten', v)}
+                                                placeholder="Kota Pekanbaru"
+                                            />
+                                            <FieldError message={errors.kota_kabupaten} />
+                                        </div>
+
+                                        <div>
+                                            <Label required htmlFor="provinsi">
+                                                Provinsi
+                                            </Label>
+                                            <Input id="provinsi" value={data.provinsi} onChange={(v) => setData('provinsi', v)} placeholder="Riau" />
+                                            <FieldError message={errors.provinsi} />
+                                        </div>
+                                    </div>
+                                </Section>
+
+                                <Section title="Asal Sekolah dan Sumber Informasi">
+                                    <div className="grid gap-5 md:grid-cols-2">
+                                        <div>
+                                            <Label required htmlFor="asal_paud">
+                                                Asal TK/RA/PAUD
+                                            </Label>
+                                            <Select id="asal_paud" value={paudTerpilih} onChange={pilihPaud}>
+                                                <option value="">Pilih sekolah asal</option>
+                                                {/* Dua pilihan khusus ditaruh DI ATAS daftar sekolah:
+                                                    daftarnya ratusan baris, dan kalau jalan keluarnya
+                                                    ada di paling bawah, wali yang anaknya tidak lewat
+                                                    PAUD harus menggulir seluruh daftar dulu. */}
+                                                <option value={TANPA_PAUD}>Belum/tidak ikut PAUD</option>
+                                                <option value={PAUD_LAINNYA}>Tidak ada di daftar — ketik sendiri</option>
+                                                {asalPaud.map((kelompok) => (
+                                                    <optgroup key={kelompok.jenis} label={kelompok.label}>
+                                                        {kelompok.sekolah.map((s) => (
+                                                            <option key={s.id} value={s.id}>
+                                                                {s.nama}
+                                                            </option>
+                                                        ))}
+                                                    </optgroup>
+                                                ))}
+                                            </Select>
+                                            {paudTerpilih === PAUD_LAINNYA && (
+                                                <div className="mt-2">
+                                                    <Input
+                                                        id="asal_paud_lainnya"
+                                                        value={data.asal_paud_lainnya}
+                                                        onChange={(v) => setData('asal_paud_lainnya', v)}
+                                                        placeholder="Contoh: TK Nurul Ilmi"
+                                                    />
+                                                </div>
+                                            )}
+                                            <FieldError message={errors.asal_paud_id ?? errors.asal_paud_lainnya} />
+                                        </div>
+
+                                        <div>
+                                            <Label htmlFor="tahu_dari">
+                                                Tahu PPDB ini dari mana? <span className="text-gray-500">(opsional)</span>
+                                            </Label>
+                                            <Select
+                                                id="tahu_dari"
+                                                value={data.tahu_dari}
+                                                onChange={(v) =>
+                                                    setData((d) => ({
+                                                        ...d,
+                                                        tahu_dari: v,
+                                                        tahu_dari_lainnya: v === 'lainnya' ? d.tahu_dari_lainnya : '',
+                                                    }))
+                                                }
+                                            >
+                                                <option value="">Tidak menjawab</option>
+                                                {sumberInformasi.map((s) => (
+                                                    <option key={s.nilai} value={s.nilai}>
+                                                        {s.label}
+                                                    </option>
+                                                ))}
+                                            </Select>
+                                            {data.tahu_dari === 'lainnya' && (
+                                                <div className="mt-2">
+                                                    <Input
+                                                        id="tahu_dari_lainnya"
+                                                        value={data.tahu_dari_lainnya}
+                                                        onChange={(v) => setData('tahu_dari_lainnya', v)}
+                                                        placeholder="Sebutkan dari mana"
+                                                    />
+                                                </div>
+                                            )}
+                                            <FieldError message={errors.tahu_dari ?? errors.tahu_dari_lainnya} />
+                                        </div>
+                                    </div>
+
+                                    <p className="mt-4 text-xs text-gray-500">
+                                        Dua isian ini tidak memengaruhi hasil seleksi. Gunanya membantu sekolah mengetahui dari mana calon murid
+                                        berasal.
+                                    </p>
                                 </Section>
 
                                 {/* Data pendukung klaim kategori - tampil kondisional */}
@@ -332,7 +556,9 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                                             </div>
                                             <div className="grid grid-cols-2 gap-5">
                                                 <div>
-                                                    <Label required htmlFor={`wali_${index}_nama`}>Nama</Label>
+                                                    <Label required htmlFor={`wali_${index}_nama`}>
+                                                        Nama
+                                                    </Label>
                                                     <Input
                                                         id={`wali_${index}_nama`}
                                                         value={w.nama}
@@ -342,7 +568,9 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                                                     <FieldError message={errors[`wali_murid.${index}.nama`]} />
                                                 </div>
                                                 <div>
-                                                    <Label required htmlFor={`wali_${index}_nik`}>NIK</Label>
+                                                    <Label required htmlFor={`wali_${index}_nik`}>
+                                                        NIK
+                                                    </Label>
                                                     <Input
                                                         id={`wali_${index}_nik`}
                                                         value={w.nik}
@@ -353,7 +581,9 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                                                     <FieldError message={errors[`wali_murid.${index}.nik`]} />
                                                 </div>
                                                 <div>
-                                                    <Label required htmlFor={`wali_${index}_hubungan`}>Hubungan</Label>
+                                                    <Label required htmlFor={`wali_${index}_hubungan`}>
+                                                        Hubungan
+                                                    </Label>
                                                     <select
                                                         id={`wali_${index}_hubungan`}
                                                         className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none"
@@ -368,7 +598,9 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran }: Form
                                                     <FieldError message={errors[`wali_murid.${index}.hubungan`]} />
                                                 </div>
                                                 <div>
-                                                    <Label required htmlFor={`wali_${index}_telepon`}>No. WhatsApp Aktif</Label>
+                                                    <Label required htmlFor={`wali_${index}_telepon`}>
+                                                        No. WhatsApp Aktif
+                                                    </Label>
                                                     <Input
                                                         id={`wali_${index}_telepon`}
                                                         value={w.telepon}
@@ -485,6 +717,45 @@ function Input({
             placeholder={placeholder}
             maxLength={maxLength}
         />
+    );
+}
+
+/**
+ * Daftar pilihan. Sengaja `<select>` bawaan, bukan combobox dengan pencarian.
+ *
+ * Daftar terpanjangnya sekolah asal - 634 PAUD se-Pekanbaru. Panjang, tapi masih
+ * terpakai karena dua hal: isinya dipecah `<optgroup>` per jenis (TK/RA/KB/...)
+ * dan browser sendiri membolehkan mengetik huruf awal untuk melompat.
+ * Combobox buatan sendiri berarti menangani papan ketik, fokus, dan pembaca
+ * layar sendirian; itu ongkos yang baru pantas dibayar kalau daftarnya sudah
+ * ribuan baris.
+ *
+ * `id` wajib dengan alasan yang sama seperti di Input: itu yang menyambungkan
+ * kolom ini ke labelnya, dan TypeScript yang menahannya - bukan ingatan orang.
+ */
+function Select({
+    id,
+    value,
+    onChange,
+    disabled,
+    children,
+}: {
+    id: string;
+    value: string;
+    onChange: (value: string) => void;
+    disabled?: boolean;
+    children: React.ReactNode;
+}) {
+    return (
+        <select
+            id={id}
+            value={value}
+            disabled={disabled}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none disabled:cursor-not-allowed disabled:text-gray-500"
+        >
+            {children}
+        </select>
     );
 }
 

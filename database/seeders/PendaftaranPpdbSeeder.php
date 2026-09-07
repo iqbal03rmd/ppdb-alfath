@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\AsalPaud;
 use App\Models\GelombangPpdb;
 use App\Models\KategoriSiswa;
 use App\Models\PendaftaranPpdb;
@@ -24,6 +25,26 @@ class PendaftaranPpdbSeeder extends Seeder
         $wali = User::where('email', 'wali@ppdbalfath.test')->first();
         $gelombang = GelombangPpdb::where('nama', 'Gelombang 1')->first();
         $kategoriIdByNama = KategoriSiswa::pluck('id', 'nama');
+
+        // Isian laporan buat delapan baris di bawah. Nilainya tidak penting satu
+        // per satu - yang penting TIDAK dibiarkan kosong, karena delapan baris
+        // "Belum diisi" cukup untuk nangkring di puncak grafik asal PAUD dan
+        // menutupi temuan yang sebenarnya.
+        // Dicari menurut jenis + nama, BUKAN lewat namaLengkap(). Label tampilan
+        // boleh berubah kapan saja (kecamatannya baru saja ikut ditambahkan);
+        // kalau seeder ikut bergantung padanya, tiap perubahan label memaksa
+        // puluhan baris di bawah ikut diedit.
+        $paudId = AsalPaud::get()->mapWithKeys(fn (AsalPaud $p) => ["{$p->jenis} {$p->nama}" => $p->id]);
+        $isianLaporan = [
+            ['Bukit Raya', 'TK ADZKIYA', 'keluarga_teman'],
+            ['Marpoyan Damai', 'RA AL-FALAH', 'alumni_wali'],
+            ['Tenayan Raya', 'TK ABDUL MULUK', 'media_sosial'],
+            ['Sukajadi', 'RA LA-TAHZAN', 'guru_paud'],
+            ['Binawidya', 'TK AISYIYAH VIII', 'keluarga_teman'],
+            ['Marpoyan Damai', 'RA AL-FALAH', 'alumni_wali'],
+            ['Payung Sekaki', 'RA ABDUL RAHMAN', 'brosur_spanduk'],
+            ['Bukit Raya', 'TK ADZKIYA', 'acara_sekolah'],
+        ];
 
         if (! $wali || ! $gelombang || $kategoriIdByNama->isEmpty()) {
             return; // UserSeeder/MasterDataSeeder belum jalan - jangan seed data yatim piatu.
@@ -144,7 +165,9 @@ class PendaftaranPpdbSeeder extends Seeder
             ],
         ];
 
-        foreach ($pendaftaranList as $data) {
+        foreach ($pendaftaranList as $urutan => $data) {
+            [$kecamatan, $paud, $tahuDari] = $isianLaporan[$urutan];
+
             $pendaftaran = PendaftaranPpdb::updateOrCreate(
                 ['nomor_pendaftaran' => "PPDB-2026-{$data['nomor']}"],
                 [
@@ -154,10 +177,18 @@ class PendaftaranPpdbSeeder extends Seeder
                     'nama_pendaftar' => $data['nama'],
                     'nik' => '32750101160000' . substr($data['nomor'], -2),
                     'tanggal_lahir' => '2020-04-15',
-                    'tempat_lahir' => 'Bandung',
+                    'tempat_lahir' => 'Pekanbaru',
                     'jenis_kelamin' => 'laki-laki',
                     'agama' => 'Islam',
-                    'alamat' => 'Jl. Contoh Alamat No. 10, Bandung',
+                    'alamat' => 'Jl. Contoh Alamat No. 10, Pekanbaru',
+                    'kelurahan' => 'Sidomulyo Timur',
+                    'kecamatan' => $kecamatan,
+                    'kota_kabupaten' => 'Kota Pekanbaru',
+                    'provinsi' => 'Riau',
+                    'rt' => '003',
+                    'rw' => '005',
+                    'asal_paud_id' => $paudId[$paud] ?? null,
+                    'tahu_dari' => $tahuDari,
                     'nama_saudara' => $data['kategori'] === 'Saudara' ? 'Kakak ' . $data['nama'] : null,
                     'nama_orang_tua_guru' => $data['kategori'] === 'Anak Guru' ? 'Orang Tua ' . $data['nama'] : null,
                     'status' => $data['status'],

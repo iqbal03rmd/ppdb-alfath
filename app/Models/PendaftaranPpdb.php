@@ -52,6 +52,31 @@ class PendaftaranPpdb extends Model
      */
     public const STATUS_BISA_DITUTUP = ['diajukan', 'perlu_perbaikan', 'diverifikasi'];
 
+    /**
+     * Pilihan "tahu PPDB dari mana", beserta labelnya buat wali.
+     *
+     * Daftarnya sengaja pendek. Makin banyak pilihan, makin tipis sebarannya,
+     * dan tidak ada satu pun yang cukup besar buat jadi dasar keputusan. Tiap
+     * pilihan di sini mewakili satu saluran promosi yang sekolah betul-betul
+     * bisa memutuskan mau ditambah atau dihentikan - kalau sebuah pilihan tidak
+     * bisa ditindaklanjuti, dia tidak pantas ada di daftar ini.
+     *
+     * 'lainnya' yang membuat daftar ini bisa memperbaiki dirinya sendiri: apa
+     * pun yang sering diketik wali di tahun_dari_lainnya tahun ini tinggal
+     * dinaikkan jadi pilihan tetap tahun depan. Jadi daftarnya tidak perlu
+     * ditebak benar sejak awal - dan memang tidak bisa, karena sekolahnya
+     * sendiri belum pernah mendata ini.
+     */
+    public const SUMBER_INFORMASI = [
+        'keluarga_teman' => 'Keluarga, teman, atau tetangga',
+        'alumni_wali' => 'Alumni atau wali murid Al-Fath',
+        'media_sosial' => 'Media sosial',
+        'brosur_spanduk' => 'Brosur atau spanduk',
+        'guru_paud' => 'Guru TK/RA',
+        'acara_sekolah' => 'Acara sekolah',
+        'lainnya' => 'Lainnya',
+    ];
+
     protected $table = 'pendaftaran_ppdb';
 
     protected $fillable = [
@@ -59,6 +84,7 @@ class PendaftaranPpdb extends Model
         'gelombang_ppdb_id',
         'kategori_siswa_id',
         'diverifikasi_oleh',
+        'diverifikasi_pada',
         'nomor_pendaftaran',
         'nama_pendaftar',
         'nik',
@@ -67,6 +93,17 @@ class PendaftaranPpdb extends Model
         'jenis_kelamin',
         'agama',
         'alamat',
+        'rt',
+        'rw',
+        'kelurahan',
+        'kecamatan',
+        'kota_kabupaten',
+        'provinsi',
+        'asal_paud_id',
+        'asal_paud_lainnya',
+        'tanpa_paud',
+        'tahu_dari',
+        'tahu_dari_lainnya',
         'nama_saudara',
         'nama_orang_tua_guru',
         'status',
@@ -76,6 +113,8 @@ class PendaftaranPpdb extends Model
 
     protected $casts = [
         'tanggal_lahir' => 'date',
+        'diverifikasi_pada' => 'datetime',
+        'tanpa_paud' => 'boolean',
         'minimal_bayar' => 'integer',
     ];
 
@@ -99,9 +138,51 @@ class PendaftaranPpdb extends Model
         return $this->belongsTo(User::class, 'diverifikasi_oleh');
     }
 
+    public function asalPaud(): BelongsTo
+    {
+        return $this->belongsTo(AsalPaud::class);
+    }
+
     public function waliMurid(): HasMany
     {
         return $this->hasMany(WaliMurid::class, 'pendaftaran_ppdb_id');
+    }
+
+    /**
+     * Asal PAUD buat laporan. Tiga keadaan yang sengaja dibedakan:
+     *
+     *   - terdaftar di master  -> namanya, lengkap dengan jenis (TK/RA/...)
+     *   - diketik sendiri wali -> teksnya apa adanya
+     *   - tidak lewat PAUD     -> kelompok tersendiri, BUKAN "tidak diisi"
+     *
+     * Yang ketiga penting dibedakan dari yang kosong: "anak ini memang tidak
+     * pernah TK" itu jawaban, sedangkan "belum diisi" itu ketiadaan jawaban.
+     * Menggabungkannya bikin satu kelompok yang tidak bisa ditafsirkan.
+     */
+    public function labelAsalPaud(): string
+    {
+        if ($this->tanpa_paud) {
+            return 'Belum/tidak ikut PAUD';
+        }
+
+        if ($this->asalPaud !== null) {
+            return $this->asalPaud->namaLengkap();
+        }
+
+        return $this->asal_paud_lainnya ?: 'Belum diisi';
+    }
+
+    public function labelSumberInformasi(): string
+    {
+        if ($this->tahu_dari === null) {
+            return 'Tidak menjawab';
+        }
+
+        if ($this->tahu_dari === 'lainnya' && $this->tahu_dari_lainnya) {
+            return $this->tahu_dari_lainnya;
+        }
+
+        return self::SUMBER_INFORMASI[$this->tahu_dari] ?? $this->tahu_dari;
     }
 
     public function dokumen(): HasMany
@@ -409,6 +490,70 @@ class PendaftaranPpdb extends Model
     }
 
     /**
+     * Berapa hari wali menggantung antara berkasnya dinyatakan lolos dan
+     * transfer PERTAMA-nya masuk. Null kalau salah satu ujungnya belum ada.
+     *
+     * Diukur dari created_at baris pembayaran, BUKAN tanggal_transfer. Yang
+     * kedua diketik sendiri wali dan sering ngawur (salah pilih tanggal, atau
+     * sengaja dimundurkan); yang pertama dicatat sistem saat dia betul-betul
+     * menekan kirim.
+     *
+     * Transfer yang belakangan DITOLAK staf tetap dihitung. Yang diukur di sini
+     * "kapan wali bergerak", bukan "kapan uangnya sah" - orang yang mengirim
+     * bukti di hari kedua lalu buktinya buram tetap orang yang tidak menunda.
+     */
+    public function hariSampaiTransferPertama(): ?int
+    {
+        $pertama = $this->pembayaran->sortBy('created_at')->first();
+
+        if ($this->diverifikasi_pada === null || $pertama === null) {
+            return null;
+        }
+
+        // Tidak pernah negatif: kalau ada data aneh (mis. hasil seed yang
+        // urutannya terbalik), yang keluar 0, bukan angka minus yang lalu
+        // menyeret rata-ratanya ke bawah tanpa ada yang sadar.
+        return max(0, (int) $this->diverifikasi_pada->startOfDay()
+            ->diffInDays($pertama->created_at->startOfDay()));
+    }
+
+    /**
+     * Sudah boleh bayar tapi belum menyetor sepeser pun. Ini kelompok yang
+     * paling perlu ditelepon staf - dan di laporan dia sengaja tidak dicampur
+     * ke rata-rata jeda, karena jedanya belum selesai berjalan.
+     */
+    public function belumTransferSamaSekali(): bool
+    {
+        return $this->diverifikasi_pada !== null && $this->pembayaran->isEmpty();
+    }
+
+    /**
+     * Berapa kali transfer yang SAH. Dasar buat memisahkan yang membayar
+     * sekaligus dari yang mencicil.
+     */
+    public function jumlahTransferSah(): int
+    {
+        return $this->pembayaran->where('status', 'terverifikasi')->count();
+    }
+
+    /**
+     * Tagihannya sudah TUNTAS - bukan sekadar sudah mencapai minimal bayar.
+     *
+     * Dua hal ini gampang tertukar dan akibatnya jauh berbeda:
+     * sudahPenuhiMinimal() menentukan diterima atau tidak, sedangkan yang ini
+     * cuma menerangkan apakah masih ada sisa yang dicicil. Wali yang baru
+     * membayar minimal SUDAH diterima dan tidak sedang bermasalah - dia hanya
+     * belum lunas, dan mencicil memang diperbolehkan sampai batas pelunasan.
+     *
+     * Syarat "terbayar > 0" bukan basa-basi: tanpa itu, pendaftaran yang
+     * tagihannya belum terbit (total 0, terbayar 0) ikut terhitung lunas.
+     */
+    public function sudahLunas(): bool
+    {
+        return $this->totalTerbayar() > 0 && $this->sisaTagihan() <= 0;
+    }
+
+    /**
      * Menunggak: sudah diterima, tenggat pelunasan lewat, sisa tagihan masih ada.
      */
     public function menunggak(): bool
@@ -466,7 +611,7 @@ class PendaftaranPpdb extends Model
     {
         $totalTerbayar = $this->totalTerbayar();
 
-        if ($totalTerbayar > 0 && $this->sisaTagihan() <= 0) {
+        if ($this->sudahLunas()) {
             return 'lunas';
         }
 
