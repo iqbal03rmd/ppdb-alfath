@@ -27,6 +27,24 @@ class ProfileUpdateRequest extends FormRequest
                 'max:255',
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
+
+            // Batas 20 disamakan dengan SuperAdmin\PenggunaController: kolom yang
+            // sama, jadi tidak boleh ada nomor yang lolos lewat satu halaman tapi
+            // ditolak di halaman lain.
+            'telepon' => ['nullable', 'string', 'max:20'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'name.required' => 'Nama wajib diisi.',
+            'email.required' => 'Email wajib diisi - itu yang dipakai untuk masuk.',
+            'email.lowercase' => 'Tulis email dengan huruf kecil semua.',
+            'email.unique' => 'Email ini sudah dipakai akun lain.',
         ];
     }
 }

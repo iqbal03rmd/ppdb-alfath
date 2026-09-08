@@ -1,7 +1,21 @@
 import logoAlFath from '@/assets/logo-alfath.jpg';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { BarChart3, CircleCheckBig, ClipboardCheck, Database, FileText, Home, LogOut, Menu, Settings, Users, Wallet } from 'lucide-react';
+import {
+    BarChart3,
+    ChevronsUpDown,
+    CircleCheckBig,
+    ClipboardCheck,
+    Database,
+    FileText,
+    Home,
+    LogOut,
+    Menu,
+    Settings,
+    Users,
+    Wallet,
+} from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 
 type MenuItem = { label: string; href: string; icon: ReactNode };
@@ -22,8 +36,6 @@ const Icon = {
     clipboardCheck: <ClipboardCheck size={18} strokeWidth={1.8} />,
     barChart: <BarChart3 size={18} strokeWidth={1.8} />,
     database: <Database size={18} strokeWidth={1.8} />,
-    settings: <Settings size={18} strokeWidth={1.8} />,
-    signOut: <LogOut size={18} strokeWidth={1.8} />,
 };
 
 const menuByRole: Record<string, MenuItem[]> = {
@@ -46,7 +58,6 @@ const menuByRole: Record<string, MenuItem[]> = {
         { label: 'Beranda', href: '/super-admin/dashboard', icon: Icon.home },
         { label: 'Kelola Pengguna', href: '/super-admin/pengguna', icon: Icon.users },
         { label: 'Data Master', href: '/super-admin/data-master', icon: Icon.database },
-        { label: 'Pengaturan Sistem', href: '/super-admin/pengaturan', icon: Icon.settings },
     ],
 };
 
@@ -149,24 +160,61 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     })}
                 </nav>
 
-                {/* Footer sidebar - identitas user + logout digabung satu baris */}
+                {/* Footer sidebar - blok identitas yang membuka menu akun.
+                    Pengaturan Akun SENGAJA tidak ikut daftar menu di atas: yang
+                    di atas fitur PPDB (Beranda, Pendaftaran, Verifikasi), yang di
+                    sini urusan akun orangnya sendiri. Menaruhnya sederet bikin
+                    dua golongan berbeda terbaca setara.
+
+                    Keluar ikut pindah ke dalam menu ini. Jadi dua klik, dan itu
+                    ditukar dengan satu keuntungan: dulu dia cuma ikon tanpa
+                    tulisan yang artinya harus ditebak. */}
                 <div className="border-t border-[#D4EBF8] p-3">
-                    <div className="flex items-center gap-2.5 rounded-xl px-2 py-2">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#1F509A] text-xs font-semibold text-white">
-                            {auth.user?.name?.charAt(0).toUpperCase() ?? '?'}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <div className="truncate text-sm font-medium text-[#0A3981]">{auth.user?.name}</div>
-                            <div className="truncate text-xs text-gray-500">{roleLabel[role] ?? role}</div>
-                        </div>
-                        <button
-                            onClick={() => router.post(route('logout'))}
-                            title="Keluar"
-                            className="shrink-0 rounded-lg p-1.5 text-gray-500 hover:bg-[#F5F9FD] hover:text-[#0A3981]"
-                        >
-                            {Icon.signOut}
-                        </button>
-                    </div>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition-colors hover:bg-[#F5F9FD] focus:outline-none data-[state=open]:bg-[#F5F9FD]">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#1F509A] text-xs font-semibold text-white">
+                                {auth.user?.name?.charAt(0).toUpperCase() ?? '?'}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <div className="truncate text-sm font-medium text-[#0A3981]">{auth.user?.name}</div>
+                                <div className="truncate text-xs text-gray-500">{roleLabel[role] ?? role}</div>
+                            </div>
+                            {/* Satu-satunya tanda bahwa blok ini bisa diklik.
+                                Tanpa dia, blok identitas kelihatan seperti
+                                keterangan biasa dan menunya tidak pernah ketemu. */}
+                            <ChevronsUpDown size={16} strokeWidth={1.8} className="shrink-0 text-gray-500" />
+                        </DropdownMenuTrigger>
+
+                        {/* side="top": sidebar-nya mentok ke dasar layar, jadi
+                            menu yang membuka ke bawah akan terpotong. */}
+                        <DropdownMenuContent side="top" align="start" sideOffset={8} className="w-64 rounded-xl">
+                            {/* Email tampil DI SINI saja, bukan di blok pemicunya:
+                                di sana ruangnya cuma cukup untuk nama, dan email
+                                yang terpotong tengah jalan lebih buruk daripada
+                                tidak ditampilkan. */}
+                            <div className="px-2 py-1.5">
+                                <p className="truncate text-sm font-medium text-[#0A3981]">{auth.user?.name}</p>
+                                <p className="truncate text-xs text-gray-500">{auth.user?.email}</p>
+                            </div>
+
+                            <DropdownMenuSeparator />
+
+                            <DropdownMenuItem asChild className="cursor-pointer rounded-lg">
+                                <Link href="/settings/profile" className="flex items-center gap-2.5">
+                                    <Settings size={16} strokeWidth={1.8} className="text-gray-500" />
+                                    Pengaturan Akun
+                                </Link>
+                            </DropdownMenuItem>
+
+                            <DropdownMenuItem
+                                onSelect={() => router.post(route('logout'))}
+                                className="cursor-pointer rounded-lg text-red-700 focus:bg-red-50 focus:text-red-800"
+                            >
+                                <LogOut size={16} strokeWidth={1.8} />
+                                Keluar
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
 

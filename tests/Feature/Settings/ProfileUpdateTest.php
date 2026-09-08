@@ -33,6 +33,61 @@ test('profile information can be updated', function () {
     expect($user->email_verified_at)->toBeNull();
 });
 
+/**
+ * users.telepon sempat hanya bisa diubah Super Admin - halaman profil sendiri
+ * tidak memuatnya sama sekali, padahal itu nomor pemiliknya dan dipakai sekolah
+ * untuk menghubunginya.
+ */
+test('pemilik akun bisa mengubah nomor teleponnya sendiri', function () {
+    $user = User::factory()->create(['telepon' => '081200000001']);
+
+    $this->actingAs($user)
+        ->patch('/settings/profile', [
+            'name' => $user->name,
+            'email' => $user->email,
+            'telepon' => '081298765432',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($user->refresh()->telepon)->toBe('081298765432');
+});
+
+test('nomor telepon boleh dikosongkan', function () {
+    $user = User::factory()->create(['telepon' => '081200000001']);
+
+    $this->actingAs($user)
+        ->patch('/settings/profile', [
+            'name' => $user->name,
+            'email' => $user->email,
+            'telepon' => '',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($user->refresh()->telepon)->toBeNull();
+});
+
+/**
+ * Peran dan status aktif BUKAN hak pemiliknya - keduanya cuma boleh lewat
+ * Super Admin. Kalau suatu saat ikut fillable di halaman ini, wali murid bisa
+ * mengangkat dirinya sendiri jadi staf.
+ */
+test('peran dan status aktif tidak bisa diubah lewat halaman profil', function () {
+    $user = User::factory()->create(['role' => 'wali_murid', 'status_aktif' => true]);
+
+    $this->actingAs($user)
+        ->patch('/settings/profile', [
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => 'super_admin',
+            'status_aktif' => false,
+        ]);
+
+    $user->refresh();
+
+    expect($user->role)->toBe('wali_murid')
+        ->and($user->status_aktif)->toBeTrue();
+});
+
 test('email verification status is unchanged when the email address is unchanged', function () {
     $user = User::factory()->create();
 
@@ -50,36 +105,36 @@ test('email verification status is unchanged when the email address is unchanged
     expect($user->refresh()->email_verified_at)->not->toBeNull();
 });
 
-test('user can delete their account', function () {
+/*
+| Dua uji "user can delete their account" bawaan starter kit DIHAPUS bersama
+| rutenya, dan diganti dua uji di bawah yang menjaganya tetap tertutup.
+|
+| Sebabnya: users cascade ke pendaftaran_ppdb, yang cascade lagi ke
+| pembayaran_ppdb + tagihan_item. Wali yang sudah mentransfer bisa menghapus
+| akunnya sendiri bermodal kata sandinya, dan catatan uang yang sudah masuk
+| ikut lenyap. Jalur pengunduran diri yang benar ada di staf: menutup
+| pendaftaran melepas kursi kuota tanpa menghapus riwayat apa pun.
+*/
+
+test('rute hapus akun sendiri sudah tidak ada', function () {
     $user = User::factory()->create();
 
-    $response = $this
-        ->actingAs($user)
-        ->delete('/settings/profile', [
-            'password' => 'password',
-        ]);
-
-    $response
-        ->assertSessionHasNoErrors()
-        ->assertRedirect('/');
-
-    $this->assertGuest();
-    expect($user->fresh())->toBeNull();
-});
-
-test('correct password must be provided to delete account', function () {
-    $user = User::factory()->create();
-
-    $response = $this
-        ->actingAs($user)
-        ->from('/settings/profile')
-        ->delete('/settings/profile', [
-            'password' => 'wrong-password',
-        ]);
-
-    $response
-        ->assertSessionHasErrors('password')
-        ->assertRedirect('/settings/profile');
+    // 405, bukan 404: URI-nya masih ada untuk GET dan PATCH, cuma metode
+    // DELETE-nya yang sudah tidak dilayani.
+    $this->actingAs($user)
+        ->delete('/settings/profile', ['password' => 'password'])
+        ->assertStatus(405);
 
     expect($user->fresh())->not->toBeNull();
+});
+
+test('tidak ada satu pun route yang hanya menerima DELETE', function () {
+    $rute = collect(app('router')->getRoutes())
+        // Dicocokkan persis ['DELETE'], bukan in_array: Route::redirect()
+        // terdaftar sebagai ANY sehingga DELETE ikut masuk daftar metodenya -
+        // padahal dia pengalih, bukan penghapus.
+        ->filter(fn ($r) => $r->methods() === ['DELETE'])
+        ->map(fn ($r) => $r->uri());
+
+    expect($rute)->toBeEmpty();
 });

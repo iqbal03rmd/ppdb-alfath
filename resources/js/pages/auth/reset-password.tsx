@@ -13,7 +13,13 @@ interface ResetPasswordProps {
     email: string;
 }
 
+/**
+ * Index signature-nya dibutuhkan useForm milik Inertia - tipe datanya harus
+ * bisa diakses lewat kunci string sembarang (setData('nama', ...)). Tanpa ini
+ * TypeScript menolak seluruh pemakaian useForm<ResetPasswordForm>.
+ */
 interface ResetPasswordForm {
+    [key: string]: string;
     token: string;
     email: string;
     password: string;

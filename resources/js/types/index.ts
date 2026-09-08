@@ -1,26 +1,7 @@
-import { LucideIcon } from 'lucide-react';
-
 export interface Auth {
     user: User;
     /** Beranda sesuai role user - tidak ada rute bernama 'dashboard'. */
     home_url: string | null;
-}
-
-export interface BreadcrumbItem {
-    title: string;
-    href: string;
-}
-
-export interface NavGroup {
-    title: string;
-    items: NavItem[];
-}
-
-export interface NavItem {
-    title: string;
-    url: string;
-    icon?: LucideIcon | null;
-    isActive?: boolean;
 }
 
 export interface SharedData {
@@ -31,13 +12,22 @@ export interface SharedData {
     [key: string]: unknown;
 }
 
+/**
+ * Bentuk user yang dibagikan HandleInertiaRequests ke semua halaman.
+ *
+ * `role` dan `telepon` DIDAFTARKAN di sini, bukan dibiarkan jatuh ke index
+ * signature di bawah: lewat index signature tipenya jadi `unknown`, dan
+ * pemakainya terpaksa membungkusnya dengan String(...) atau cast - yang
+ * artinya TypeScript berhenti memeriksa apa pun soal kolom itu.
+ */
 export interface User {
     id: number;
     name: string;
     email: string;
-    avatar?: string;
+    role: string;
+    telepon: string | null;
     email_verified_at: string | null;
     created_at: string;
     updated_at: string;
-    [key: string]: unknown; // This allows for additional properties...
+    [key: string]: unknown;
 }

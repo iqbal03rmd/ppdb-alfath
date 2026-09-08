@@ -1,59 +1,63 @@
-import Heading from '@/components/heading';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
-import { type NavItem } from '@/types';
-import { Link } from '@inertiajs/react';
+import PageContainer from '@/components/page-container';
+import PageHeader from '@/components/page-header';
+import { Link, usePage } from '@inertiajs/react';
 
-const sidebarNavItems: NavItem[] = [
-    {
-        title: 'Profile',
-        url: '/settings/profile',
-        icon: null,
-    },
-    {
-        title: 'Password',
-        url: '/settings/password',
-        icon: null,
-    },
-    // "Appearance" dibuang: aplikasi ini terang saja, penyetel tema tidak lagi
-    // berpengaruh dan justru merusak halaman auth. Lihat use-appearance.tsx.
+/**
+ * Pembungkus dua halaman Pengaturan Akun (Profil & Kata Sandi).
+ *
+ * Dulu berupa sidebar kecil di kolom kiri isi halaman. Itu dibuang: aplikasi
+ * ini sudah punya sidebar sungguhan di sebelah kiri, dan sidebar kedua di
+ * dalamnya bikin ada dua daftar menu bertingkat yang bersaing minta dibaca.
+ * Dua halaman saja tidak butuh sidebar - tab mendatar cukup, dan letaknya
+ * langsung di atas isinya jadi hubungannya jelas.
+ *
+ * `wide`, seperti hampir semua halaman lain. Lebarnya dipakai lewat pembagian
+ * 2:1 yang sama dengan halaman Ubah Pengguna - kiri yang diketik, kanan
+ * keterangan. Tanpa panel kanan, satu kartu formulir terentang 1280px dan
+ * kolom "Nama Lengkap" jadi selebar layar; `samping` karena itu WAJIB diisi.
+ */
+const tab = [
+    { label: 'Profil', href: '/settings/profile' },
+    { label: 'Kata Sandi', href: '/settings/password' },
 ];
 
-export default function SettingsLayout({ children }: { children: React.ReactNode }) {
-    const currentPath = window.location.pathname;
+export default function SettingsLayout({ children, samping }: { children: React.ReactNode; samping: React.ReactNode }) {
+    // Dari Inertia, bukan window.location.pathname: yang kedua dibaca sekali
+    // saat render pertama dan tidak ikut berubah waktu pindah tab lewat
+    // navigasi Inertia - tab aktifnya bisa tertinggal di halaman sebelumnya.
+    const { url } = usePage();
 
     return (
-        <div className="px-4 py-6">
-            <Heading title="Settings" description="Manage your profile and account settings" />
+        <>
+            <PageHeader title="Pengaturan Akun" subtitle="Data akun Anda sendiri dan kata sandi untuk masuk" wide />
 
-            <div className="flex flex-col space-y-8 lg:flex-row lg:space-y-0 lg:space-x-12">
-                <aside className="w-full max-w-xl lg:w-48">
-                    <nav className="flex flex-col space-y-1 space-x-0">
-                        {sidebarNavItems.map((item) => (
-                            <Button
-                                key={item.url}
-                                size="sm"
-                                variant="ghost"
-                                asChild
-                                className={cn('w-full justify-start', {
-                                    'bg-muted': currentPath === item.url,
-                                })}
+            <PageContainer wide>
+                <div className="mb-6 flex gap-2 border-b border-[#D4EBF8]">
+                    {tab.map((t) => {
+                        const aktif = url.startsWith(t.href);
+
+                        return (
+                            <Link
+                                key={t.href}
+                                href={t.href}
+                                className={
+                                    '-mb-px border-b-2 px-4 py-2.5 text-sm transition-colors ' +
+                                    (aktif
+                                        ? 'border-[#E38E49] font-semibold text-[#0A3981]'
+                                        : 'border-transparent text-gray-500 hover:text-[#0A3981]')
+                                }
                             >
-                                <Link href={item.url} prefetch>
-                                    {item.title}
-                                </Link>
-                            </Button>
-                        ))}
-                    </nav>
-                </aside>
-
-                <Separator className="my-6 md:hidden" />
-
-                <div className="flex-1 md:max-w-2xl">
-                    <section className="max-w-xl space-y-12">{children}</section>
+                                {t.label}
+                            </Link>
+                        );
+                    })}
                 </div>
-            </div>
-        </div>
+
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                    <div className="lg:col-span-2">{children}</div>
+                    <div className="space-y-6">{samping}</div>
+                </div>
+            </PageContainer>
+        </>
     );
 }

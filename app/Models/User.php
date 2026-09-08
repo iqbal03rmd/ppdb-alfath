@@ -25,6 +25,22 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+    /**
+     * Akun HIDUP sampai ada yang sengaja mematikannya.
+     *
+     * Nilai bawaannya sebetulnya sudah ada di migration, tapi default kolom cuma
+     * berlaku di baris databasenya - objek User yang baru dibuat di PHP tetap
+     * memegang null sampai dibaca ulang. Sejak PastikanAkunAktif menendang
+     * keluar siapa pun yang status_aktif-nya tidak benar, null itu berarti akun
+     * yang baru saja dibuat bisa langsung terkunci di luar.
+     *
+     * Ditaruh di sini, bukan di factory atau seeder saja, supaya jalur mana pun
+     * yang membuat user - termasuk yang ditulis belakangan - ikut aman.
+     */
+    protected $attributes = [
+        'status_aktif' => true,
+    ];
+
     protected function casts(): array
     {
         return [

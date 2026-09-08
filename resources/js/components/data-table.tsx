@@ -11,7 +11,7 @@ import {
     type SortingState,
     useReactTable,
 } from '@tanstack/react-table';
-import { ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react';
+import { ChevronDown, ChevronsUpDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
 
 interface DataTableProps<TData, TValue> {
@@ -28,6 +28,12 @@ interface DataTableProps<TData, TValue> {
     /** Kalimat saat tabel kosong. Halaman yang punya penyaring sebaiknya
      *  mengisinya dengan sebab kosongnya, bukan sekadar "tidak ada data". */
     emptyMessage?: string;
+    /**
+     * Lebar maksimal kotak pencarian. Dipendekkan pada halaman yang menaruh
+     * tombol aksi di baris yang sama - kalau tidak, pencarian dan penyaring
+     * memenuhi baris sampai mepet ke tombolnya.
+     */
+    searchWidth?: string;
 }
 
 export function DataTable<TData, TValue>({
@@ -36,6 +42,7 @@ export function DataTable<TData, TValue>({
     searchPlaceholder = 'Cari...',
     toolbar,
     emptyMessage = 'Tidak ada data.',
+    searchWidth = 'max-w-sm',
 }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = useState<SortingState>([]);
     const [globalFilter, setGlobalFilter] = useState('');
@@ -60,7 +67,7 @@ export function DataTable<TData, TValue>({
                     placeholder={searchPlaceholder}
                     value={globalFilter}
                     onChange={(e) => setGlobalFilter(e.target.value)}
-                    className="max-w-sm border-gray-200 bg-white shadow-sm"
+                    className={`${searchWidth} border-gray-200 bg-white shadow-sm`}
                 />
                 {toolbar}
             </div>

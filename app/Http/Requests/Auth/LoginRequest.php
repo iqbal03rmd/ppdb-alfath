@@ -49,6 +49,22 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        // Akun yang dinonaktifkan Super Admin: kata sandinya benar, tapi
+        // haknya masuk sudah dicabut. Sesi yang terlanjur terbentuk dibatalkan
+        // lagi di sini - Auth::attempt() sudah terlanjur me-login-kan dia.
+        //
+        // Pesannya sengaja menyebut sebab yang sebenarnya, bukan 'auth.failed'
+        // yang samar: orang yang akunnya sengaja dimatikan harus tahu bahwa dia
+        // perlu menghubungi sekolah, bukan mencoba-coba kata sandi lain sampai
+        // kena kunci lima percobaan.
+        if (! Auth::user()->status_aktif) {
+            Auth::guard('web')->logout();
+
+            throw ValidationException::withMessages([
+                'email' => 'Akun ini sedang dinonaktifkan. Hubungi admin sekolah untuk mengaktifkannya kembali.',
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

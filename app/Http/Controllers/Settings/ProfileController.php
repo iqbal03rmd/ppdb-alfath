@@ -7,7 +7,6 @@ use App\Http\Requests\Settings\ProfileUpdateRequest;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -37,27 +36,12 @@ class ProfileController extends Controller
 
         $request->user()->save();
 
-        return to_route('profile.edit');
+        return to_route('profile.edit')->with('success', 'Profil berhasil diperbarui.');
     }
 
-    /**
-     * Delete the user's account.
+    /*
+     * destroy() SENGAJA TIDAK ADA - lihat komentar di routes/settings.php.
+     * Ringkasnya: menghapus akun sendiri ikut memusnahkan pendaftaran dan
+     * ledger pembayarannya lewat cascade. Jangan ditambahkan kembali.
      */
-    public function destroy(Request $request): RedirectResponse
-    {
-        $request->validate([
-            'password' => ['required', 'current_password'],
-        ]);
-
-        $user = $request->user();
-
-        Auth::logout();
-
-        $user->delete();
-
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return redirect('/');
-    }
 }

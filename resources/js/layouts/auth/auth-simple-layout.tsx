@@ -1,5 +1,5 @@
-import { Head, Link } from '@inertiajs/react';
 import logoAlFath from '@/assets/logo-alfath.jpg';
+import { Head, Link } from '@inertiajs/react';
 
 interface AuthLayoutProps {
     children: React.ReactNode;
