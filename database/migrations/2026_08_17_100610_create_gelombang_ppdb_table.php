@@ -24,20 +24,21 @@ return new class extends Migration
             // tahun_ajaran.batas_pelunasan, yang menagih sisa cicilan dan TIDAK
             // memicu penolakan.
             $table->date('batas_waktu_pembayaran')->nullable();
-            // Nominal minimal yang harus terbayar supaya pendaftaran berstatus
-            // 'diterima'. Sisanya boleh dicicil sampai tahun_ajaran.batas_pelunasan.
-            $table->unsignedBigInteger('minimal_pembayaran')->nullable();
-            // Pengecualian KHUSUS jalur Anak Yatim, yang dibebaskan uang
-            // pendaftaran & uang pangkal sehingga tagihannya jauh lebih kecil -
-            // nominal di atas mustahil dipenuhi jalur itu, jadi minimalnya
-            // dihitung sebagai persen dari tagihannya sendiri.
+            // Nominal minimal BAWAAN yang harus terbayar supaya pendaftaran
+            // berstatus 'diterima'. Sisanya boleh dicicil sampai
+            // tahun_ajaran.batas_pelunasan.
             //
-            // Sengaja dinamai eksplisit, bukan 'minimal_bayar_persen' yang
-            // generik: kolom generik mengundang staf memasang persentase buat
-            // jalur lain juga, padahal cuma jalur ini yang memakainya. Ditaruh
-            // di sini bareng nominalnya supaya sekali bikin gelombang, semua
-            // kebijakan minimal bayar selesai di satu tempat.
-            $table->unsignedTinyInteger('minimal_bayar_persen_yatim')->nullable();
+            // Ini nilai BAWAAN, bukan satu-satunya: jalur yang butuh angka lain
+            // (mis. Anak Yatim, yang dibebaskan uang pendaftaran & uang pangkal
+            // sehingga tagihannya jauh lebih kecil) mengisi
+            // kebijakan_kategori.minimal_bayar miliknya sendiri.
+            //
+            // Kolom 'minimal_bayar_persen_yatim' yang dulu ada di sini DIBUANG
+            // 8 September 2026. Dua sebabnya: namanya menyebut satu jalur
+            // sehingga jalur baru yang ditambahkan Admin lewat UI tidak akan
+            // pernah kebagian, dan persentase lebih susah dijelaskan ke wali
+            // daripada nominal. Penggantinya nominal per jalur.
+            $table->unsignedBigInteger('minimal_pembayaran')->nullable();
             $table->boolean('status_buka')->default(true);
             $table->timestamps();
         });

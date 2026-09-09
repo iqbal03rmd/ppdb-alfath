@@ -37,12 +37,6 @@ class PendaftaranPpdb extends Model
     public const STATUS_BOLEH_LIHAT_TAGIHAN = ['diverifikasi', 'diterima', 'ditolak'];
 
     /**
-     * Dokumen wajib dasar untuk semua kategori. Kategori tertentu menambah
-     * dokumen khusus - lihat dokumenWajib().
-     */
-    private const DOKUMEN_WAJIB_DASAR = ['kartu_keluarga', 'akta', 'ktp_orangtua', 'pas_foto'];
-
-    /**
      * Status yang masih boleh DITUTUP staf ('ditolak').
      *
      * 'draft' tidak masuk: belum pernah disubmit, tidak memegang kursi kuota,
@@ -103,8 +97,8 @@ class PendaftaranPpdb extends Model
         'tanpa_paud',
         'tahu_dari',
         'tahu_dari_lainnya',
-        'nama_saudara',
-        'nama_orang_tua_guru',
+        'pertanyaan_khusus',
+        'jawaban_khusus',
         'status',
         'minimal_bayar',
         'catatan_verifikasi',
@@ -205,20 +199,21 @@ class PendaftaranPpdb extends Model
     }
 
     /**
-     * Dokumen wajib untuk pendaftaran INI - dasar, ditambah dokumen khusus
-     * sesuai kategori yang diklaim (mis. Anak Yatim butuh surat kematian ayah).
+     * Dokumen wajib untuk pendaftaran INI - seluruhnya dari jalur yang diklaim.
+     *
+     * Tidak ada lagi "berkas dasar" yang tertanam di kode. Dulu ada empat
+     * (KK, akta, KTP orang tua, pas foto) yang selalu ditambahkan ke jalur mana
+     * pun; sekarang keempatnya ikut dipilih per jalur, dan jalur baru lahir
+     * dengan keempatnya sudah tercentang. Konsekuensinya jalur yang belum
+     * dikonfigurasi sama sekali tidak meminta berkas apa pun - itu kelihatan
+     * di halaman Jalur Pendaftaran sebagai jalur tanpa dokumen.
+     *
      * Satu-satunya tempat aturan ini didefinisikan; dipakai halaman Unggah
      * Berkas, checklist progres, dan validasi sebelum kirim/kirim perbaikan.
      */
     public function dokumenWajib(): array
     {
-        $wajib = self::DOKUMEN_WAJIB_DASAR;
-
-        if ($this->kategoriSiswa->nama === KategoriSiswa::ANAK_YATIM) {
-            $wajib[] = 'surat_kematian_ayah';
-        }
-
-        return $wajib;
+        return $this->gelombang->dokumenWajibUntuk($this->kategori_siswa_id);
     }
 
     /**
@@ -283,18 +278,36 @@ class PendaftaranPpdb extends Model
             return;
         }
 
-        $komponen = KomponenBiaya::with(['tarif' => fn ($q) => $q->where('kategori_siswa_id', $this->kategori_siswa_id)])
+        // Tarif dicari lewat TIGA kunci sekaligus: gelombang, jalur, komponen.
+        // Komponen biaya sendiri daftar global, jadi gelombangnya harus disebut
+        // di sini - tanpa itu nominal Gelombang 1 bisa terpakai di Gelombang 2.
+        $tarif = TarifKategori::with('komponenBiaya')
             ->where('gelombang_ppdb_id', $this->gelombang_ppdb_id)
-            ->get();
+            ->where('kategori_siswa_id', $this->kategori_siswa_id)
+            // Pos yang sudah dimatikan sekolah berhenti ikut ke tagihan BARU.
+            // Baris tarifnya sengaja tidak dihapus - dinyalakan lagi, harganya
+            // masih utuh. Tagihan yang SUDAH terbit tidak tersentuh sama sekali:
+            // rinciannya salinan teks di tagihan_item, tidak menoleh ke sini.
+            ->whereHas('komponenBiaya', fn ($q) => $q->where('status_aktif', true))
+            ->get()
+            // Urutannya ikut komponen, bukan urutan baris tarif - itu yang
+            // dibaca wali di rincian tagihan.
+            ->sortBy([
+                fn (TarifKategori $t) => $t->komponenBiaya->urutan,
+                fn (TarifKategori $t) => $t->komponenBiaya->nama,
+            ]);
 
-        // Admin belum bikin komponen biaya buat gelombang ini - JANGAN terbitkan
-        // tagihan kosong, nanti kebekukan di Rp0 selamanya walau tarifnya
-        // di-setting belakangan. Biarkan belum terbit sampai datanya siap.
-        if ($komponen->isEmpty()) {
+        // Admin belum mengatur tarif jalur ini di gelombang ini - JANGAN
+        // terbitkan tagihan kosong, nanti kebekukan di Rp0 selamanya walau
+        // tarifnya diisi belakangan. Biarkan belum terbit sampai datanya siap.
+        //
+        // Nominal 0 pada sebuah komponen TIDAK termasuk keadaan ini: itu
+        // keputusan sah bahwa jalur ini dibebaskan dari pos tersebut.
+        if ($tarif->isEmpty()) {
             return;
         }
 
-        DB::transaction(function () use ($komponen) {
+        DB::transaction(function () use ($tarif) {
             // Kunci baris pendaftaran biar dua request bersamaan nggak dua-duanya
             // lolos cek exists() di atas dan menerbitkan tagihan dobel.
             static::whereKey($this->getKey())->lockForUpdate()->first();
@@ -305,14 +318,13 @@ class PendaftaranPpdb extends Model
 
             $total = 0;
 
-            foreach ($komponen as $k) {
-                $nominal = (int) ($k->tarif->first()?->nominal ?? 0);
-                $total += $nominal;
+            foreach ($tarif as $t) {
+                $total += $t->nominal;
 
                 $this->tagihanItem()->create([
-                    'nama_komponen' => $k->nama,
-                    'keterangan' => $k->keterangan,
-                    'nominal' => $nominal,
+                    'nama_komponen' => $t->komponenBiaya->nama,
+                    'keterangan' => $t->komponenBiaya->keterangan,
+                    'nominal' => $t->nominal,
                 ]);
             }
 
@@ -368,14 +380,18 @@ class PendaftaranPpdb extends Model
     }
 
     /**
-     * Minimal bayar supaya pendaftaran bisa 'diterima'. Dua-duanya diambil dari
-     * gelombang, jadi sekali bikin gelombang semua kebijakannya selesai:
+     * Minimal bayar supaya pendaftaran bisa 'diterima'. SATU aturan, bukan dua:
      *
-     *   - jalur umum  -> minimal_pembayaran (nominal tetap). Reguler/Saudara/
-     *     Anak Guru selisih tagihannya tipis, jadi satu angka masih adil.
-     *   - Anak Yatim  -> minimal_bayar_persen_yatim, persen dari total tagihannya
-     *     sendiri. Jalur ini dibebaskan uang pendaftaran & uang pangkal sehingga
-     *     tagihannya jauh lebih kecil; nominal umum mustahil dipenuhi.
+     *   nominal khusus jalur ini  (kebijakan_kategori.minimal_bayar)
+     *   kalau tidak ada, nominal bawaan gelombang  (minimal_pembayaran)
+     *
+     * Dulu ada mode kedua: persentase khusus Anak Yatim, lewat kolom
+     * gelombang_ppdb.minimal_bayar_persen_yatim. Dibuang 8 September 2026 karena
+     * dua hal - namanya menyebut satu jalur sehingga jalur baru yang ditambahkan
+     * Admin lewat UI tidak akan pernah kebagian, dan aturannya dicocokkan lewat
+     * NAMA kategori sehingga mengganti nama jalur mematikannya diam-diam.
+     * Nominal per jalur menyelesaikan keduanya, dan lebih gampang dijelaskan ke
+     * wali daripada persentase (keputusan user).
      *
      * Hasilnya SELALU dibatasi setinggi-tingginya sebesar total tagihan. Tanpa
      * batas ini, minimal 3jt pada jalur yang tagihannya cuma 925rb bikin jalur
@@ -383,11 +399,9 @@ class PendaftaranPpdb extends Model
      */
     private function hitungMinimalBayar(int $totalTagihan): int
     {
-        $persenYatim = $this->gelombang->minimal_bayar_persen_yatim;
+        $khusus = KebijakanKategori::minimalBayarUntuk($this->gelombang_ppdb_id, $this->kategori_siswa_id);
 
-        $minimal = $this->kategoriSiswa->nama === KategoriSiswa::ANAK_YATIM && $persenYatim !== null
-            ? (int) round($totalTagihan * $persenYatim / 100)
-            : (int) ($this->gelombang->minimal_pembayaran ?? 0);
+        $minimal = (int) ($khusus ?? $this->gelombang->minimal_pembayaran ?? 0);
 
         return min(max(0, $minimal), $totalTagihan);
     }

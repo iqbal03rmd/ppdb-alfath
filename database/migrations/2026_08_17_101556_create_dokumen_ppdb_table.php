@@ -14,10 +14,13 @@ return new class extends Migration
         Schema::create('dokumen_ppdb', function (Blueprint $table) {
             $table->id();
             $table->foreignId('pendaftaran_ppdb_id')->constrained('pendaftaran_ppdb')->cascadeOnDelete();
-            $table->enum('jenis_dokumen', [
-                'akta', 'kartu_keluarga', 'ktp_orangtua', 'pas_foto',
-                'surat_kematian_ayah', 'surat_keterangan_tidak_mampu',
-            ]);
+            // Kode jenis berkas, bukan foreign key ke berkas_persyaratan.
+            // Dokumen yang sudah diunggah adalah CATATAN - jenisnya boleh
+            // dipensiunkan Admin tanpa membuat berkas lama menggantung.
+            // Alasannya persis sama dengan tagihan_item menyimpan nama komponen
+            // sebagai teks. Dulu enum; itu yang bikin daftarnya tidak bisa
+            // ditambah tanpa migration.
+            $table->string('jenis_dokumen');
             $table->string('berkas'); 
             $table->timestamps();
         });

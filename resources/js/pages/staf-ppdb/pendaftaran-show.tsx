@@ -61,8 +61,8 @@ interface PendaftaranShowProps {
         tanggal_lahir: string;
         jenis_kelamin: string;
         alamat: string;
-        nama_saudara: string | null;
-        nama_orang_tua_guru: string | null;
+        pertanyaan_khusus: string | null;
+        jawaban_khusus: string | null;
         catatan_verifikasi: string | null;
         diperiksa_oleh: string | null;
         akun_pendaftar: string;
@@ -200,10 +200,13 @@ export default function PendaftaranShow({
                             <Baris label="Gelombang" nilai={`${pendaftaran.gelombang} · ${pendaftaran.tahun_ajaran}`} />
                         </Kartu>
 
-                        {(pendaftaran.nama_saudara || pendaftaran.nama_orang_tua_guru) && (
+                        {pendaftaran.jawaban_khusus && (
                             <Kartu judul={`Pendukung Klaim Kategori ${pendaftaran.kategori}`}>
-                                <Baris label="Nama Saudara di Sekolah Ini" nilai={pendaftaran.nama_saudara} />
-                                <Baris label="Nama Orang Tua yang Mengajar" nilai={pendaftaran.nama_orang_tua_guru} />
+                                {/* Pertanyaan yang tersimpan di pendaftaran ini, bukan yang
+                                    berlaku di jalurnya sekarang — kalau Admin sempat
+                                    mengubahnya, jawaban ini tetap terbaca sesuai maksud
+                                    aslinya. */}
+                                <Baris label={pendaftaran.pertanyaan_khusus ?? 'Data Pendukung'} nilai={pendaftaran.jawaban_khusus} />
                             </Kartu>
                         )}
 

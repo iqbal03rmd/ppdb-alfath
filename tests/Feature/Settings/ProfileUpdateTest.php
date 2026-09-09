@@ -128,13 +128,31 @@ test('rute hapus akun sendiri sudah tidak ada', function () {
     expect($user->fresh())->not->toBeNull();
 });
 
-test('tidak ada satu pun route yang hanya menerima DELETE', function () {
+/**
+ * Route DELETE yang BOLEH ada cuma pada data konfigurasi yang tidak memegang
+ * uang: komponen biaya dan jalur pendaftaran. Foreign key keduanya sengaja
+ * tidak cascade ke pendaftaran, jadi yang sudah dipakai tetap tertolak.
+ *
+ * Yang TIDAK boleh: pengguna, tahun ajaran, gelombang, pendaftaran, pembayaran.
+ * Semuanya cascade sampai ke ledger transfer.
+ */
+test('tidak ada route DELETE pada data yang memegang uang', function () {
+    // Ketiganya data konfigurasi yang TIDAK memegang uang maupun berkas, dan
+    // controller-nya masing-masing menolak menghapus yang sudah dipakai.
+    $boleh = [
+        'super-admin/konfigurasi/komponen-biaya/{komponenBiaya}',
+        'super-admin/konfigurasi/jalur/{jalur}',
+        'super-admin/konfigurasi/berkas-persyaratan/{berkasPersyaratan}',
+    ];
+
     $rute = collect(app('router')->getRoutes())
         // Dicocokkan persis ['DELETE'], bukan in_array: Route::redirect()
         // terdaftar sebagai ANY sehingga DELETE ikut masuk daftar metodenya -
         // padahal dia pengalih, bukan penghapus.
         ->filter(fn ($r) => $r->methods() === ['DELETE'])
-        ->map(fn ($r) => $r->uri());
+        ->map(fn ($r) => $r->uri())
+        ->reject(fn (string $uri) => in_array($uri, $boleh, true))
+        ->values();
 
     expect($rute)->toBeEmpty();
 });

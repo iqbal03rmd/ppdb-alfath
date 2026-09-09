@@ -1,7 +1,7 @@
 <?php
 
 use App\Models\GelombangPpdb;
-use App\Models\KuotaKategori;
+use App\Models\KebijakanKategori;
 use App\Models\PembayaranPpdb;
 use App\Models\PendaftaranPpdb;
 use App\Models\TahunAjaran;
@@ -110,7 +110,7 @@ test('sisa tagihan tidak pernah negatif', function () {
         );
 });
 
-test('kartu kuota memakai hitungan KuotaKategori', function () {
+test('kartu kuota memakai hitungan KebijakanKategori', function () {
     $this->actingAs($this->kepsek)
         ->get(route('kepala-sekolah.dashboard'))
         ->assertInertia(function (AssertableInertia $page) {
@@ -154,7 +154,7 @@ test('rekap per kategori memakai aturan kuota, bukan jumlah yang diterima', func
             $baris = collect($page->toArray()['props']['perKategori']);
 
             expect($baris)->not->toBeEmpty()
-                ->and($baris->count())->toBe(KuotaKategori::count());
+                ->and($baris->count())->toBe(KebijakanKategori::count());
 
             foreach ($baris as $b) {
                 $memegangKursi = $b['total'] - $b['ditolak'];
@@ -176,7 +176,7 @@ test('rekap per kategori memakai aturan kuota, bukan jumlah yang diterima', func
  * Sisa harus tepat sebesar jumlah yang ditolak itu.
  */
 test('pendaftaran yang ditolak melepas kursi dan selisihnya terbaca di kolom ditolak', function () {
-    $kuota = KuotaKategori::with('gelombang')->firstOrFail();
+    $kuota = KebijakanKategori::with('gelombang')->firstOrFail();
 
     $korban = PendaftaranPpdb::where('gelombang_ppdb_id', $kuota->gelombang_ppdb_id)
         ->where('kategori_siswa_id', $kuota->kategori_siswa_id)

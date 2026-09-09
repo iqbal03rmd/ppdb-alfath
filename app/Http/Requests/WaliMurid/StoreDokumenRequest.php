@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\WaliMurid;
 
+use App\Models\BerkasPersyaratan;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreDokumenRequest extends FormRequest
 {
@@ -14,10 +16,11 @@ class StoreDokumenRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'jenis_dokumen' => [
-                'required',
-                'in:kartu_keluarga,akta,ktp_orangtua,pas_foto,surat_kematian_ayah,surat_keterangan_tidak_mampu',
-            ],
+            // Daftarnya diambil dari master Berkas Persyaratan, bukan ditulis
+            // di sini. Jenis yang sudah dinonaktifkan ikut ditolak - unggahan
+            // buat berkas yang tidak diminta lagi tidak punya tempat di
+            // checklist mana pun.
+            'jenis_dokumen' => ['required', Rule::in(array_keys(BerkasPersyaratan::peta()))],
             'berkas' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:2048'],
         ];
     }

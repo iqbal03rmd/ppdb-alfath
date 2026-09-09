@@ -1,7 +1,7 @@
 <?php
 
 use App\Models\GelombangPpdb;
-use App\Models\KuotaKategori;
+use App\Models\KebijakanKategori;
 use App\Models\PendaftaranPpdb;
 use App\Models\TahunAjaran;
 use App\Models\User;
@@ -148,7 +148,7 @@ test('menutup pendaftaran menyimpan alasan dan pemeriksanya', function () {
 test('menutup pendaftaran melepas kursi kuotanya', function () {
     $pendaftaran = PendaftaranPpdb::where('status', 'perlu_perbaikan')->firstOrFail();
 
-    $kuota = KuotaKategori::untuk($pendaftaran->gelombang_ppdb_id, $pendaftaran->kategori_siswa_id);
+    $kuota = KebijakanKategori::untuk($pendaftaran->gelombang_ppdb_id, $pendaftaran->kategori_siswa_id);
     $terpakaiSebelum = $kuota->terpakai();
 
     $this->actingAs($this->staf)

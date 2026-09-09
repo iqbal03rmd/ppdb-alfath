@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\StafPpdb;
 
 use App\Http\Controllers\Controller;
-use App\Models\DokumenPpdb;
+use App\Models\BerkasPersyaratan;
 use App\Models\PendaftaranPpdb;
 use App\Models\WaliMurid;
 use Illuminate\Http\RedirectResponse;
@@ -27,7 +27,10 @@ class VerifikasiPendaftaranController extends Controller
      */
     public function index(): Response
     {
-        $antrian = PendaftaranPpdb::with(['kategoriSiswa', 'gelombang', 'dokumen'])
+        // gelombang.dokumenWajib ikut di-load: tiap baris memanggil
+        // dokumenWajib(), yang membaca dokumen tambahan milik jalurnya. Tanpa
+        // ini, antrian sepanjang N menembak N query tambahan.
+        $antrian = PendaftaranPpdb::with(['gelombang.dokumenWajib', 'kategoriSiswa', 'dokumen'])
             ->where('status', 'diajukan')
             // Yang paling lama menunggu didahulukan - antrian, bukan tumpukan.
             ->oldest('updated_at')
@@ -61,7 +64,7 @@ class VerifikasiPendaftaranController extends Controller
      */
     public function show(PendaftaranPpdb $pendaftaran): Response
     {
-        $pendaftaran->load(['kategoriSiswa', 'gelombang', 'waliMurid', 'dokumen', 'user']);
+        $pendaftaran->load(['gelombang.dokumenWajib', 'kategoriSiswa', 'waliMurid', 'dokumen', 'user']);
 
         return Inertia::render('staf-ppdb/verifikasi-pendaftaran-show', [
             'pendaftaran' => [
@@ -76,8 +79,11 @@ class VerifikasiPendaftaranController extends Controller
                 'tanggal_lahir' => $pendaftaran->tanggal_lahir->locale('id')->translatedFormat('d F Y'),
                 'jenis_kelamin' => $pendaftaran->jenis_kelamin,
                 'alamat' => $pendaftaran->alamat,
-                'nama_saudara' => $pendaftaran->nama_saudara,
-                'nama_orang_tua_guru' => $pendaftaran->nama_orang_tua_guru,
+                // Pertanyaannya ikut dikirim, bukan dibaca ulang dari jalurnya:
+                // ini yang ditanyakan waktu wali mengisi, bukan yang berlaku
+                // sekarang.
+                'pertanyaan_khusus' => $pendaftaran->pertanyaan_khusus,
+                'jawaban_khusus' => $pendaftaran->jawaban_khusus,
                 'catatan_verifikasi' => $pendaftaran->catatan_verifikasi,
                 'akun_pendaftar' => $pendaftaran->user->name.' ('.$pendaftaran->user->email.')',
             ],
@@ -94,7 +100,7 @@ class VerifikasiPendaftaranController extends Controller
 
                 return [
                     'jenis' => $jenis,
-                    'label' => DokumenPpdb::LABEL[$jenis] ?? $jenis,
+                    'label' => BerkasPersyaratan::peta()[$jenis] ?? $jenis,
                     'terunggah' => $dokumen !== null,
                     'url' => $dokumen ? Storage::url($dokumen->berkas) : null,
                     'nama_file' => $dokumen ? basename($dokumen->berkas) : null,

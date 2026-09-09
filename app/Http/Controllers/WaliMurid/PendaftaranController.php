@@ -7,7 +7,7 @@ use App\Http\Requests\WaliMurid\StoreFormulirRequest;
 use App\Models\AsalPaud;
 use App\Models\GelombangPpdb;
 use App\Models\KategoriSiswa;
-use App\Models\KuotaKategori;
+use App\Models\KebijakanKategori;
 use App\Models\PendaftaranPpdb;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
@@ -23,7 +23,7 @@ class PendaftaranController extends Controller
     public function index(Request $request): Response
     {
         $pendaftaranList = PendaftaranPpdb::with([
-            'kategoriSiswa', 'dokumen', 'waliMurid', 'pembayaranTerakhir', 'gelombang',
+            'kategoriSiswa', 'dokumen', 'waliMurid', 'pembayaranTerakhir', 'gelombang.dokumenWajib',
             'pembayaran', 'tagihanItem',
         ])
             ->where('user_id', $request->user()->id)
@@ -43,7 +43,7 @@ class PendaftaranController extends Controller
         $this->authorizeAccess($pendaftaran);
 
         $pendaftaran->load([
-            'kategoriSiswa', 'dokumen', 'waliMurid', 'pembayaranTerakhir', 'gelombang',
+            'kategoriSiswa', 'dokumen', 'waliMurid', 'pembayaranTerakhir', 'gelombang.dokumenWajib',
             'pembayaran', 'tagihanItem',
         ]);
 
@@ -197,8 +197,10 @@ class PendaftaranController extends Controller
 
         abort_if(! $gelombang, 422, 'Tidak ada gelombang PPDB yang sedang dibuka saat ini.');
 
-        $pendaftaran = DB::transaction(function () use ($request, $gelombang) {
-            KuotaKategori::where('gelombang_ppdb_id', $gelombang->id)
+        $pertanyaan = $this->pertanyaanJalur((int) $request->kategori_siswa_id);
+
+        $pendaftaran = DB::transaction(function () use ($request, $gelombang, $pertanyaan) {
+            KebijakanKategori::where('gelombang_ppdb_id', $gelombang->id)
                 ->where('kategori_siswa_id', $request->kategori_siswa_id)
                 ->lockForUpdate()
                 ->first();
@@ -218,8 +220,11 @@ class PendaftaranController extends Controller
                 'alamat' => $request->alamat,
                 ...$this->bagianAlamat($request),
                 ...$this->isianLaporan($request),
-                'nama_saudara' => $request->nama_saudara,
-                'nama_orang_tua_guru' => $request->nama_orang_tua_guru,
+                // Pertanyaannya dibekukan bareng jawabannya - Admin boleh
+                // mengubah pertanyaan jalur belakangan tanpa mengubah arti
+                // jawaban yang sudah masuk.
+                'pertanyaan_khusus' => $pertanyaan,
+                'jawaban_khusus' => $pertanyaan === null ? null : $request->jawaban_khusus,
                 'status' => 'draft',
             ]);
 
@@ -270,8 +275,7 @@ class PendaftaranController extends Controller
                 'tanpa_paud' => $pendaftaran->tanpa_paud,
                 'tahu_dari' => $pendaftaran->tahu_dari ?? '',
                 'tahu_dari_lainnya' => $pendaftaran->tahu_dari_lainnya ?? '',
-                'nama_saudara' => $pendaftaran->nama_saudara ?? '',
-                'nama_orang_tua_guru' => $pendaftaran->nama_orang_tua_guru ?? '',
+                'jawaban_khusus' => $pendaftaran->jawaban_khusus ?? '',
                 'wali_murid' => $pendaftaran->waliMurid->map(fn ($w) => [
                     'nama' => $w->nama,
                     'nik' => $w->nik,
@@ -291,6 +295,12 @@ class PendaftaranController extends Controller
             $this->abortJikaKuotaPenuh($pendaftaran->gelombang, (int) $request->kategori_siswa_id);
         }
 
+        // Dibaca ulang tiap simpan, bukan dipertahankan dari yang tersimpan:
+        // selama formulirnya masih boleh diedit, wali bisa berpindah jalur - dan
+        // pertanyaannya harus ikut pindah. Yang dibekukan itu jawaban yang SUDAH
+        // dikirim, bukan draf yang masih di tangan walinya.
+        $pertanyaanBaru = $this->pertanyaanJalur((int) $request->kategori_siswa_id);
+
         $pendaftaran->update([
             'kategori_siswa_id' => $request->kategori_siswa_id,
             'nama_pendaftar' => $request->nama_pendaftar,
@@ -301,8 +311,8 @@ class PendaftaranController extends Controller
             'alamat' => $request->alamat,
             ...$this->bagianAlamat($request),
             ...$this->isianLaporan($request),
-            'nama_saudara' => $request->nama_saudara,
-            'nama_orang_tua_guru' => $request->nama_orang_tua_guru,
+            'pertanyaan_khusus' => $pertanyaanBaru,
+            'jawaban_khusus' => $pertanyaanBaru === null ? null : $request->jawaban_khusus,
         ]);
 
         $pendaftaran->waliMurid()->delete();
@@ -319,7 +329,7 @@ class PendaftaranController extends Controller
 
         abort_unless($pendaftaran->status === 'perlu_perbaikan', 403, 'Pendaftaran ini bukan status perlu perbaikan.');
 
-        $pendaftaran->load(['dokumen', 'kategoriSiswa', 'waliMurid']);
+        $pendaftaran->load(['dokumen', 'gelombang.dokumenWajib', 'waliMurid']);
 
         abort_if($pendaftaran->waliMurid->isEmpty(), 422, 'Data wali belum diisi.');
         abort_if(! $pendaftaran->berkasLengkap(), 422, 'Masih ada dokumen wajib yang belum diunggah.');
@@ -329,26 +339,47 @@ class PendaftaranController extends Controller
         return to_route('wali-murid.pendaftaran.index', ['expand' => $pendaftaran->id]);
     }
 
+    /**
+     * Pertanyaan khusus milik sebuah jalur, atau null kalau jalurnya tidak
+     * menanyakan apa-apa.
+     */
+    private function pertanyaanJalur(int $kategoriSiswaId): ?string
+    {
+        return KategoriSiswa::whereKey($kategoriSiswaId)->value('pertanyaan_khusus');
+    }
+
     private function kategoriDenganKuota(?GelombangPpdb $gelombang, ?int $kecualikanKategoriId = null): Collection
     {
-        return KategoriSiswa::select('id', 'nama', 'deskripsi')->get()->map(function (KategoriSiswa $k) use ($gelombang, $kecualikanKategoriId) {
-            $kuota = $gelombang ? KuotaKategori::untuk($gelombang->id, $k->id) : null;
+        // Jalur yang sudah dimatikan tidak ditawarkan lagi - KECUALI kalau itu
+        // jalur yang sedang dipakai pendaftaran ini. Tanpa pengecualian itu,
+        // wali yang membuka Ubah pada pendaftaran lamanya menemukan pilihannya
+        // hilang dari daftar, dan menyimpan formulir jadi mustahil.
+        return KategoriSiswa::select('id', 'nama', 'deskripsi', 'pertanyaan_khusus', 'status_aktif', 'urutan')
+            ->where(fn ($q) => $q->where('status_aktif', true)->orWhere('id', $kecualikanKategoriId))
+            ->terurut()
+            ->get()
+            ->map(function (KategoriSiswa $k) use ($gelombang, $kecualikanKategoriId) {
+                $kuota = $gelombang ? KebijakanKategori::untuk($gelombang->id, $k->id) : null;
 
-            return [
-                'id' => $k->id,
-                'nama' => $k->nama,
-                'deskripsi' => $k->deskripsi,
-                'kuota' => $kuota?->kuota,
-                'sisa_kuota' => $kuota?->sisa(),
-                'penuh' => $kuota && $kuota->penuh() && $k->id !== $kecualikanKategoriId,
-            ];
-        });
+                return [
+                    'id' => $k->id,
+                    'nama' => $k->nama,
+                    'deskripsi' => $k->deskripsi,
+                    // Pertanyaan khusus jalur ini - KALIMAT, bukan kunci yang
+                    // dicocokkan TSX. Selama masih kunci, jalur baru yang
+                    // ditambahkan Admin tidak akan pernah bisa bertanya apa pun.
+                    'pertanyaan_khusus' => $k->pertanyaan_khusus,
+                    'kuota' => $kuota?->kuota,
+                    'sisa_kuota' => $kuota?->sisa(),
+                    'penuh' => $kuota && $kuota->penuh() && $k->id !== $kecualikanKategoriId,
+                ];
+            });
     }
 
     private function abortJikaKuotaPenuh(GelombangPpdb $gelombang, int $kategoriSiswaId): void
     {
         abort_if(
-            KuotaKategori::penuhUntuk($gelombang->id, $kategoriSiswaId),
+            KebijakanKategori::penuhUntuk($gelombang->id, $kategoriSiswaId),
             422,
             'Kuota untuk kategori yang dipilih sudah penuh pada gelombang ini. Silakan pilih kategori lain atau tunggu gelombang berikutnya.'
         );

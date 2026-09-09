@@ -25,6 +25,7 @@ class PendaftaranPpdbSeeder extends Seeder
         $wali = User::where('email', 'wali@ppdbalfath.test')->first();
         $gelombang = GelombangPpdb::where('nama', 'Gelombang 1')->first();
         $kategoriIdByNama = KategoriSiswa::pluck('id', 'nama');
+        $pertanyaanByNama = KategoriSiswa::pluck('pertanyaan_khusus', 'nama');
 
         // Isian laporan buat delapan baris di bawah. Nilainya tidak penting satu
         // per satu - yang penting TIDAK dibiarkan kosong, karena delapan baris
@@ -188,8 +189,15 @@ class PendaftaranPpdbSeeder extends Seeder
                     'rw' => '005',
                     'asal_paud_id' => $paudId[$paud] ?? null,
                     'tahu_dari' => $tahuDari,
-                    'nama_saudara' => $data['kategori'] === 'Saudara' ? 'Kakak ' . $data['nama'] : null,
-                    'nama_orang_tua_guru' => $data['kategori'] === 'Anak Guru' ? 'Orang Tua ' . $data['nama'] : null,
+                    // Pertanyaan DAN jawabannya sama-sama disalin ke pendaftaran -
+                    // itu yang bikin jawaban lama tetap terbaca benar walau
+                    // pertanyaan jalurnya diubah Admin belakangan.
+                    'pertanyaan_khusus' => $pertanyaanByNama[$data['kategori']],
+                    'jawaban_khusus' => match ($data['kategori']) {
+                        'Saudara' => 'Kakak '.$data['nama'],
+                        'Anak Guru' => 'Orang Tua '.$data['nama'],
+                        default => null,
+                    },
                     'status' => $data['status'],
                     'catatan_verifikasi' => $data['catatan'],
                 ]

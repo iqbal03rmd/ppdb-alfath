@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\StafPpdb;
 
 use App\Http\Controllers\Controller;
-use App\Models\DokumenPpdb;
+use App\Models\BerkasPersyaratan;
 use App\Models\GelombangPpdb;
 use App\Models\PembayaranPpdb;
 use App\Models\PendaftaranPpdb;
@@ -195,8 +195,11 @@ class PendaftaranController extends Controller
                 'tanggal_lahir' => $pendaftaran->tanggal_lahir->locale('id')->translatedFormat('d F Y'),
                 'jenis_kelamin' => $pendaftaran->jenis_kelamin,
                 'alamat' => $pendaftaran->alamat,
-                'nama_saudara' => $pendaftaran->nama_saudara,
-                'nama_orang_tua_guru' => $pendaftaran->nama_orang_tua_guru,
+                // Pertanyaannya ikut dikirim, bukan dibaca ulang dari jalurnya:
+                // ini yang ditanyakan waktu wali mengisi, bukan yang berlaku
+                // sekarang.
+                'pertanyaan_khusus' => $pendaftaran->pertanyaan_khusus,
+                'jawaban_khusus' => $pendaftaran->jawaban_khusus,
                 'catatan_verifikasi' => $pendaftaran->catatan_verifikasi,
                 'diperiksa_oleh' => $pendaftaran->diverifikasiOleh?->name,
                 'akun_pendaftar' => $pendaftaran->user->name.' ('.$pendaftaran->user->email.')',
@@ -215,7 +218,7 @@ class PendaftaranController extends Controller
 
                 return [
                     'jenis' => $jenis,
-                    'label' => DokumenPpdb::LABEL[$jenis] ?? $jenis,
+                    'label' => BerkasPersyaratan::peta()[$jenis] ?? $jenis,
                     'terunggah' => $dokumen !== null,
                     'url' => $dokumen ? Storage::url($dokumen->berkas) : null,
                 ];

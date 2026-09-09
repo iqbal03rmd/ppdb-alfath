@@ -11,6 +11,14 @@ interface KategoriSiswa {
     id: number;
     nama: string;
     deskripsi: string | null;
+    /** Pertanyaan khusus jalur ini - null kalau tidak menanyakan apa pun.
+     *  KALIMAT utuh dari kategori_siswa.pertanyaan_khusus, bukan kunci yang
+     *  dicocokkan di sini. Dua bentuk sebelumnya sama-sama gagal: mencocokkan
+     *  NAMA jalur (mencari 'Anak Guru/Tenaga Kependidikan' padahal jalurnya
+     *  bernama 'Anak Guru', jadi kolomnya tidak pernah muncul), lalu mencocokkan
+     *  KUNCI dari daftar tetap - yang bikin jalur baru tidak bisa bertanya
+     *  apa pun tanpa menambah cabang if di berkas ini. */
+    pertanyaan_khusus: string | null;
     kuota: number | null;
     sisa_kuota: number | null;
     penuh: boolean;
@@ -50,8 +58,7 @@ interface PendaftaranExisting {
     tanpa_paud: boolean;
     tahu_dari: string;
     tahu_dari_lainnya: string;
-    nama_saudara: string;
-    nama_orang_tua_guru: string;
+    jawaban_khusus: string;
     wali_murid: WaliMuridInput[];
 }
 
@@ -98,8 +105,7 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPa
         tanpa_paud: pendaftaran?.tanpa_paud ?? false,
         tahu_dari: pendaftaran?.tahu_dari ?? '',
         tahu_dari_lainnya: pendaftaran?.tahu_dari_lainnya ?? '',
-        nama_saudara: pendaftaran?.nama_saudara ?? '',
-        nama_orang_tua_guru: pendaftaran?.nama_orang_tua_guru ?? '',
+        jawaban_khusus: pendaftaran?.jawaban_khusus ?? '',
         wali_murid: (pendaftaran?.wali_murid?.length
             ? pendaftaran.wali_murid
             : [{ nama: '', nik: '', hubungan: '', telepon: '' }]) as WaliMuridInput[],
@@ -501,30 +507,19 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPa
                                     </p>
                                 </Section>
 
-                                {/* Data pendukung klaim kategori - tampil kondisional */}
-                                {kategoriTerpilih?.nama === 'Saudara' && (
-                                    <Section title="Data Pendukung: Saudara di Sekolah Ini">
-                                        <Label htmlFor="nama_saudara">Nama Saudara</Label>
+                                {/* Pertanyaan khusus jalur — satu blok untuk jalur mana pun.
+                                    Dulu dua cabang yang mencocokkan kuncinya sebagai teks, jadi
+                                    jalur baru yang ditambahkan Admin tidak akan pernah bisa
+                                    bertanya apa pun tanpa menambah cabang lagi di sini. */}
+                                {kategoriTerpilih?.pertanyaan_khusus && (
+                                    <Section title={`Data Pendukung: Jalur ${kategoriTerpilih.nama}`}>
+                                        <Label htmlFor="jawaban_khusus">{kategoriTerpilih.pertanyaan_khusus}</Label>
                                         <Input
-                                            id="nama_saudara"
-                                            value={data.nama_saudara}
-                                            onChange={(v) => setData('nama_saudara', v)}
-                                            placeholder="Nama saudara kandung yang terdaftar di sekolah ini"
+                                            id="jawaban_khusus"
+                                            value={data.jawaban_khusus}
+                                            onChange={(v) => setData('jawaban_khusus', v)}
                                         />
-                                        <FieldError message={errors.nama_saudara} />
-                                    </Section>
-                                )}
-
-                                {kategoriTerpilih?.nama === 'Anak Guru/Tenaga Kependidikan' && (
-                                    <Section title="Data Pendukung: Orang Tua Guru/Tenaga Kependidikan">
-                                        <Label htmlFor="nama_orang_tua_guru">Nama Orang Tua</Label>
-                                        <Input
-                                            id="nama_orang_tua_guru"
-                                            value={data.nama_orang_tua_guru}
-                                            onChange={(v) => setData('nama_orang_tua_guru', v)}
-                                            placeholder="Nama orang tua yang merupakan guru/tenaga kependidikan"
-                                        />
-                                        <FieldError message={errors.nama_orang_tua_guru} />
+                                        <FieldError message={errors.jawaban_khusus} />
                                     </Section>
                                 )}
 

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\KepalaSekolah;
 
 use App\Http\Controllers\Controller;
 use App\Models\GelombangPpdb;
-use App\Models\KuotaKategori;
+use App\Models\KebijakanKategori;
 use App\Models\PendaftaranPpdb;
 use App\Models\TahunAjaran;
 use Illuminate\Support\Collection;
@@ -101,9 +101,9 @@ class LaporanController extends Controller
         // 2026). Yang tampil cukup 'ditolak' - itu yang menerangkan kenapa Sisa
         // tidak sama dengan Kuota - Pendaftar. 'sisa' sendiri tetap lewat model,
         // bukan dihitung ulang di sini.
-        $perKategori = KuotaKategori::with(['kategoriSiswa', 'gelombang.tahunAjaran'])
+        $perKategori = KebijakanKategori::with(['kategoriSiswa', 'gelombang.tahunAjaran'])
             ->get()
-            ->map(function (KuotaKategori $k) use ($masuk) {
+            ->map(function (KebijakanKategori $k) use ($masuk) {
                 $isi = $masuk->where('gelombang_ppdb_id', $k->gelombang_ppdb_id)
                     ->where('kategori_siswa_id', $k->kategori_siswa_id);
 
@@ -406,17 +406,17 @@ class LaporanController extends Controller
     }
 
     /**
-     * Sisa daya tampung per kategori. Angkanya lewat KuotaKategori, bukan
+     * Sisa daya tampung per kategori. Angkanya lewat KebijakanKategori, bukan
      * dihitung ulang - aturan status mana yang memegang kursi tinggal di model.
      */
     private function kuota(GelombangPpdb $gelombang): array
     {
-        return KuotaKategori::with('kategoriSiswa')
+        return KebijakanKategori::with('kategoriSiswa')
             ->where('gelombang_ppdb_id', $gelombang->id)
             ->get()
-            ->sortBy(fn (KuotaKategori $k) => $k->kategoriSiswa->nama)
+            ->sortBy(fn (KebijakanKategori $k) => $k->kategoriSiswa->nama)
             ->values()
-            ->map(fn (KuotaKategori $k) => [
+            ->map(fn (KebijakanKategori $k) => [
                 'nama' => $k->kategoriSiswa->nama,
                 'kuota' => $k->kuota,
                 'terpakai' => $k->terpakai(),

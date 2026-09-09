@@ -264,8 +264,11 @@ test('akun aktif tidak terganggu middleware', function () {
  * modul ini berarti ledger transfer bisa musnah tanpa jejak.
  */
 test('tidak ada route penghapusan pengguna', function () {
+    // Dipersempit ke route pengguna saja: sejak Konfigurasi PPDB ada, modul ini
+    // memang punya DELETE - tapi hanya pada komponen biaya dan jalur, yang
+    // tidak memegang uang. Penjagaan menyeluruhnya ada di ProfileUpdateTest.
     $rute = collect(app('router')->getRoutes())
-        ->filter(fn ($r) => str_starts_with($r->getName() ?? '', 'super-admin.'))
+        ->filter(fn ($r) => str_starts_with($r->getName() ?? '', 'super-admin.pengguna.'))
         ->filter(fn ($r) => in_array('DELETE', $r->methods(), true));
 
     expect($rute)->toBeEmpty();

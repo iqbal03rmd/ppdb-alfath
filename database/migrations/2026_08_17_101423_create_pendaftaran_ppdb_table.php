@@ -102,9 +102,21 @@ return new class extends Migration
             // pilihannya bisa belajar sendiri: apa pun yang sering muncul di sini
             // tahun ini tinggal dinaikkan jadi pilihan tetap tahun depan.
             $table->string('tahu_dari_lainnya')->nullable();
-            // Data pendukung klaim kategori
-            $table->string('nama_saudara')->nullable();
-            $table->string('nama_orang_tua_guru')->nullable();
+            // Jawaban atas pertanyaan khusus jalur, beserta PERTANYAANNYA.
+            //
+            // Pertanyaannya ikut disalin ke sini, bukan dibaca ulang dari
+            // kategori_siswa waktu ditampilkan - alasannya sama dengan
+            // tagihan_item menyimpan nama komponen sebagai teks. Admin boleh
+            // mengubah pertanyaan jalur kapan saja; kalau jawabannya cuma
+            // menunjuk ke pertanyaan yang berlaku sekarang, jawaban lama
+            // berubah arti tanpa ada yang menyentuhnya. "Kakak Budi" di bawah
+            // pertanyaan "NIS saudara" bukan sekadar jelek - itu salah, dan
+            // staf memverifikasinya sebagai kebenaran.
+            //
+            // Dulu dua kolom tetap: nama_saudara dan nama_orang_tua_guru. Itu
+            // yang bikin pertanyaan baru mustahil tanpa migration.
+            $table->string('pertanyaan_khusus')->nullable();
+            $table->string('jawaban_khusus')->nullable();
             // Status pendaftaran
             $table->enum('status', [
                 'draft',

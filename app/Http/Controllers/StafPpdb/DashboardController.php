@@ -4,7 +4,7 @@ namespace App\Http\Controllers\StafPpdb;
 
 use App\Http\Controllers\Controller;
 use App\Models\GelombangPpdb;
-use App\Models\KuotaKategori;
+use App\Models\KebijakanKategori;
 use App\Models\PembayaranPpdb;
 use App\Models\PendaftaranPpdb;
 use App\Models\TahunAjaran;
@@ -75,7 +75,7 @@ class DashboardController extends Controller
     /**
      * Sisa daya tampung gelombang yang sedang dibuka.
      *
-     * Angkanya diambil lewat KuotaKategori::terpakai()/sisa(), bukan dihitung
+     * Angkanya diambil lewat KebijakanKategori::terpakai()/sisa(), bukan dihitung
      * ulang di sini - aturan status mana yang memegang kursi tinggal di model
      * (STATUS_MEMAKAI_KUOTA), dan menyalinnya ke controller berarti dua tempat
      * yang bisa berbeda pendapat. Beberapa query tambahan di layar yang dibuka
@@ -96,12 +96,12 @@ class DashboardController extends Controller
             return ['gelombang' => null, 'tanggal_selesai' => null, 'kategori' => []];
         }
 
-        $kategori = KuotaKategori::with('kategoriSiswa')
+        $kategori = KebijakanKategori::with('kategoriSiswa')
             ->where('gelombang_ppdb_id', $gelombang->id)
             ->get()
-            ->sortBy(fn (KuotaKategori $k) => $k->kategoriSiswa->nama)
+            ->sortBy(fn (KebijakanKategori $k) => $k->kategoriSiswa->nama)
             ->values()
-            ->map(fn (KuotaKategori $k) => [
+            ->map(fn (KebijakanKategori $k) => [
                 'nama' => $k->kategoriSiswa->nama,
                 'kuota' => $k->kuota,
                 'terpakai' => $k->terpakai(),

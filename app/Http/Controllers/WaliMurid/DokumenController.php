@@ -4,8 +4,8 @@ namespace App\Http\Controllers\WaliMurid;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\WaliMurid\StoreDokumenRequest;
-use App\Models\DokumenPpdb;
-use App\Models\KuotaKategori;
+use App\Models\BerkasPersyaratan;
+use App\Models\KebijakanKategori;
 use App\Models\PendaftaranPpdb;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -19,14 +19,14 @@ class DokumenController extends Controller
     {
         $this->authorizeAccess($pendaftaran);
 
-        $pendaftaran->load(['dokumen', 'kategoriSiswa']);
+        $pendaftaran->load(['dokumen', 'gelombang.dokumenWajib']);
 
         $dokumenList = collect($pendaftaran->dokumenWajib())->map(function (string $jenis) use ($pendaftaran) {
             $existing = $pendaftaran->dokumen->firstWhere('jenis_dokumen', $jenis);
 
             return [
                 'jenis' => $jenis,
-                'label' => DokumenPpdb::LABEL[$jenis],
+                'label' => BerkasPersyaratan::peta()[$jenis] ?? $jenis,
                 'terunggah' => (bool) $existing,
                 'nama_file' => $existing ? basename($existing->berkas) : null,
                 'url' => $existing ? Storage::url($existing->berkas) : null,
@@ -76,18 +76,18 @@ class DokumenController extends Controller
 
         abort_unless($pendaftaran->status === 'draft', 403, 'Gunakan tombol "Kirim Perbaikan" untuk mengirim ulang setelah perbaikan.');
 
-        $pendaftaran->load(['dokumen', 'kategoriSiswa']);
+        $pendaftaran->load(['dokumen', 'gelombang.dokumenWajib']);
 
         abort_if(! $pendaftaran->berkasLengkap(), 422, 'Masih ada dokumen wajib yang belum diunggah.');
 
         DB::transaction(function () use ($pendaftaran) {
-            KuotaKategori::where('gelombang_ppdb_id', $pendaftaran->gelombang_ppdb_id)
+            KebijakanKategori::where('gelombang_ppdb_id', $pendaftaran->gelombang_ppdb_id)
                 ->where('kategori_siswa_id', $pendaftaran->kategori_siswa_id)
                 ->lockForUpdate()
                 ->first();
 
             abort_if(
-                KuotaKategori::penuhUntuk($pendaftaran->gelombang_ppdb_id, $pendaftaran->kategori_siswa_id),
+                KebijakanKategori::penuhUntuk($pendaftaran->gelombang_ppdb_id, $pendaftaran->kategori_siswa_id),
                 422,
                 'Kuota untuk kategori pendaftaran ini sudah penuh. Silakan ubah kategori di formulir atau tunggu gelombang berikutnya.'
             );

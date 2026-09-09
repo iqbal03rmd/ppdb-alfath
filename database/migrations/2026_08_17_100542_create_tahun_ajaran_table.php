@@ -21,7 +21,12 @@ return new class extends Migration
             // yang sama. Sengaja di tahun ajaran, bukan di gelombang - kalau
             // diturunkan dari "gelombang terakhir", tenggat semua orang ikut
             // mundur diam-diam tiap admin menambah gelombang baru.
-            $table->date('batas_pelunasan')->nullable();
+            //
+            // WAJIB, bukan nullable: tanggal ini dicetak ke halaman Pembayaran
+            // dan Beranda wali sebagai pengingat kapan cicilan harus lunas.
+            // Boleh kosong berarti sebagian wali melihat kalimat pengingat yang
+            // tidak menyebut tanggal apa pun - pengingat yang tidak mengingatkan.
+            $table->date('batas_pelunasan');
             $table->timestamps();
         });
     }

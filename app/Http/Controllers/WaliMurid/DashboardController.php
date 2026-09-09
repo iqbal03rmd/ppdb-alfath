@@ -16,7 +16,7 @@ class DashboardController extends Controller
     public function __invoke(Request $request): Response
     {
         $pendaftaran = PendaftaranPpdb::with([
-            'kategoriSiswa', 'dokumen', 'waliMurid', 'gelombang.tahunAjaran', 'pembayaran', 'tagihanItem',
+            'kategoriSiswa', 'dokumen', 'waliMurid', 'gelombang.tahunAjaran', 'gelombang.dokumenWajib', 'pembayaran', 'tagihanItem',
         ])
             ->where('user_id', $request->user()->id)
             ->latest()

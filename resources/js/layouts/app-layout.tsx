@@ -4,6 +4,7 @@ import { type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     BarChart3,
+    ChevronDown,
     ChevronsUpDown,
     CircleCheckBig,
     ClipboardCheck,
@@ -18,7 +19,11 @@ import {
 } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 
-type MenuItem = { label: string; href: string; icon: ReactNode };
+/**
+ * `anak` mengubah item jadi menu lipat. Kalau ada, `href` cuma dipakai untuk
+ * menentukan apakah kelompoknya sedang aktif - yang ditautkan anak-anaknya.
+ */
+type MenuItem = { label: string; href: string; icon: ReactNode; anak?: { label: string; href: string }[] };
 
 const roleLabel: Record<string, string> = {
     wali_murid: 'Wali Murid',
@@ -57,9 +62,107 @@ const menuByRole: Record<string, MenuItem[]> = {
     super_admin: [
         { label: 'Beranda', href: '/super-admin/dashboard', icon: Icon.home },
         { label: 'Kelola Pengguna', href: '/super-admin/pengguna', icon: Icon.users },
-        { label: 'Data Master', href: '/super-admin/data-master', icon: Icon.database },
+        {
+            label: 'Konfigurasi PPDB',
+            href: '/super-admin/konfigurasi',
+            icon: Icon.database,
+            // Urutannya mengikuti urutan PENGISIAN, bukan abjad. Empat yang di
+            // atas mendefinisikan bahan-bahannya sendiri-sendiri; Gelombang PPDB
+            // di paling bawah karena dialah yang merakit semuanya jadi satu
+            // angkatan - jadwal, kuota & minimal bayar tiap jalur, berkas wajib
+            // tiap jalur, dan nominal tiap komponen. Membukanya sebelum bahannya
+            // ada berarti memilih dari daftar yang masih kosong.
+            anak: [
+                { label: 'Tahun Ajaran', href: '/super-admin/konfigurasi/tahun-ajaran' },
+                { label: 'Komponen Biaya', href: '/super-admin/konfigurasi/komponen-biaya' },
+                { label: 'Berkas Persyaratan', href: '/super-admin/konfigurasi/berkas-persyaratan' },
+                { label: 'Jalur Pendaftaran', href: '/super-admin/konfigurasi/jalur' },
+                { label: 'Gelombang PPDB', href: '/super-admin/konfigurasi/gelombang' },
+            ],
+        },
     ],
 };
+
+const gayaMenu = 'mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ';
+const gayaAktif = 'bg-[#0A3981] font-semibold text-white shadow-sm';
+const gayaDiam = 'text-gray-600 hover:bg-[#F5F9FD] hover:text-[#0A3981]';
+
+function Lencana({ aktif, children }: { aktif: boolean; children: ReactNode }) {
+    return (
+        <span
+            className={
+                'flex h-7 w-7 shrink-0 items-center justify-center rounded-full ' +
+                (aktif ? 'bg-[#E38E49] text-white' : 'bg-[#D4EBF8]/60 text-[#1F509A]')
+            }
+        >
+            {children}
+        </span>
+    );
+}
+
+function MenuTunggal({ item, url }: { item: MenuItem; url: string }) {
+    const aktif = url.startsWith(item.href);
+
+    return (
+        <Link href={item.href} className={gayaMenu + (aktif ? gayaAktif : gayaDiam)}>
+            <Lencana aktif={aktif}>{item.icon}</Lencana>
+            {item.label}
+        </Link>
+    );
+}
+
+/**
+ * Menu lipat. Terbuka sendiri kalau salah satu anaknya sedang dibuka - jadi
+ * admin yang mendarat di halaman lewat tautan langsung tetap melihat dia ada
+ * di kelompok mana, tanpa harus membuka lipatannya sendiri.
+ *
+ * Keadaan bukanya disimpan di state supaya bisa ditutup manual, tapi ditata
+ * ulang tiap kali halaman aktifnya berpindah ke dalam kelompok ini.
+ */
+function MenuLipat({ item, url }: { item: MenuItem; url: string }) {
+    const adaYangAktif = url.startsWith(item.href);
+    const [terbuka, setTerbuka] = useState(adaYangAktif);
+
+    useEffect(() => {
+        if (adaYangAktif) setTerbuka(true);
+    }, [adaYangAktif]);
+
+    return (
+        <div className="mb-1">
+            <button
+                type="button"
+                onClick={() => setTerbuka((t) => !t)}
+                aria-expanded={terbuka}
+                className={'w-full ' + gayaMenu + (adaYangAktif ? gayaAktif : gayaDiam)}
+            >
+                <Lencana aktif={adaYangAktif}>{item.icon}</Lencana>
+                <span className="flex-1 text-left">{item.label}</span>
+                <ChevronDown size={16} strokeWidth={2} className={'transition-transform ' + (terbuka ? 'rotate-180' : '')} />
+            </button>
+
+            {terbuka && (
+                <div className="mt-1 space-y-0.5 pl-[46px]">
+                    {item.anak?.map((anak) => {
+                        const aktif = url.startsWith(anak.href);
+
+                        return (
+                            <Link
+                                key={anak.href}
+                                href={anak.href}
+                                className={
+                                    'block rounded-lg px-3 py-2 text-[13px] transition-colors ' +
+                                    (aktif ? 'bg-[#D4EBF8]/70 font-semibold text-[#0A3981]' : 'text-gray-600 hover:bg-[#F5F9FD] hover:text-[#0A3981]')
+                                }
+                            >
+                                {anak.label}
+                            </Link>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
 
 export default function AppLayout({ children }: { children: ReactNode }) {
     const { auth, flash } = usePage<SharedData>().props;
@@ -133,31 +236,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
                 {/* Menu */}
                 <nav className="flex-1 overflow-y-auto px-3 py-5">
-                    {menuItems.map((item) => {
-                        const active = url.startsWith(item.href);
-                        return (
-                            <Link
-                                key={item.href}
-                                href={item.href}
-                                className={
-                                    'mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ' +
-                                    (active
-                                        ? 'bg-[#0A3981] font-semibold text-white shadow-sm'
-                                        : 'text-gray-600 hover:bg-[#F5F9FD] hover:text-[#0A3981]')
-                                }
-                            >
-                                <span
-                                    className={
-                                        'flex h-7 w-7 shrink-0 items-center justify-center rounded-full ' +
-                                        (active ? 'bg-[#E38E49] text-white' : 'bg-[#D4EBF8]/60 text-[#1F509A]')
-                                    }
-                                >
-                                    {item.icon}
-                                </span>
-                                {item.label}
-                            </Link>
-                        );
-                    })}
+                    {menuItems.map((item) =>
+                        item.anak ? <MenuLipat key={item.href} item={item} url={url} /> : <MenuTunggal key={item.href} item={item} url={url} />,
+                    )}
                 </nav>
 
                 {/* Footer sidebar - blok identitas yang membuka menu akun.

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\WaliMurid;
 
+use App\Models\KategoriSiswa;
 use App\Models\PendaftaranPpdb;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -14,10 +15,40 @@ class StoreFormulirRequest extends FormRequest
         return true;
     }
 
+    /**
+     * Jalur yang SEDANG dipakai pendaftaran yang diubah, kalau ini permintaan
+     * ubah. null saat menyimpan pendaftaran baru - dan null tidak akan pernah
+     * cocok dengan id mana pun, jadi pendaftaran baru tetap wajib memakai jalur
+     * yang masih dibuka.
+     */
+    private function jalurSekarang(): ?int
+    {
+        $pendaftaran = $this->route('pendaftaran');
+
+        return $pendaftaran instanceof PendaftaranPpdb ? $pendaftaran->kategori_siswa_id : null;
+    }
+
+    /**
+     * Apakah jalur yang dipilih di formulir ini punya pertanyaan khusus.
+     */
+    private function jalurBertanya(): bool
+    {
+        return KategoriSiswa::whereKey($this->input('kategori_siswa_id'))
+            ->whereNotNull('pertanyaan_khusus')
+            ->exists();
+    }
+
     public function rules(): array
     {
         return [
-            'kategori_siswa_id' => ['required', 'exists:kategori_siswa,id'],
+            // Harus jalur yang masih dibuka - KECUALI jalur yang sudah dipakai
+            // pendaftaran ini. Request yang sama dipakai simpan DAN ubah, jadi
+            // tanpa pengecualian itu wali yang jalurnya dimatikan sekolah
+            // belakangan tidak bisa menyimpan formulirnya lagi sama sekali,
+            // bahkan cuma untuk membetulkan ejaan namanya.
+            'kategori_siswa_id' => ['required', Rule::exists('kategori_siswa', 'id')->where(
+                fn ($q) => $q->where(fn ($w) => $w->where('status_aktif', true)->orWhere('id', $this->jalurSekarang()))
+            )],
             'nama_pendaftar' => ['required', 'string', 'max:255'],
             'nik' => ['nullable', 'digits:16'],
             'tanggal_lahir' => ['required', 'date', 'before:today'],
@@ -46,8 +77,13 @@ class StoreFormulirRequest extends FormRequest
             'tahu_dari' => ['nullable', Rule::in(array_keys(PendaftaranPpdb::SUMBER_INFORMASI))],
             'tahu_dari_lainnya' => ['nullable', 'string', 'max:255', 'required_if:tahu_dari,lainnya'],
 
-            'nama_saudara' => ['nullable', 'string', 'max:255'],
-            'nama_orang_tua_guru' => ['nullable', 'string', 'max:255'],
+            // Wajib kalau jalur yang dipilih memang menanyakan sesuatu.
+            // Pertanyaan yang boleh dilewati begitu saja tidak menolong staf
+            // memverifikasi klaimnya - dia cuma jadi kolom kosong.
+            'jawaban_khusus' => [
+                Rule::requiredIf(fn () => $this->jalurBertanya()),
+                'nullable', 'string', 'max:255',
+            ],
 
             // Data wali_murid, minimal 1, bisa lebih dari 1 (repeatable)
             'wali_murid' => ['required', 'array', 'min:1'],
