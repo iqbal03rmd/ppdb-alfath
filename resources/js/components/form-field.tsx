@@ -41,6 +41,7 @@ export function Input({
     placeholder,
     type = 'text',
     autoComplete,
+    disabled,
 }: {
     id: string;
     value: string;
@@ -48,13 +49,16 @@ export function Input({
     placeholder?: string;
     type?: 'text' | 'email' | 'password';
     autoComplete?: string;
+    /** Buat layar yang merangkap baca-saja. Server tetap yang menjaga. */
+    disabled?: boolean;
 }) {
     return (
         <input
             id={id}
             type={type}
             autoComplete={autoComplete}
-            className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none"
+            disabled={disabled}
+            className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-600"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}

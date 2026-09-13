@@ -3,13 +3,9 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
-use App\Models\GelombangPpdb;
 use App\Models\KategoriSiswa;
-use App\Models\KomponenBiaya;
-use App\Models\TarifKategori;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -34,13 +30,10 @@ use Inertia\Response;
  * formulirnya modal di atas daftarnya, isinya sifat jalur saja: nama, urutan,
  * keterangan, pertanyaan khusus, status.
  *
- * simpanTarif() DIPARKIR. Nominal per komponen bersifat gelombang x jalur, jadi
- * tempatnya nanti di layar Ubah Gelombang - bareng kuota, minimal bayar, dan
- * berkas wajib yang sudah lebih dulu pindah ke sana. Sampai perombakan itu
- * dikerjakan, route-nya tidak dituju layar mana pun. Yang dipertahankan aturan
- * "kosong BUKAN nol" di dalamnya: kosong artinya pos itu tidak muncul di tagihan
- * jalur ini sama sekali, 0 artinya muncul dengan nilai Rp0 - jalur ini
- * dibebaskan darinya. Menulis ulang aturan itu dari nol gampang salah.
+ * NOMINAL JUGA TIDAK DIATUR DI SINI (11 September 2026). Alasannya sama persis
+ * dengan berkas wajib: tarif_kategori berkunci gelombang x jalur x komponen,
+ * jadi tempatnya di layar yang menyebut gelombang. Yang tinggal di sini cuma
+ * sifat jalurnya sendiri - yang tidak berubah dari gelombang ke gelombang.
  */
 class JalurController extends Controller
 {
@@ -91,52 +84,6 @@ class JalurController extends Controller
     }
 
     /**
-     * Nominal tiap komponen untuk jalur ini, pada satu gelombang.
-     *
-     * Kosong berarti BELUM DIATUR, dan barisnya dibuang - bukan disimpan sebagai
-     * 0. Bedanya menentukan: 0 artinya jalur ini dibebaskan dari pos tersebut
-     * (dan tetap ikut ke tagihan sebagai baris Rp0), sedangkan belum diatur
-     * artinya pos itu tidak muncul di tagihannya sama sekali.
-     */
-    public function simpanTarif(Request $request, KategoriSiswa $jalur): RedirectResponse
-    {
-        $data = $request->validate([
-            'gelombang_ppdb_id' => ['required', Rule::exists('gelombang_ppdb', 'id')],
-            'tarif' => ['present', 'array'],
-            'tarif.*' => ['nullable', 'integer', 'min:0'],
-        ], [
-            'tarif.*.integer' => 'Nominal harus berupa angka, atau dikosongkan kalau belum diatur.',
-            'tarif.*.min' => 'Nominal tidak boleh negatif.',
-        ]);
-
-        $idKomponenSah = KomponenBiaya::pluck('id')->all();
-
-        DB::transaction(function () use ($data, $jalur, $idKomponenSah) {
-            foreach ($data['tarif'] as $komponenId => $nominal) {
-                if (! in_array((int) $komponenId, $idKomponenSah, true)) {
-                    continue;
-                }
-
-                $kunci = [
-                    'gelombang_ppdb_id' => $data['gelombang_ppdb_id'],
-                    'komponen_biaya_id' => (int) $komponenId,
-                    'kategori_siswa_id' => $jalur->id,
-                ];
-
-                if ($nominal === null) {
-                    TarifKategori::where($kunci)->delete();
-
-                    continue;
-                }
-
-                TarifKategori::updateOrCreate($kunci, ['nominal' => (int) $nominal]);
-            }
-        });
-
-        return back()->with('success', "Nominal jalur {$jalur->nama} disimpan. Tagihan yang sudah terbit tidak ikut berubah.");
-    }
-
-    /**
      * Menghapus jalur.
      *
      * Ditolak kalau sudah ada pendaftar yang memakainya - dan penolakannya
@@ -162,30 +109,6 @@ class JalurController extends Controller
         $jalur->delete();
 
         return to_route('super-admin.jalur.index')->with('success', "Jalur {$nama} dihapus beserta pengaturannya.");
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function tarif(GelombangPpdb $gelombang, KategoriSiswa $jalur): array
-    {
-        $tersimpan = TarifKategori::where('gelombang_ppdb_id', $gelombang->id)
-            ->where('kategori_siswa_id', $jalur->id)
-            ->get()
-            ->keyBy('komponen_biaya_id');
-
-        // Pos yang dimatikan tidak ditawarkan lagi di sini - mengisi harga buat
-        // sesuatu yang tidak akan ditagihkan cuma bikin bingung. Nominalnya yang
-        // sudah tersimpan tetap ada di database, tinggal nyalakan lagi posnya.
-        return KomponenBiaya::aktif()->terurut()->get()->map(fn (KomponenBiaya $k) => [
-            'komponen_biaya_id' => $k->id,
-            'nama' => $k->nama,
-            'keterangan' => $k->keterangan,
-            // String, bukan integer: kotak isian terkendali di React, dan ''
-            // yang berarti "belum diatur" harus bisa dibedakan dari '0' yang
-            // artinya dibebaskan.
-            'nominal' => $tersimpan->has($k->id) ? (string) $tersimpan->get($k->id)->nominal : '',
-        ])->all();
     }
 
     /**

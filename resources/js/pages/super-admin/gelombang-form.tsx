@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Lock, TriangleAlert } from 'lucide-react';
-import { FormEventHandler } from 'react';
+import { FormEventHandler, useEffect, useMemo, useState } from 'react';
 
 interface GelombangExisting {
     id: number;
@@ -14,10 +14,7 @@ interface GelombangExisting {
     tanggal_mulai: string;
     tanggal_selesai: string;
     batas_waktu_pembayaran: string | null;
-    minimal_pembayaran: number | null;
     status_buka: boolean;
-    jumlah_pendaftaran: number;
-    tagihan_sudah_terbit: number;
 }
 
 interface BarisKebijakan {
@@ -25,28 +22,36 @@ interface BarisKebijakan {
     nama: string;
     /** '' = tidak dibatasi. '0' = jalur tertutup. */
     kuota: string;
-    /** '' = ikut minimal bayar bawaan gelombang. */
+    /** Wajib diisi. '0' = diterima tanpa menyetor. */
     minimal_bayar: string;
     terpakai: number;
     /** Kode berkas yang wajib diunggah pendaftar jalur ini, DI GELOMBANG INI. */
     dokumen: string[];
+    /** id komponen -> nominal. '' = pos ini tidak ditagihkan ke jalur ini sama sekali. */
+    tarif: Record<string, string>;
 }
 
 interface GelombangFormProps {
     pilihanTahunAjaran: { id: number; nama: string; aktif: boolean }[];
     gelombang?: GelombangExisting;
-    /** Hanya saat MEMBUAT — nominal dasar yang menyebar ke semua jalur. */
+    /** Pos biaya yang masih aktif, diisi langsung per jalur. */
     komponen?: { id: number; nama: string }[];
-    /** Hanya saat MENGUBAH — kuota & minimal bayar tiap jalur. */
+    /** Kuota, minimal bayar, nominal, dan berkas tiap jalur untuk Tambah maupun Ubah. */
     kebijakan?: BarisKebijakan[];
     pilihanDokumen?: Record<string, string>;
+    /** Kalimat sebab kalau layar ini cuma boleh dibaca. null = boleh diubah. */
+    terkunci?: string | null;
 }
 
 const gayaIsian =
-    'w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none';
+    'w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-600';
 
-export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen, kebijakan, pilihanDokumen }: GelombangFormProps) {
+export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen, kebijakan, pilihanDokumen, terkunci }: GelombangFormProps) {
     const isEdit = !!gelombang;
+    // Layar yang sama merangkap dua peran: formulir Ubah, dan layar baca-saja
+    // buat gelombang yang ketentuannya sudah dikunci. Yang benar-benar menjaga
+    // tetap server - ini supaya tidak ada yang mengetik lalu kecewa.
+    const bacaSaja = !!terkunci;
 
     const { data, setData, post, put, processing, errors } = useForm<{
         tahun_ajaran_id: string;
@@ -54,23 +59,20 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
         tanggal_mulai: string;
         tanggal_selesai: string;
         batas_waktu_pembayaran: string;
-        minimal_pembayaran: string;
-        nominal_dasar: Record<string, string>;
         kebijakan: Record<string, { kuota: string; minimal_bayar: string }>;
         dokumen: Record<string, string[]>;
+        tarif: Record<string, Record<string, string>>;
     }>({
         tahun_ajaran_id: String(gelombang?.tahun_ajaran_id ?? pilihanTahunAjaran.find((t) => t.aktif)?.id ?? ''),
         nama: gelombang?.nama ?? '',
         tanggal_mulai: gelombang?.tanggal_mulai ?? '',
         tanggal_selesai: gelombang?.tanggal_selesai ?? '',
         batas_waktu_pembayaran: gelombang?.batas_waktu_pembayaran ?? '',
-        minimal_pembayaran:
-            gelombang?.minimal_pembayaran !== null && gelombang?.minimal_pembayaran !== undefined ? String(gelombang.minimal_pembayaran) : '',
-        nominal_dasar: Object.fromEntries((komponen ?? []).map((k) => [String(k.id), ''])),
         kebijakan: Object.fromEntries(
             (kebijakan ?? []).map((b) => [String(b.kategori_siswa_id), { kuota: b.kuota, minimal_bayar: b.minimal_bayar }]),
         ),
         dokumen: Object.fromEntries((kebijakan ?? []).map((b) => [String(b.kategori_siswa_id), b.dokumen])),
+        tarif: Object.fromEntries((kebijakan ?? []).map((b) => [String(b.kategori_siswa_id), b.tarif])),
     });
 
     // Syarat berkas milik gelombang x jalur, bukan jalur saja — mengubahnya di
@@ -100,12 +102,47 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
     const ubahKebijakan = (id: number, kolom: 'kuota' | 'minimal_bayar', nilai: string) =>
         setData('kebijakan', { ...data.kebijakan, [String(id)]: { ...data.kebijakan[String(id)], [kolom]: nilai } });
 
+    const ubahTarif = (kategoriId: number, komponenId: number, nilai: string) =>
+        setData('tarif', {
+            ...data.tarif,
+            [String(kategoriId)]: { ...data.tarif[String(kategoriId)], [String(komponenId)]: nilai },
+        });
+
+    const [jalurAktif, setJalurAktif] = useState(kebijakan?.[0]?.kategori_siswa_id ?? 0);
+
+    // Bahaya khas tab: galat validasi jatuh di jalur yang sedang tidak terlihat,
+    // jadi formulir gagal disimpan tanpa satu pun pesan di layar. Jalur yang
+    // bergalat ditandai di tab-nya, dan yang pertama langsung dibuka.
+    const jalurBergalat = useMemo(
+        () =>
+            (kebijakan ?? [])
+                .filter((b) =>
+                    Object.keys(galat).some((kunci) =>
+                        [`kebijakan.${b.kategori_siswa_id}.`, `tarif.${b.kategori_siswa_id}.`, `dokumen.${b.kategori_siswa_id}.`].some((awalan) =>
+                            kunci.startsWith(awalan),
+                        ),
+                    ),
+                )
+                .map((b) => b.kategori_siswa_id),
+        [kebijakan, galat],
+    );
+
+    useEffect(() => {
+        if (jalurBergalat.length > 0 && !jalurBergalat.includes(jalurAktif)) {
+            setJalurAktif(jalurBergalat[0]);
+        }
+    }, [jalurBergalat, jalurAktif]);
+
     return (
         <AppLayout>
-            <Head title={isEdit ? `Ubah ${gelombang.nama}` : 'Tambah Gelombang'} />
+            <Head title={bacaSaja ? `Detail ${gelombang?.nama}` : isEdit ? `Ubah ${gelombang.nama}` : 'Tambah Gelombang'} />
             <PageHeader
-                title={isEdit ? `Ubah ${gelombang.nama}` : 'Tambah Gelombang'}
-                subtitle={isEdit ? 'Jadwal, kuota, dan minimal bayar tiap jalur' : 'Jadwal pendaftaran dan nominal dasar tiap komponen'}
+                title={bacaSaja ? `Detail ${gelombang?.nama}` : isEdit ? `Ubah ${gelombang.nama}` : 'Tambah Gelombang'}
+                subtitle={
+                    bacaSaja
+                        ? 'Ketentuan yang berlaku di gelombang ini - tidak bisa diubah lagi'
+                        : 'Jadwal, lalu kuota, minimal bayar, nominal, dan berkas tiap jalur'
+                }
                 wide
             />
 
@@ -123,8 +160,17 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
                     </Button>
                 </div>
 
-                <form onSubmit={submit} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                    <div className="space-y-6 lg:col-span-2">
+                <form onSubmit={submit}>
+                    <div className="space-y-6">
+                        {bacaSaja && (
+                            <Kartu judul="Hanya Bisa Dibaca">
+                                <p className="flex items-start gap-2 text-sm text-gray-600">
+                                    <Lock size={15} strokeWidth={2} className="mt-0.5 shrink-0 text-[#1F509A]" />
+                                    <span>{terkunci}</span>
+                                </p>
+                            </Kartu>
+                        )}
+
                         <Kartu judul="Jadwal Pendaftaran">
                             <div className="mb-5 grid gap-5 sm:grid-cols-2">
                                 <div>
@@ -135,6 +181,7 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
                                         id="tahun_ajaran_id"
                                         value={data.tahun_ajaran_id}
                                         onChange={(e) => setData('tahun_ajaran_id', e.target.value)}
+                                        disabled={bacaSaja}
                                         className={gayaIsian}
                                     >
                                         <option value="">Pilih tahun ajaran</option>
@@ -151,7 +198,13 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
                                     <Label required htmlFor="nama">
                                         Nama Gelombang
                                     </Label>
-                                    <Input id="nama" value={data.nama} onChange={(v) => setData('nama', v)} placeholder="Gelombang 1" />
+                                    <Input
+                                        id="nama"
+                                        value={data.nama}
+                                        onChange={(v) => setData('nama', v)}
+                                        placeholder="Gelombang 1"
+                                        disabled={bacaSaja}
+                                    />
                                     <FieldError message={errors.nama} />
                                 </div>
                             </div>
@@ -164,6 +217,7 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
                                     <input
                                         id="tanggal_mulai"
                                         type="date"
+                                        disabled={bacaSaja}
                                         className={gayaIsian}
                                         value={data.tanggal_mulai}
                                         onChange={(e) => setData('tanggal_mulai', e.target.value)}
@@ -177,6 +231,7 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
                                     <input
                                         id="tanggal_selesai"
                                         type="date"
+                                        disabled={bacaSaja}
                                         className={gayaIsian}
                                         value={data.tanggal_selesai}
                                         onChange={(e) => setData('tanggal_selesai', e.target.value)}
@@ -188,6 +243,7 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
                                     <input
                                         id="batas_waktu_pembayaran"
                                         type="date"
+                                        disabled={bacaSaja}
                                         className={gayaIsian}
                                         value={data.batas_waktu_pembayaran}
                                         onChange={(e) => setData('batas_waktu_pembayaran', e.target.value)}
@@ -200,193 +256,172 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
                             </p>
                         </Kartu>
 
-                        <Kartu judul="Minimal Bayar Bawaan">
-                            <Label htmlFor="minimal_pembayaran">
-                                Nominal <span className="text-gray-500">(Rp)</span>
-                            </Label>
-                            <Input
-                                id="minimal_pembayaran"
-                                value={data.minimal_pembayaran}
-                                onChange={(v) => setData('minimal_pembayaran', v)}
-                                placeholder="3000000"
-                            />
-                            <p className="mt-1 text-xs text-gray-500">Berlaku untuk jalur yang tidak diberi angka sendiri di tabel bawah.</p>
-                            <FieldError message={errors.minimal_pembayaran} />
-                        </Kartu>
-
-                        {/* Nominal dasar cuma ditawarkan saat MEMBUAT. Sesudah
-                            gelombangnya ada, angkanya diubah per jalur — supaya
-                            cuma ada satu tempat yang memegangnya. */}
-                        {!isEdit && komponen && komponen.length > 0 && (
-                            <Kartu judul="Nominal Dasar tiap Komponen">
-                                <p className="mb-4 text-sm text-gray-500">
-                                    Angka ini mengisi <b className="text-gray-700">semua jalur sekaligus</b> sebagai titik awal. Yang berbeda tinggal
-                                    disesuaikan per jalur setelah gelombangnya dibuat. Komponen yang dikosongkan dilewati.
-                                </p>
-
-                                <div className="space-y-3">
-                                    {komponen.map((k) => (
-                                        <div key={k.id} className="flex flex-wrap items-center gap-4">
-                                            <Label htmlFor={`nominal-${k.id}`}>
-                                                <span className="sr-only">Nominal dasar</span>
-                                            </Label>
-                                            <span className="min-w-0 flex-1 text-sm text-gray-700">{k.nama}</span>
-                                            <input
-                                                id={`nominal-${k.id}`}
-                                                type="number"
-                                                min={0}
-                                                value={data.nominal_dasar[String(k.id)] ?? ''}
-                                                onChange={(e) => setData('nominal_dasar', { ...data.nominal_dasar, [String(k.id)]: e.target.value })}
-                                                placeholder="Belum diatur"
-                                                className={`${gayaIsian} w-44`}
-                                                aria-label={`Nominal dasar ${k.nama}`}
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                                <FieldError message={galat['nominal_dasar']} />
-                            </Kartu>
-                        )}
-
-                        {isEdit && kebijakan && (
-                            <Kartu judul="Kuota, Minimal Bayar & Berkas tiap Jalur">
-                                <div className="space-y-4">
+                        {kebijakan && (
+                            <Kartu judul="Ketentuan tiap Jalur">
+                                {/* Gaya tab-nya sama dengan halaman Pengaturan Akun —
+                                    jangan bikin varian baru. */}
+                                <div className="mb-5 flex flex-wrap gap-2 border-b border-[#D4EBF8]">
                                     {kebijakan.map((b) => {
-                                        const isian = data.kebijakan[String(b.kategori_siswa_id)] ?? { kuota: '', minimal_bayar: '' };
-                                        const kuota = isian.kuota === '' ? null : Number(isian.kuota);
-                                        const dibawahTerpakai = kuota !== null && kuota < b.terpakai;
+                                        const aktif = b.kategori_siswa_id === jalurAktif;
+                                        const bergalat = jalurBergalat.includes(b.kategori_siswa_id);
 
                                         return (
-                                            <div key={b.kategori_siswa_id} className="border-b border-gray-100 pb-4 last:border-b-0 last:pb-0">
-                                                <div className="mb-2 flex flex-wrap items-baseline gap-2">
-                                                    <h3 className="text-sm font-semibold text-gray-900">{b.nama}</h3>
-                                                    <span className="text-xs text-gray-500">
-                                                        {b.terpakai} kursi terpakai
-                                                        {kuota !== null && ` · sisa ${Math.max(0, kuota - b.terpakai)}`}
-                                                    </span>
-                                                </div>
-
-                                                <div className="grid gap-4 sm:grid-cols-2">
-                                                    <div>
-                                                        <Label htmlFor={`kuota-${b.kategori_siswa_id}`}>Kuota</Label>
-                                                        <input
-                                                            id={`kuota-${b.kategori_siswa_id}`}
-                                                            type="number"
-                                                            min={0}
-                                                            value={isian.kuota}
-                                                            onChange={(e) => ubahKebijakan(b.kategori_siswa_id, 'kuota', e.target.value)}
-                                                            placeholder="Tidak dibatasi"
-                                                            className={gayaIsian}
-                                                        />
-                                                        <FieldError message={galat[`kebijakan.${b.kategori_siswa_id}.kuota`]} />
-                                                    </div>
-                                                    <div>
-                                                        <Label htmlFor={`minimal-${b.kategori_siswa_id}`}>Minimal Bayar (Rp)</Label>
-                                                        <input
-                                                            id={`minimal-${b.kategori_siswa_id}`}
-                                                            type="number"
-                                                            min={0}
-                                                            value={isian.minimal_bayar}
-                                                            onChange={(e) => ubahKebijakan(b.kategori_siswa_id, 'minimal_bayar', e.target.value)}
-                                                            placeholder="Ikut bawaan"
-                                                            className={gayaIsian}
-                                                        />
-                                                        <FieldError message={galat[`kebijakan.${b.kategori_siswa_id}.minimal_bayar`]} />
-                                                    </div>
-                                                </div>
-
-                                                <div className="mt-4">
-                                                    <p className="mb-2 text-[13px] font-medium text-gray-600">Berkas wajib</p>
-                                                    <div className="grid gap-2 sm:grid-cols-2">
-                                                        {Object.entries<string>(pilihanDokumen ?? {}).map(([jenis, label]) => (
-                                                            <label
-                                                                key={jenis}
-                                                                htmlFor={`dok-${b.kategori_siswa_id}-${jenis}`}
-                                                                className="flex items-start gap-2.5 text-sm text-gray-700"
-                                                            >
-                                                                <input
-                                                                    id={`dok-${b.kategori_siswa_id}-${jenis}`}
-                                                                    type="checkbox"
-                                                                    checked={(data.dokumen[String(b.kategori_siswa_id)] ?? []).includes(jenis)}
-                                                                    onChange={() => toggleDokumen(b.kategori_siswa_id, jenis)}
-                                                                    className="mt-0.5 h-4 w-4 accent-[#1F509A]"
-                                                                />
-                                                                {label}
-                                                            </label>
-                                                        ))}
-                                                    </div>
-                                                </div>
-
-                                                {dibawahTerpakai && (
-                                                    <p className="mt-2 flex items-start gap-2 rounded-xl bg-amber-50 p-2.5 text-xs text-amber-800">
-                                                        <TriangleAlert size={14} strokeWidth={2} className="mt-0.5 shrink-0" />
-                                                        <span>
-                                                            Kuota di bawah jumlah terpakai. Yang sudah masuk tetap memegang kursinya — jalur ini cuma
-                                                            tidak menerima pendaftar baru lagi.
-                                                        </span>
-                                                    </p>
+                                            <button
+                                                key={b.kategori_siswa_id}
+                                                type="button"
+                                                onClick={() => setJalurAktif(b.kategori_siswa_id)}
+                                                aria-current={aktif ? 'page' : undefined}
+                                                className={
+                                                    '-mb-px flex items-center gap-1.5 border-b-2 px-4 py-2.5 text-sm transition-colors ' +
+                                                    (aktif
+                                                        ? 'border-[#E38E49] font-semibold text-[#0A3981]'
+                                                        : 'border-transparent text-gray-500 hover:text-[#0A3981]')
+                                                }
+                                            >
+                                                {b.nama}
+                                                {bergalat && (
+                                                    <span
+                                                        aria-label="ada isian yang perlu dibetulkan"
+                                                        className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-600"
+                                                    />
                                                 )}
-                                            </div>
+                                            </button>
                                         );
                                     })}
+                                </div>
+
+                                <div>
+                                    {kebijakan
+                                        .filter((b) => b.kategori_siswa_id === jalurAktif)
+                                        .map((b) => {
+                                            const isian = data.kebijakan[String(b.kategori_siswa_id)] ?? { kuota: '', minimal_bayar: '' };
+                                            const kuota = isian.kuota === '' ? null : Number(isian.kuota);
+                                            const dibawahTerpakai = kuota !== null && kuota < b.terpakai;
+
+                                            return (
+                                                <div key={b.kategori_siswa_id}>
+                                                    <p className="mb-3 text-xs text-gray-500">
+                                                        {b.terpakai} kursi terpakai
+                                                        {kuota !== null && ` · sisa ${Math.max(0, kuota - b.terpakai)}`}
+                                                    </p>
+
+                                                    <div className="grid gap-4 sm:grid-cols-2">
+                                                        <div>
+                                                            <Label htmlFor={`kuota-${b.kategori_siswa_id}`}>Kuota</Label>
+                                                            <input
+                                                                id={`kuota-${b.kategori_siswa_id}`}
+                                                                type="number"
+                                                                min={0}
+                                                                value={isian.kuota}
+                                                                onChange={(e) => ubahKebijakan(b.kategori_siswa_id, 'kuota', e.target.value)}
+                                                                onWheel={(e) => e.currentTarget.blur()}
+                                                                placeholder="Tidak dibatasi"
+                                                                disabled={bacaSaja}
+                                                                className={gayaIsian}
+                                                            />
+                                                            <FieldError message={galat[`kebijakan.${b.kategori_siswa_id}.kuota`]} />
+                                                        </div>
+                                                        <div>
+                                                            <Label required htmlFor={`minimal-${b.kategori_siswa_id}`}>
+                                                                Minimal Bayar (Rp)
+                                                            </Label>
+                                                            <input
+                                                                id={`minimal-${b.kategori_siswa_id}`}
+                                                                type="number"
+                                                                min={0}
+                                                                value={isian.minimal_bayar}
+                                                                onChange={(e) => ubahKebijakan(b.kategori_siswa_id, 'minimal_bayar', e.target.value)}
+                                                                onWheel={(e) => e.currentTarget.blur()}
+                                                                placeholder="Wajib diisi, 0 kalau dibebaskan"
+                                                                disabled={bacaSaja}
+                                                                className={gayaIsian}
+                                                            />
+                                                            <FieldError message={galat[`kebijakan.${b.kategori_siswa_id}.minimal_bayar`]} />
+                                                        </div>
+                                                    </div>
+
+                                                    {(komponen ?? []).length > 0 && (
+                                                        <div className="mt-4">
+                                                            <p className="mb-2 text-[13px] font-medium text-gray-600">Nominal tiap komponen (Rp)</p>
+                                                            <div className="grid gap-4 sm:grid-cols-2">
+                                                                {(komponen ?? []).map((k) => (
+                                                                    <div key={k.id}>
+                                                                        <Label htmlFor={`tarif-${b.kategori_siswa_id}-${k.id}`}>{k.nama}</Label>
+                                                                        <input
+                                                                            id={`tarif-${b.kategori_siswa_id}-${k.id}`}
+                                                                            type="number"
+                                                                            min={0}
+                                                                            value={data.tarif[String(b.kategori_siswa_id)]?.[String(k.id)] ?? ''}
+                                                                            onChange={(e) => ubahTarif(b.kategori_siswa_id, k.id, e.target.value)}
+                                                                            onWheel={(e) => e.currentTarget.blur()}
+                                                                            placeholder="Tidak ditagihkan"
+                                                                            disabled={bacaSaja}
+                                                                            className={gayaIsian}
+                                                                        />
+                                                                        <FieldError message={galat[`tarif.${b.kategori_siswa_id}.${k.id}`]} />
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    <div className="mt-4">
+                                                        <p className="mb-2 text-[13px] font-medium text-gray-600">Berkas wajib</p>
+                                                        <div className="grid gap-2 sm:grid-cols-2">
+                                                            {Object.entries<string>(pilihanDokumen ?? {}).map(([jenis, label]) => (
+                                                                <label
+                                                                    key={jenis}
+                                                                    htmlFor={`dok-${b.kategori_siswa_id}-${jenis}`}
+                                                                    className="flex items-start gap-2.5 text-sm text-gray-700"
+                                                                >
+                                                                    <input
+                                                                        id={`dok-${b.kategori_siswa_id}-${jenis}`}
+                                                                        type="checkbox"
+                                                                        checked={(data.dokumen[String(b.kategori_siswa_id)] ?? []).includes(jenis)}
+                                                                        onChange={() => toggleDokumen(b.kategori_siswa_id, jenis)}
+                                                                        disabled={bacaSaja}
+                                                                        className="mt-0.5 h-4 w-4 accent-[#1F509A]"
+                                                                    />
+                                                                    {label}
+                                                                </label>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
+                                                    {dibawahTerpakai && (
+                                                        <p className="mt-2 flex items-start gap-2 rounded-xl bg-amber-50 p-2.5 text-xs text-amber-800">
+                                                            <TriangleAlert size={14} strokeWidth={2} className="mt-0.5 shrink-0" />
+                                                            <span>
+                                                                Kuota di bawah jumlah terpakai. Yang sudah masuk tetap memegang kursinya — jalur ini
+                                                                cuma tidak menerima pendaftar baru lagi.
+                                                            </span>
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
                                 </div>
                             </Kartu>
                         )}
 
                         <div className="flex items-center gap-3">
-                            <Button
-                                type="submit"
-                                disabled={processing}
-                                className="rounded-xl bg-[#E38E49] font-semibold text-white hover:bg-[#E38E49]/90"
-                            >
-                                {processing ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Buat Gelombang'}
-                            </Button>
+                            {!bacaSaja && (
+                                <Button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="rounded-xl bg-[#E38E49] font-semibold text-white hover:bg-[#E38E49]/90"
+                                >
+                                    {processing ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Buat Gelombang'}
+                                </Button>
+                            )}
                             <Button
                                 asChild
                                 variant="outline"
                                 className="rounded-xl border-[#1F509A]/40 bg-white font-semibold text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
                             >
-                                <Link href={kembali}>Batal</Link>
+                                <Link href={kembali}>{bacaSaja ? 'Kembali' : 'Batal'}</Link>
                             </Button>
                         </div>
-                    </div>
-
-                    <div className="space-y-6">
-                        <Kartu judul="Arti Kolom Kosong">
-                            <p className="text-sm text-gray-500">
-                                <b className="text-gray-700">Kuota kosong</b> = tidak dibatasi. Diisi <b className="text-gray-700">0</b> justru
-                                sebaliknya: jalurnya tertutup.
-                            </p>
-                            <p className="mt-3 text-sm text-gray-500">
-                                Kuota sengaja bukan nol saat kosong — kalau terbalik, seluruh pendaftaran ikut tertutup gara-gara data yang belum
-                                sempat diisi.
-                            </p>
-                        </Kartu>
-
-                        {!isEdit && (
-                            <Kartu judul="Lahir Tertutup">
-                                <p className="text-sm text-gray-500">
-                                    Gelombang baru selalu dibuat dalam keadaan tertutup. Membukanya tindakan tersendiri — karena membuka berarti
-                                    menutup gelombang lain yang sedang berjalan.
-                                </p>
-                            </Kartu>
-                        )}
-
-                        {isEdit && gelombang.tagihan_sudah_terbit > 0 && (
-                            <Kartu judul="Yang Tidak Ikut Berubah">
-                                <p className="flex items-start gap-2 text-sm text-gray-500">
-                                    <Lock size={15} strokeWidth={2} className="mt-0.5 shrink-0 text-[#1F509A]" />
-                                    <span>
-                                        <b className="text-gray-700">{gelombang.tagihan_sudah_terbit} pendaftaran</b> di gelombang ini tagihannya
-                                        sudah terbit. Minimal bayar mereka sudah dibekukan dan tidak ikut berubah.
-                                    </span>
-                                </p>
-                                <p className="mt-3 text-sm text-gray-500">
-                                    Itu disengaja: kalau ikut berubah, menaikkan angka hari ini bisa membatalkan status diterima orang yang sudah
-                                    membayar kemarin.
-                                </p>
-                            </Kartu>
-                        )}
                     </div>
                 </form>
             </PageContainer>

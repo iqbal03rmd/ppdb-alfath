@@ -56,9 +56,6 @@ class MasterDataSeeder extends Seeder
                 // Sengaja di masa depan biar tampilan normalnya kelihatan saat demo.
                 // Ubah ke tanggal lampau kalau mau menguji peringatan "batas waktu terlewat".
                 'batas_waktu_pembayaran' => '2026-11-30',
-                // Setoran minimal BAWAAN; jalur yang butuh angka lain mengisi
-                // minimal_bayar-nya sendiri di kebijakan_kategori.
-                'minimal_pembayaran' => 3_000_000,
                 'status_buka' => true,
             ]
         );
@@ -213,11 +210,15 @@ class MasterDataSeeder extends Seeder
      */
     private function seedKebijakanKategori(GelombangPpdb $gelombang, Collection $jalur): void
     {
+        // Minimal bayar WAJIB tiap jalur sejak 11 September 2026 - nominal
+        // bawaan gelombang dibuang, jadi tidak ada lagi yang menambal yang
+        // kosong. Angka 3jt yang dulu jadi bawaan sekarang ditulis di tiap
+        // jalur yang memang memakainya.
         $kebijakan = [
-            'Reguler' => ['kuota' => 30, 'minimal_bayar' => null],
-            'Saudara' => ['kuota' => 10, 'minimal_bayar' => null],
+            'Reguler' => ['kuota' => 30, 'minimal_bayar' => 3_000_000],
+            'Saudara' => ['kuota' => 10, 'minimal_bayar' => 3_000_000],
             'Anak Yatim' => ['kuota' => 5, 'minimal_bayar' => 462_500],
-            'Anak Guru' => ['kuota' => 5, 'minimal_bayar' => null],
+            'Anak Guru' => ['kuota' => 5, 'minimal_bayar' => 3_000_000],
         ];
 
         foreach ($kebijakan as $nama => $nilai) {

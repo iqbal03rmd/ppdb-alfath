@@ -380,18 +380,22 @@ class PendaftaranPpdb extends Model
     }
 
     /**
-     * Minimal bayar supaya pendaftaran bisa 'diterima'. SATU aturan, bukan dua:
+     * Minimal bayar supaya pendaftaran bisa 'diterima'. SATU sumber, bukan dua:
+     * kebijakan_kategori.minimal_bayar, per gelombang x jalur.
      *
-     *   nominal khusus jalur ini  (kebijakan_kategori.minimal_bayar)
-     *   kalau tidak ada, nominal bawaan gelombang  (minimal_pembayaran)
+     * Nominal bawaan gelombang (gelombang_ppdb.minimal_pembayaran) DIBUANG
+     * 11 September 2026, keputusan user - satu angka di satu tempat, dan tidak
+     * ada lagi nominal yang berlaku diam-diam tanpa pernah diketik Admin.
+     * Sebelumnya persentase khusus Anak Yatim juga sudah dibuang (8 September):
+     * namanya menyebut satu jalur, jadi jalur baru tidak akan pernah kebagian.
      *
-     * Dulu ada mode kedua: persentase khusus Anak Yatim, lewat kolom
-     * gelombang_ppdb.minimal_bayar_persen_yatim. Dibuang 8 September 2026 karena
-     * dua hal - namanya menyebut satu jalur sehingga jalur baru yang ditambahkan
-     * Admin lewat UI tidak akan pernah kebagian, dan aturannya dicocokkan lewat
-     * NAMA kategori sehingga mengganti nama jalur mematikannya diam-diam.
-     * Nominal per jalur menyelesaikan keduanya, dan lebih gampang dijelaskan ke
-     * wali daripada persentase (keputusan user).
+     * KALAU BELUM DIATUR, jatuhnya ke TOTAL TAGIHAN - harus lunas - bukan ke
+     * nol. Nol berarti pendaftarnya langsung 'diterima' tanpa menyetor sepeser
+     * pun, diam-diam, dan tidak ada yang menyadarinya sampai kursinya habis.
+     * Jatuh ke lunas salah ke arah yang KELIHATAN: sekolah bertanya kenapa jalur
+     * ini mahal sekali, lalu mengisinya. Layar Ubah Gelombang mewajibkan angka
+     * ini buat tiap jalur, jadi keadaan itu semestinya cuma terjadi pada jalur
+     * yang baru ditambahkan sesudah gelombangnya disimpan.
      *
      * Hasilnya SELALU dibatasi setinggi-tingginya sebesar total tagihan. Tanpa
      * batas ini, minimal 3jt pada jalur yang tagihannya cuma 925rb bikin jalur
@@ -399,11 +403,10 @@ class PendaftaranPpdb extends Model
      */
     private function hitungMinimalBayar(int $totalTagihan): int
     {
-        $khusus = KebijakanKategori::minimalBayarUntuk($this->gelombang_ppdb_id, $this->kategori_siswa_id);
+        $minimal = KebijakanKategori::minimalBayarUntuk($this->gelombang_ppdb_id, $this->kategori_siswa_id)
+            ?? $totalTagihan;
 
-        $minimal = (int) ($khusus ?? $this->gelombang->minimal_pembayaran ?? 0);
-
-        return min(max(0, $minimal), $totalTagihan);
+        return min(max(0, (int) $minimal), $totalTagihan);
     }
 
     /**

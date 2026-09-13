@@ -87,7 +87,7 @@ class DashboardController extends Controller
 
         $gelombang = $tahunAktif
             ? GelombangPpdb::where('tahun_ajaran_id', $tahunAktif->id)
-                ->where('status_buka', true)
+                ->menerimaPendaftar()
                 ->latest()
                 ->first()
             : null;

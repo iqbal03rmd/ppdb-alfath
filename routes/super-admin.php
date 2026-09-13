@@ -98,12 +98,5 @@ Route::middleware(['auth', 'role:super_admin'])
             Route::post('/jalur', [JalurController::class, 'store'])->name('jalur.store');
             Route::put('/jalur/{jalur}', [JalurController::class, 'update'])->name('jalur.update');
             Route::delete('/jalur/{jalur}', [JalurController::class, 'destroy'])->name('jalur.destroy');
-
-            // DIPARKIR: belum dituju layar mana pun sejak formulir jalur jadi
-            // modal. Nominal bersifat gelombang x jalur, jadi tempatnya nanti di
-            // layar Ubah Gelombang - bareng kuota, minimal bayar, dan berkas
-            // wajib. Sengaja tidak dibuang: aturan "kosong bukan nol" di
-            // dalamnya gampang salah kalau ditulis ulang dari nol.
-            Route::put('/jalur/{jalur}/tarif', [JalurController::class, 'simpanTarif'])->name('jalur.tarif');
         });
     });

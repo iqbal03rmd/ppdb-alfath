@@ -13,6 +13,8 @@ use App\Models\TahunAjaran;
 use App\Models\TarifKategori;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -22,16 +24,31 @@ use Inertia\Response;
  * Gelombang PPDB - jendela pendaftaran beserta seluruh angka yang berlaku
  * selama jendela itu terbuka.
  *
- * Tiga hal yang diatur di sini, dan ketiganya memang berubah tiap gelombang:
+ * Lima hal yang diatur di sini, dan kelimanya memang berubah tiap gelombang:
  *
- *   tanggal          buka, tutup, dan jatuh tempo minimal bayar
- *   kuota per jalur  daya tampung, biasanya menyusut di gelombang berikutnya
- *   minimal bayar    setoran awal, bisa dinaikkan di gelombang berikutnya
+ *   tanggal           buka, tutup, dan jatuh tempo minimal bayar
+ *   kuota per jalur   daya tampung, biasanya menyusut di gelombang berikutnya
+ *   minimal bayar     setoran awal per jalur, wajib diisi
+ *   nominal komponen  harga tiap pos biaya, per jalur
+ *   berkas wajib      berkas yang diminta, per jalur
  *
- * NOMINAL KOMPONEN tidak diatur di sini kecuali sekali saat gelombang dibuat -
- * "nominal dasar" yang mengisi seluruh jalur sekaligus sebagai titik awal.
- * Sesudah itu angkanya diubah per jalur di menu Jalur Pendaftaran, supaya cuma
- * ada satu tempat yang memegangnya.
+ * Kelimanya diatur di SATU layar yang sama untuk Tambah dan Ubah Gelombang,
+ * karena kelimanya
+ * memang satu keputusan: "ketentuan yang berlaku untuk angkatan ini". Waktu
+ * nominalnya masih diatur di menu Jalur Pendaftaran, angka yang bersifat
+ * gelombang x jalur harus dicari di layar yang tidak menyebut gelombang sama
+ * sekali. Tidak ada nominal dasar: sejak gelombang dibuat, setiap angka sudah
+ * jelas menjadi milik jalur yang mana.
+ *
+ * KETENTUAN PUNYA DUA KUNCI - lihat GelombangPpdb::alasanTidakBisaDiubah().
+ * Selagi terbuka: terkunci sementara, tinggal ditutup. Sesudah jendelanya
+ * lewat: BEKU PERMANEN, karena pendaftar di dalamnya membaca tenggat, kuota,
+ * dan syarat berkas gelombang ini secara hidup. Gelombang lahir tertutup justru
+ * supaya seluruh angkanya bisa disiapkan sebelum jendelanya berjalan.
+ *
+ * Layar Ubah tetap bisa DIBUKA walau terkunci - dia merangkap satu-satunya
+ * tempat pengaturan gelombang lama masih bisa dibaca. Yang menolak update(),
+ * bukan edit().
  *
  * TIDAK ADA aksi hapus: gelombang cascade ke pendaftaran_ppdb, yang cascade lagi
  * ke pembayaran_ppdb. Yang tersedia menutup pendaftarannya.
@@ -41,7 +58,6 @@ class GelombangController extends Controller
     public function index(): Response
     {
         $gelombang = GelombangPpdb::with('tahunAjaran')
-            ->withCount('pendaftaran')
             ->get()
             ->sortByDesc(fn (GelombangPpdb $g) => $g->tahunAjaran->nama.$g->tanggal_mulai?->format('Y-m-d'))
             ->values()
@@ -52,14 +68,20 @@ class GelombangController extends Controller
                 'tanggal_mulai' => $this->tanggal($g->tanggal_mulai),
                 'tanggal_selesai' => $this->tanggal($g->tanggal_selesai),
                 'batas_waktu_pembayaran' => $this->tanggal($g->batas_waktu_pembayaran),
-                'minimal_pembayaran' => $g->minimal_pembayaran,
                 'status_buka' => (bool) $g->status_buka,
-                'jumlah_pendaftaran' => $g->pendaftaran_count,
                 // Jumlah sel tarif yang sudah diisi. 0 berarti tagihan
                 // pendaftar gelombang ini TIDAK AKAN terbit sama sekali - itu
                 // keadaan yang harus kelihatan dari daftar, bukan ditemukan
                 // setelah ada wali yang mengeluh tagihannya kosong.
                 'tarif_terisi' => $g->tarif()->count(),
+                // Alasannya dihitung di sini dan dikirim sebagai prop, bukan
+                // disusun ulang di TSX: syarat yang ditegakkan server dan
+                // kalimat yang dibaca admin tidak boleh berbeda pendapat.
+                'alasan_tidak_bisa_dibuka' => $g->alasanTidakBisaDibuka(),
+                'alasan_tidak_bisa_diubah' => $g->alasanTidakBisaDiubah(),
+                // Satu kata, dihitung server - badge di daftar tinggal
+                // memetakannya, tidak menyimpulkan sendiri dari tiga boolean.
+                'keadaan' => $g->keadaan(),
             ])
             ->all();
 
@@ -73,30 +95,36 @@ class GelombangController extends Controller
 
     public function create(): Response
     {
+        $komponen = KomponenBiaya::aktif()->terurut()->get();
+        $dokumenAwal = $this->dokumenAwalGelombangBaru();
+
         return Inertia::render('super-admin/gelombang-form', [
             ...$this->pilihan(),
-            // Nominal dasar cuma ditawarkan saat MEMBUAT. Sesudah gelombangnya
-            // ada, angkanya diubah per jalur - lihat komentar kelas.
-            'komponen' => KomponenBiaya::aktif()->terurut()->get()->map(fn (KomponenBiaya $k) => [
+            'kebijakan' => KategoriSiswa::terurut()->get()->map(fn (KategoriSiswa $j) => [
+                'kategori_siswa_id' => $j->id,
+                'nama' => $j->nama,
+                'kuota' => '',
+                'minimal_bayar' => '',
+                'terpakai' => 0,
+                // Berkas gelombang sebelumnya hanya menjadi isian awal. Admin
+                // tetap melihat dan boleh mengubahnya sebelum gelombang dibuat.
+                'dokumen' => $dokumenAwal[$j->id] ?? [],
+                'tarif' => $this->tarifJalur(null, $komponen),
+            ])->all(),
+            'komponen' => $komponen->map(fn (KomponenBiaya $k) => [
                 'id' => $k->id,
                 'nama' => $k->nama,
             ])->all(),
+            'pilihanDokumen' => BerkasPersyaratan::peta(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validasi($request);
+        $ketentuan = $this->validasiKetentuan($request);
 
-        $nominalDasar = $request->validate([
-            'nominal_dasar' => ['present', 'array'],
-            'nominal_dasar.*' => ['nullable', 'integer', 'min:0'],
-        ], [
-            'nominal_dasar.*.integer' => 'Nominal dasar harus berupa angka.',
-            'nominal_dasar.*.min' => 'Nominal dasar tidak boleh negatif.',
-        ])['nominal_dasar'];
-
-        $gelombang = DB::transaction(function () use ($data, $nominalDasar) {
+        $gelombang = DB::transaction(function () use ($data, $ketentuan) {
             $gelombang = GelombangPpdb::create([
                 ...$data,
                 // Gelombang baru selalu lahir TERTUTUP. Membukanya tindakan
@@ -106,14 +134,15 @@ class GelombangController extends Controller
                 'status_buka' => false,
             ]);
 
-            $this->sebarNominalDasar($gelombang, $nominalDasar);
-            $this->warisiBerkasWajib($gelombang);
+            $this->simpanBerkasWajib($gelombang, $ketentuan['berkas']);
+            $this->simpanKebijakan($gelombang, $ketentuan['kebijakan']);
+            $this->simpanTarif($gelombang, $ketentuan['tarif']);
 
             return $gelombang;
         });
 
         return to_route('super-admin.gelombang.index')
-            ->with('success', "{$gelombang->nama} dibuat dan masih tertutup. Sesuaikan nominal per jalur di Jalur Pendaftaran, lalu buka pendaftarannya.");
+            ->with('success', "{$gelombang->nama} beserta ketentuan tiap jalurnya dibuat dan masih tertutup. Buka saat siap menerima pendaftar.");
     }
 
     public function edit(GelombangPpdb $gelombang): Response
@@ -121,6 +150,16 @@ class GelombangController extends Controller
         $gelombang->load('tahunAjaran');
 
         $kebijakan = KebijakanKategori::where('gelombang_ppdb_id', $gelombang->id)->get()->keyBy('kategori_siswa_id');
+
+        // Pos yang dimatikan tidak ditawarkan lagi - mengisi harga untuk sesuatu
+        // yang tidak akan ditagihkan cuma bikin bingung. Nominalnya yang sudah
+        // tersimpan tetap ada di database, tinggal nyalakan lagi posnya.
+        $komponen = KomponenBiaya::aktif()->terurut()->get();
+
+        $tarif = TarifKategori::where('gelombang_ppdb_id', $gelombang->id)
+            ->get()
+            ->groupBy('kategori_siswa_id')
+            ->map(fn ($baris) => $baris->keyBy('komponen_biaya_id'));
 
         $berkasTerpilih = DokumenWajibKategori::where('gelombang_ppdb_id', $gelombang->id)
             ->get()
@@ -136,14 +175,14 @@ class GelombangController extends Controller
                 'tanggal_mulai' => $gelombang->tanggal_mulai?->format('Y-m-d'),
                 'tanggal_selesai' => $gelombang->tanggal_selesai?->format('Y-m-d'),
                 'batas_waktu_pembayaran' => $gelombang->batas_waktu_pembayaran?->format('Y-m-d'),
-                'minimal_pembayaran' => $gelombang->minimal_pembayaran,
                 'status_buka' => (bool) $gelombang->status_buka,
-                'jumlah_pendaftaran' => $gelombang->pendaftaran()->count(),
-                // Yang tagihannya sudah terbit kebal terhadap perubahan di
-                // halaman ini. Angka inilah yang dipakai sebagai peringatan,
-                // bukan jumlah pendaftar - supaya peringatannya tidak berlebihan.
-                'tagihan_sudah_terbit' => $gelombang->pendaftaran()->whereNotNull('minimal_bayar')->count(),
             ],
+
+            // Layar ini merangkap dua: formulir Ubah, dan - kalau terkunci -
+            // satu-satunya tempat pengaturan gelombang lama masih bisa DIBACA.
+            // Tanpa itu, kuota, nominal, dan syarat berkas angkatan yang sudah
+            // lewat lenyap dari pandangan selamanya.
+            'terkunci' => $gelombang->alasanTidakBisaDiubah(),
             'kebijakan' => KategoriSiswa::terurut()->get()->map(fn (KategoriSiswa $j) => [
                 'kategori_siswa_id' => $j->id,
                 'nama' => $j->nama,
@@ -151,6 +190,15 @@ class GelombangController extends Controller
                 'minimal_bayar' => $kebijakan->get($j->id)?->minimal_bayar !== null ? (string) $kebijakan->get($j->id)->minimal_bayar : '',
                 'terpakai' => KebijakanKategori::terpakaiUntuk($gelombang->id, $j->id),
                 'dokumen' => $berkasTerpilih->get($j->id, collect())->all(),
+                // String, bukan integer: kotak isian terkendali di React, dan ''
+                // yang berarti "belum diatur" harus bisa dibedakan dari '0' yang
+                // artinya jalur ini dibebaskan dari pos tersebut.
+                'tarif' => $this->tarifJalur($tarif->get($j->id), $komponen),
+            ])->all(),
+
+            'komponen' => $komponen->map(fn (KomponenBiaya $k) => [
+                'id' => $k->id,
+                'nama' => $k->nama,
             ])->all(),
 
             // Cuma jenis yang masih aktif yang ditawarkan. Yang sudah
@@ -162,28 +210,21 @@ class GelombangController extends Controller
 
     public function update(Request $request, GelombangPpdb $gelombang): RedirectResponse
     {
+        $gelombang->loadMissing('tahunAjaran');
+
+        if ($alasan = $gelombang->alasanTidakBisaDiubah()) {
+            return to_route('super-admin.gelombang.index')->with('error', $alasan);
+        }
+
         $data = $this->validasi($request);
 
-        $kebijakan = $request->validate([
-            'kebijakan' => ['present', 'array'],
-            'kebijakan.*.kuota' => ['nullable', 'integer', 'min:0', 'max:10000'],
-            'kebijakan.*.minimal_bayar' => ['nullable', 'integer', 'min:0'],
-        ], [
-            'kebijakan.*.kuota.integer' => 'Kuota harus berupa angka, atau dikosongkan kalau tidak dibatasi.',
-            'kebijakan.*.kuota.min' => 'Kuota tidak boleh negatif.',
-            'kebijakan.*.minimal_bayar.integer' => 'Minimal bayar harus berupa angka, atau dikosongkan untuk ikut nilai bawaan.',
-        ])['kebijakan'];
+        $ketentuan = $this->validasiKetentuan($request);
 
-        $berkas = $request->validate([
-            'dokumen' => ['present', 'array'],
-            'dokumen.*' => ['present', 'array'],
-            'dokumen.*.*' => ['string', Rule::in(array_keys(BerkasPersyaratan::peta()))],
-        ])['dokumen'];
-
-        DB::transaction(function () use ($gelombang, $data, $kebijakan, $berkas) {
+        DB::transaction(function () use ($gelombang, $data, $ketentuan) {
             $gelombang->update($data);
-            $this->simpanBerkasWajib($gelombang, $berkas);
-            $this->simpanKebijakan($gelombang, $kebijakan);
+            $this->simpanBerkasWajib($gelombang, $ketentuan['berkas']);
+            $this->simpanKebijakan($gelombang, $ketentuan['kebijakan']);
+            $this->simpanTarif($gelombang, $ketentuan['tarif']);
         });
 
         return to_route('super-admin.gelombang.index')->with('success', "{$gelombang->nama} diperbarui.");
@@ -195,12 +236,26 @@ class GelombangController extends Controller
      * Nilainya dikirim eksplisit, bukan dibalik dari keadaan sekarang: saklar
      * buta bikin dua klik beruntun - atau dua tab yang terbuka bersamaan -
      * berakhir di keadaan yang bukan diinginkan siapa pun.
+     *
+     * MEMBUKA bersyarat (lihat GelombangPpdb::alasanTidakBisaDibuka()), MENUTUP
+     * tidak pernah. Menutup harus selalu bisa dilakukan: itu jalan keluar dari
+     * hampir semua keadaan salah di layar ini, termasuk satu-satunya cara
+     * membuka kunci layar Ubah.
      */
     public function status(Request $request, GelombangPpdb $gelombang): RedirectResponse
     {
         $data = $request->validate(['status_buka' => ['required', 'boolean']]);
 
         if ($data['status_buka']) {
+            // Ditegakkan di server, bukan cuma dengan mematikan tombolnya:
+            // tombol mati menyembunyikan jalannya, permintaannya tetap bisa
+            // dikirim langsung.
+            $gelombang->loadMissing('tahunAjaran');
+
+            if ($alasan = $gelombang->alasanTidakBisaDibuka()) {
+                return back()->with('error', $alasan);
+            }
+
             $gelombang->buka();
 
             return back()->with(
@@ -218,46 +273,48 @@ class GelombangController extends Controller
     }
 
     /**
-     * Isi nominal seluruh jalur sekaligus dengan satu angka per komponen.
+     * Isian awal syarat berkas untuk formulir Tambah Gelombang.
      *
-     * Cuma dipakai saat gelombang DIBUAT. Gunanya menghindari admin mengetik
-     * empat angka yang sama untuk empat jalur; yang berbeda tinggal disesuaikan
-     * belakangan per jalur. Komponen yang dikosongkan dilewati - artinya jalur
-     * belum punya nominal untuk pos itu, bukan gratis.
-     *
-     * @param  array<int, int|null>  $nominalDasar
-     */
-    /**
-     * Salin syarat berkas dari gelombang sebelumnya ke gelombang yang baru dibuat.
-     *
-     * Bawaannya diwarisi, BUKAN dikosongkan: gelombang tanpa satu pun syarat
+     * Bawaannya diwarisi, BUKAN dikosongkan: formulir tanpa satu pun syarat
      * berkas berarti pendaftar tidak diminta melampirkan apa-apa, dan itu
      * kelihatan seperti sistem yang rusak - bukan seperti keputusan sekolah.
      * Sekolah jarang mengganti syaratnya tiap gelombang, jadi menyalin yang
      * kemarin adalah tebakan yang paling sering benar; sisanya tinggal
-     * disesuaikan di layar Ubah.
+     * disesuaikan sebelum tombol Buat Gelombang ditekan.
      *
      * Kalau ini gelombang pertama yang pernah ada, seluruh berkas yang aktif
      * dipasang ke semua jalur - lebih baik meminta berlebih lalu dikurangi
      * daripada tidak meminta apa-apa tanpa ada yang sadar.
+     *
+     * @return array<int, array<int, string>>
      */
-    private function warisiBerkasWajib(GelombangPpdb $baru): void
+    private function dokumenAwalGelombangBaru(): array
     {
-        $sebelumnya = GelombangPpdb::whereKeyNot($baru->getKey())->latest('id')->first();
+        $sebelumnya = GelombangPpdb::latest('id')->first();
 
-        $sumber = $sebelumnya
-            ? DokumenWajibKategori::where('gelombang_ppdb_id', $sebelumnya->id)
+        if ($sebelumnya) {
+            $kodeAktifTerurut = array_keys(BerkasPersyaratan::peta());
+
+            return DokumenWajibKategori::where('gelombang_ppdb_id', $sebelumnya->id)
+                ->whereIn('jenis_dokumen', $kodeAktifTerurut)
                 ->get()
-                ->map(fn (DokumenWajibKategori $d) => [$d->kategori_siswa_id, $d->jenis_dokumen])
-            : KategoriSiswa::pluck('id')->crossJoin(array_keys(BerkasPersyaratan::peta()));
+                ->groupBy('kategori_siswa_id')
+                ->map(function ($baris) use ($kodeAktifTerurut) {
+                    $diminta = $baris->pluck('jenis_dokumen')->all();
 
-        foreach ($sumber as [$kategoriId, $jenis]) {
-            DokumenWajibKategori::updateOrCreate([
-                'gelombang_ppdb_id' => $baru->id,
-                'kategori_siswa_id' => $kategoriId,
-                'jenis_dokumen' => $jenis,
-            ]);
+                    return array_values(array_filter(
+                        $kodeAktifTerurut,
+                        fn (string $jenis) => in_array($jenis, $diminta, true)
+                    ));
+                })
+                ->all();
         }
+
+        $semuaBerkasAktif = array_keys(BerkasPersyaratan::peta());
+
+        return KategoriSiswa::pluck('id')
+            ->mapWithKeys(fn (int $kategoriId) => [$kategoriId => $semuaBerkasAktif])
+            ->all();
     }
 
     /**
@@ -292,29 +349,6 @@ class GelombangController extends Controller
         $gelombang->unsetRelation('dokumenWajib');
     }
 
-    private function sebarNominalDasar(GelombangPpdb $gelombang, array $nominalDasar): void
-    {
-        $idKomponenSah = KomponenBiaya::pluck('id')->all();
-        $idJalur = KategoriSiswa::pluck('id')->all();
-
-        foreach ($nominalDasar as $komponenId => $nominal) {
-            if ($nominal === null || ! in_array((int) $komponenId, $idKomponenSah, true)) {
-                continue;
-            }
-
-            foreach ($idJalur as $jalurId) {
-                TarifKategori::updateOrCreate(
-                    [
-                        'gelombang_ppdb_id' => $gelombang->id,
-                        'komponen_biaya_id' => (int) $komponenId,
-                        'kategori_siswa_id' => $jalurId,
-                    ],
-                    ['nominal' => (int) $nominal]
-                );
-            }
-        }
-    }
-
     /**
      * @param  array<int, array{kuota: int|null, minimal_bayar: int|null}>  $kebijakan
      */
@@ -329,22 +363,83 @@ class GelombangController extends Controller
 
             $kunci = ['gelombang_ppdb_id' => $gelombang->id, 'kategori_siswa_id' => (int) $jalurId];
             $kuota = $nilai['kuota'] ?? null;
-            $minimal = $nilai['minimal_bayar'] ?? null;
 
-            // Dua-duanya kosong = tidak ada kebijakan khusus apa pun untuk jalur
-            // ini; barisnya dibuang supaya tabelnya tidak menumpuk baris yang
-            // seluruh isinya null - artinya sama persis dengan baris yang tidak
-            // pernah ada.
-            if ($kuota === null && $minimal === null) {
-                KebijakanKategori::where($kunci)->delete();
+            // Barisnya TIDAK pernah dibuang lagi. Sejak minimal bayar wajib, tiap
+            // jalur selalu punya angka - dan baris yang hilang artinya jalur itu
+            // jatuh ke "harus lunas" (lihat PendaftaranPpdb::hitungMinimalBayar),
+            // bukan keadaan yang pantas lahir dari menyimpan formulir.
+            KebijakanKategori::updateOrCreate($kunci, [
+                'kuota' => $kuota === null ? null : (int) $kuota,
+                'minimal_bayar' => (int) $nilai['minimal_bayar'],
+            ]);
+        }
+    }
 
+    /**
+     * Nominal tiap komponen untuk satu jalur, siap dikirim ke layar.
+     *
+     * @param  Collection<int, TarifKategori>|null  $tersimpan
+     * @param  Collection<int, KomponenBiaya>  $komponen
+     * @return array<string, string>
+     */
+    private function tarifJalur(?Collection $tersimpan, Collection $komponen): array
+    {
+        $hasil = [];
+
+        foreach ($komponen as $k) {
+            $nominal = $tersimpan?->get($k->id)?->nominal;
+
+            // String, bukan integer: kotak isian terkendali di React, dan ''
+            // yang berarti "belum diatur" harus bisa dibedakan dari '0'.
+            $hasil[(string) $k->id] = $nominal === null ? '' : (string) $nominal;
+        }
+
+        return $hasil;
+    }
+
+    /**
+     * Simpan nominal tiap komponen, per jalur, untuk gelombang ini.
+     *
+     * KOSONG BUKAN NOL, dan bedanya menentukan: kosong artinya pos itu tidak
+     * muncul sama sekali di tagihan jalur ini, sedangkan 0 artinya muncul
+     * sebagai baris Rp0 - jalur ini dibebaskan darinya. Karena itu yang
+     * dikosongkan barisnya DIHAPUS, bukan disimpan bernilai nol.
+     *
+     * Komponen yang tidak dikirim layar - yang sudah dinonaktifkan - tidak
+     * disentuh sama sekali: nominalnya menunggu di tempat kalau posnya
+     * dinyalakan lagi.
+     *
+     * @param  array<int|string, array<int|string, int|null>>  $tarif
+     */
+    private function simpanTarif(GelombangPpdb $gelombang, array $tarif): void
+    {
+        $idJalurSah = KategoriSiswa::pluck('id')->all();
+        $idKomponenSah = KomponenBiaya::pluck('id')->all();
+
+        foreach ($tarif as $jalurId => $perKomponen) {
+            if (! in_array((int) $jalurId, $idJalurSah, true)) {
                 continue;
             }
 
-            KebijakanKategori::updateOrCreate($kunci, [
-                'kuota' => $kuota === null ? null : (int) $kuota,
-                'minimal_bayar' => $minimal === null ? null : (int) $minimal,
-            ]);
+            foreach ($perKomponen as $komponenId => $nominal) {
+                if (! in_array((int) $komponenId, $idKomponenSah, true)) {
+                    continue;
+                }
+
+                $kunci = [
+                    'gelombang_ppdb_id' => $gelombang->id,
+                    'kategori_siswa_id' => (int) $jalurId,
+                    'komponen_biaya_id' => (int) $komponenId,
+                ];
+
+                if ($nominal === null) {
+                    TarifKategori::where($kunci)->delete();
+
+                    continue;
+                }
+
+                TarifKategori::updateOrCreate($kunci, ['nominal' => (int) $nominal]);
+            }
         }
     }
 
@@ -375,7 +470,6 @@ class GelombangController extends Controller
             // pendaftaran: kalau lebih awal, ada pendaftar yang tenggat bayarnya
             // sudah lewat pada hari dia mendaftar.
             'batas_waktu_pembayaran' => ['nullable', 'date', 'after_or_equal:tanggal_selesai'],
-            'minimal_pembayaran' => ['nullable', 'integer', 'min:0'],
         ], [
             'tahun_ajaran_id.required' => 'Pilih dulu tahun ajarannya.',
             'nama.required' => 'Nama gelombang wajib diisi, misalnya Gelombang 1.',
@@ -387,7 +481,58 @@ class GelombangController extends Controller
         ]);
     }
 
-    private function tanggal(?\Illuminate\Support\Carbon $tanggal): ?string
+    /**
+     * Validasi seluruh ketentuan yang diisi per jalur.
+     *
+     * Bentuk muatannya sengaja sama untuk store() dan update(): membuat
+     * gelombang bukan lagi langkah setengah jadi yang harus dilanjutkan lewat
+     * layar lain.
+     *
+     * @return array{
+     *     kebijakan: array<int|string, array{kuota: int|null, minimal_bayar: int}>,
+     *     berkas: array<int|string, array<int, string>>,
+     *     tarif: array<int|string, array<int|string, int|null>>
+     * }
+     */
+    private function validasiKetentuan(Request $request): array
+    {
+        $kebijakan = $request->validate([
+            'kebijakan' => ['present', 'array'],
+            'kebijakan.*.kuota' => ['nullable', 'integer', 'min:0', 'max:10000'],
+            // WAJIB, dan boleh 0. Tidak ada angka bawaan yang menambal jalur
+            // yang kosong; pembebasan harus diketik sebagai 0 dengan sadar.
+            'kebijakan.*.minimal_bayar' => ['required', 'integer', 'min:0'],
+        ], [
+            'kebijakan.*.kuota.integer' => 'Kuota harus berupa angka, atau dikosongkan kalau tidak dibatasi.',
+            'kebijakan.*.kuota.min' => 'Kuota tidak boleh negatif.',
+            'kebijakan.*.minimal_bayar.required' => 'Minimal bayar wajib diisi. Isi 0 kalau jalur ini memang diterima tanpa menyetor.',
+            'kebijakan.*.minimal_bayar.integer' => 'Minimal bayar harus berupa angka.',
+            'kebijakan.*.minimal_bayar.min' => 'Minimal bayar tidak boleh negatif.',
+        ])['kebijakan'];
+
+        $berkas = $request->validate([
+            'dokumen' => ['present', 'array'],
+            'dokumen.*' => ['present', 'array'],
+            'dokumen.*.*' => ['string', Rule::in(array_keys(BerkasPersyaratan::peta()))],
+        ])['dokumen'];
+
+        $tarif = $request->validate([
+            'tarif' => ['present', 'array'],
+            'tarif.*' => ['present', 'array'],
+            'tarif.*.*' => ['nullable', 'integer', 'min:0'],
+        ], [
+            'tarif.*.*.integer' => 'Nominal harus berupa angka, atau dikosongkan kalau pos itu tidak ditagihkan ke jalur ini.',
+            'tarif.*.*.min' => 'Nominal tidak boleh negatif.',
+        ])['tarif'];
+
+        return [
+            'kebijakan' => $kebijakan,
+            'berkas' => $berkas,
+            'tarif' => $tarif,
+        ];
+    }
+
+    private function tanggal(?Carbon $tanggal): ?string
     {
         return $tanggal?->locale('id')->translatedFormat('d F Y');
     }

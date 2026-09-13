@@ -81,7 +81,10 @@ class LaporanController extends Controller
                     'id' => $g->id,
                     'nama' => $g->nama,
                     'tahun_ajaran' => $g->tahunAjaran->nama,
-                    'status_buka' => (bool) $g->status_buka,
+                    // Keadaan sebenarnya, bukan saklarnya: gelombang yang
+                    // jendelanya sudah lewat tidak lagi menerima pendaftar walau
+                    // saklarnya belum ditekan.
+                    'status_buka' => $g->sedangMenerimaPendaftar(),
                     'total' => $isi->count(),
                     'diproses' => $isi->whereIn('status', ['diajukan', 'perlu_perbaikan', 'diverifikasi'])->count(),
                     'diterima' => $isi->where('status', 'diterima')->count(),
@@ -372,7 +375,7 @@ class LaporanController extends Controller
 
         return GelombangPpdb::with('tahunAjaran')
             ->where('tahun_ajaran_id', $tahunAktif->id)
-            ->where('status_buka', true)
+            ->menerimaPendaftar()
             ->latest()
             ->first();
     }

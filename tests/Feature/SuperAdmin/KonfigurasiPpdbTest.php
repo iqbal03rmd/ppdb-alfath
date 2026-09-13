@@ -11,6 +11,9 @@ use App\Models\PendaftaranPpdb;
 use App\Models\TahunAjaran;
 use App\Models\TarifKategori;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Testing\AssertableInertia;
 
 beforeEach(function () {
@@ -25,12 +28,18 @@ beforeEach(function () {
 });
 
 /**
- * Bentuk minimal muatan "Ubah Gelombang". Syarat berkas sekarang ikut disimpan
- * di sini, jadi tiap uji yang menyentuh gelombang harus menyertakannya - kalau
- * tidak, menyimpan jadwal ikut mengosongkan syarat berkas seluruh jalur.
+ * Bentuk minimal muatan "Ubah Gelombang". Syarat berkas dan nominal komponen
+ * sekarang ikut disimpan di sini, jadi tiap uji yang menyentuh gelombang harus
+ * menyertakannya - kalau tidak, menyimpan jadwal ikut mengosongkan syarat
+ * berkas seluruh jalur.
+ *
+ * TIDAK menutup gelombangnya - itu tindakan tersendiri yang ditulis di tiap uji
+ * yang memerlukannya. Kalau menutup dilakukan diam-diam di sini, uji "ditolak
+ * selagi terbuka" akan lulus justru karena pembangun muatannya sudah menutup.
  */
 function muatanGelombang(GelombangPpdb $g, array $timpa = []): array
 {
+
     $dokumen = DokumenWajibKategori::where('gelombang_ppdb_id', $g->id)
         ->get()
         ->groupBy('kategori_siswa_id')
@@ -46,6 +55,7 @@ function muatanGelombang(GelombangPpdb $g, array $timpa = []): array
         'minimal_pembayaran' => $g->minimal_pembayaran,
         'kebijakan' => [],
         'dokumen' => $dokumen,
+        'tarif' => [],
         ...$timpa,
     ];
 }
@@ -188,7 +198,7 @@ test('batas pelunasan tidak bisa dikosongkan lewat ubah', function () {
 test('tambah dan ubah tahun ajaran tidak punya halaman sendiri', function (string $rute) {
     // Modal menggantikan dua halaman formulir. Route GET-nya ikut dibuang -
     // kalau dihidupkan lagi tanpa halamannya, tautannya jadi layar kosong.
-    expect(Illuminate\Support\Facades\Route::has($rute))->toBeFalse();
+    expect(Route::has($rute))->toBeFalse();
 })->with(['super-admin.tahun-ajaran.create', 'super-admin.tahun-ajaran.edit']);
 
 test('tidak ada route mengaktifkan yang berdiri sendiri', function () {
@@ -196,7 +206,7 @@ test('tidak ada route mengaktifkan yang berdiri sendiri', function () {
     // tombol tersendiri di daftar. Route-nya ikut dibuang bareng tombolnya -
     // endpoint POST yang tidak dituju layar mana pun cuma jadi jalan masuk yang
     // tidak ada yang menjaganya.
-    expect(Illuminate\Support\Facades\Route::has('super-admin.tahun-ajaran.aktifkan'))->toBeFalse();
+    expect(Route::has('super-admin.tahun-ajaran.aktifkan'))->toBeFalse();
 });
 
 /*
@@ -215,6 +225,8 @@ test('jenis berkas baru langsung bisa diwajibkan sebuah jalur', function () {
 
     expect($rapor->kode)->toBe('rapor_paud')
         ->and($rapor->status_aktif)->toBeTrue();
+
+    $this->gelombang->tutup();
 
     $this->actingAs($this->admin)
         ->put(route('super-admin.gelombang.update', $this->gelombang), muatanGelombang($this->gelombang, [
@@ -309,7 +321,7 @@ test('wali tidak bisa mengunggah jenis berkas yang sudah dinonaktifkan', functio
     $this->actingAs($pendaftaran->user)
         ->post(route('wali-murid.pendaftaran.unggah-berkas.store', $pendaftaran), [
             'jenis_dokumen' => 'kartu_keluarga',
-            'berkas' => Illuminate\Http\UploadedFile::fake()->create('kk.pdf', 100, 'application/pdf'),
+            'berkas' => UploadedFile::fake()->create('kk.pdf', 100, 'application/pdf'),
         ])
         ->assertSessionHasErrors('jenis_dokumen');
 });
@@ -322,7 +334,7 @@ test('komponen biaya berlaku untuk semua gelombang, bukan milik satu gelombang',
     // Kolom gelombang_ppdb_id sengaja tidak ada lagi di tabel ini. Kalau muncul
     // kembali, "Pembangunan" Gelombang 1 dan Gelombang 2 jadi dua baris yang
     // tidak saling kenal.
-    expect(Illuminate\Support\Facades\Schema::hasColumn('komponen_biaya', 'gelombang_ppdb_id'))->toBeFalse();
+    expect(Schema::hasColumn('komponen_biaya', 'gelombang_ppdb_id'))->toBeFalse();
 });
 
 test('komponen biaya bisa ditambah', function () {
@@ -352,12 +364,10 @@ test('komponen biaya yang sudah punya nominal tidak bisa dihapus', function () {
 });
 
 /*
-| Gelombang - jadwal, nominal dasar, kuota & minimal bayar
+| Gelombang - jadwal dan seluruh ketentuan per jalur
 */
 
-test('gelombang baru lahir tertutup dan nominal dasarnya menyebar ke semua jalur', function () {
-    $jumlahJalur = KategoriSiswa::count();
-
+test('gelombang baru lahir tertutup dan ketentuannya langsung tersimpan per jalur', function () {
     $this->actingAs($this->admin)
         ->post(route('super-admin.gelombang.store'), [
             'tahun_ajaran_id' => $this->tahunAjaran->id,
@@ -365,8 +375,18 @@ test('gelombang baru lahir tertutup dan nominal dasarnya menyebar ke semua jalur
             'tanggal_mulai' => '2026-11-01',
             'tanggal_selesai' => '2026-12-31',
             'batas_waktu_pembayaran' => '2027-01-31',
-            'minimal_pembayaran' => 3_500_000,
-            'nominal_dasar' => [$this->seragam->id => 800_000],
+            'kebijakan' => [
+                $this->reguler->id => ['kuota' => 20, 'minimal_bayar' => 3_500_000],
+                $this->yatim->id => ['kuota' => 4, 'minimal_bayar' => 400_000],
+            ],
+            'dokumen' => [
+                $this->reguler->id => ['kartu_keluarga'],
+                $this->yatim->id => ['kartu_keluarga', 'surat_kematian_ayah'],
+            ],
+            'tarif' => [
+                $this->reguler->id => [$this->seragam->id => 800_000],
+                $this->yatim->id => [$this->seragam->id => 0],
+            ],
         ])
         ->assertSessionHasNoErrors();
 
@@ -376,9 +396,17 @@ test('gelombang baru lahir tertutup dan nominal dasarnya menyebar ke semua jalur
     // untuk jadi efek samping tombol "Simpan".
     expect($baru->status_buka)->toBeFalse()
         ->and($this->gelombang->refresh()->status_buka)->toBeTrue()
-        // Satu angka mengisi seluruh jalur sekaligus.
-        ->and(TarifKategori::where('gelombang_ppdb_id', $baru->id)->where('komponen_biaya_id', $this->seragam->id)->count())
-        ->toBe($jumlahJalur);
+        ->and(KebijakanKategori::minimalBayarUntuk($baru->id, $this->reguler->id))->toBe(3_500_000)
+        ->and(KebijakanKategori::minimalBayarUntuk($baru->id, $this->yatim->id))->toBe(400_000)
+        ->and(TarifKategori::where('gelombang_ppdb_id', $baru->id)
+            ->where('kategori_siswa_id', $this->reguler->id)
+            ->where('komponen_biaya_id', $this->seragam->id)
+            ->value('nominal'))->toBe(800_000)
+        ->and(TarifKategori::where('gelombang_ppdb_id', $baru->id)
+            ->where('kategori_siswa_id', $this->yatim->id)
+            ->where('komponen_biaya_id', $this->seragam->id)
+            ->value('nominal'))->toBe(0)
+        ->and($baru->dokumenWajibUntuk($this->yatim->id))->toContain('surat_kematian_ayah');
 });
 
 test('harga boleh berbeda antar gelombang untuk komponen yang sama', function () {
@@ -406,11 +434,13 @@ test('harga boleh berbeda antar gelombang untuk komponen yang sama', function ()
 });
 
 test('membuka gelombang menutup gelombang lain', function () {
+    // Jendelanya harus memuat hari ini - gelombang yang belum mulai atau sudah
+    // lewat tidak bisa dibuka sama sekali.
     $lain = GelombangPpdb::create([
         'tahun_ajaran_id' => $this->tahunAjaran->id,
         'nama' => 'Gelombang 2',
-        'tanggal_mulai' => '2026-11-01',
-        'tanggal_selesai' => '2026-12-31',
+        'tanggal_mulai' => today()->subDay(),
+        'tanggal_selesai' => today()->addMonth(),
         'status_buka' => false,
     ]);
 
@@ -418,6 +448,203 @@ test('membuka gelombang menutup gelombang lain', function () {
 
     expect($lain->refresh()->status_buka)->toBeTrue()
         ->and(GelombangPpdb::where('status_buka', true)->count())->toBe(1);
+});
+
+/*
+| Syarat membuka pendaftaran
+|
+| MEMBUKA bersyarat, MENUTUP tidak pernah. Menutup harus selalu bisa dilakukan -
+| itu jalan keluar dari hampir semua keadaan salah di layar ini, dan satu-satunya
+| cara membuka kunci layar Ubah.
+*/
+
+/**
+ * Yang paling ditakutkan: gelombang angkatan lampau dihidupkan lagi. Pendaftar
+ * barunya akan masuk ke tahun ajaran yang sudah selesai dan memakai
+ * batas_pelunasan milik tahun itu.
+ */
+test('gelombang di tahun ajaran yang sudah tidak berjalan tidak bisa dibuka', function () {
+    $lampau = TahunAjaran::create([
+        'nama' => '2025/2026',
+        'tahun_mulai' => 2025,
+        'batas_pelunasan' => '2026-03-31',
+        'status_aktif' => false,
+    ]);
+
+    $gelombangLampau = GelombangPpdb::create([
+        'tahun_ajaran_id' => $lampau->id,
+        'nama' => 'Gelombang 1 (2025/2026)',
+        // Tanggalnya sengaja dibuat memuat hari ini: kalau yang menjaga cuma
+        // tanggal, yang ini lolos.
+        'tanggal_mulai' => today()->subDay(),
+        'tanggal_selesai' => today()->addMonth(),
+        'status_buka' => false,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->post(route('super-admin.gelombang.status', $gelombangLampau), ['status_buka' => true])
+        ->assertSessionHas('error');
+
+    expect($gelombangLampau->refresh()->status_buka)->toBeFalse();
+});
+
+test('gelombang yang jendelanya sudah lewat tidak bisa dibuka', function () {
+    $this->gelombang->tutup();
+    $this->gelombang->update([
+        'tanggal_mulai' => today()->subMonths(3),
+        'tanggal_selesai' => today()->subDay(),
+    ]);
+
+    $this->actingAs($this->admin)
+        ->post(route('super-admin.gelombang.status', $this->gelombang), ['status_buka' => true])
+        ->assertSessionHas('error');
+
+    expect($this->gelombang->refresh()->status_buka)->toBeFalse();
+});
+
+test('gelombang yang belum mulai tidak bisa dibuka mendahului jadwalnya', function () {
+    // Tanggal mulai itu yang dibaca wali di halaman depan. Membuka lebih awal
+    // bikin yang tercetak jadi bohong tanpa ada yang mengubahnya.
+    $nanti = GelombangPpdb::create([
+        'tahun_ajaran_id' => $this->tahunAjaran->id,
+        'nama' => 'Gelombang 2',
+        'tanggal_mulai' => today()->addMonth(),
+        'tanggal_selesai' => today()->addMonths(2),
+        'status_buka' => false,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->post(route('super-admin.gelombang.status', $nanti), ['status_buka' => true])
+        ->assertSessionHas('error');
+
+    expect($nanti->refresh()->status_buka)->toBeFalse();
+});
+
+/**
+ * PERPANJANGAN BOLEH - selama gelombangnya belum berakhir. Ini jalan keluar yang
+ * harus tetap ada; tanpanya "tutup dulu baru ubah" jadi aturan yang menjebak.
+ */
+test('gelombang bisa diperpanjang selama jendelanya belum berakhir', function () {
+    $this->gelombang->tutup();
+
+    $this->actingAs($this->admin)
+        ->put(route('super-admin.gelombang.update', $this->gelombang), muatanGelombang($this->gelombang, [
+            'tanggal_selesai' => today()->addMonth()->format('Y-m-d'),
+            'batas_waktu_pembayaran' => today()->addMonths(2)->format('Y-m-d'),
+        ]))
+        ->assertSessionHasNoErrors();
+
+    $this->actingAs($this->admin)
+        ->post(route('super-admin.gelombang.status', $this->gelombang), ['status_buka' => true])
+        ->assertSessionHasNoErrors();
+
+    expect($this->gelombang->refresh()->status_buka)->toBeTrue()
+        ->and($this->gelombang->tanggal_selesai->isFuture())->toBeTrue();
+});
+
+/**
+ * SESUDAH BERAKHIR, BEKU - dan ini alasannya, bukan sekadar kerapian.
+ * Pendaftaran lama membaca gelombangnya HIDUP, bukan dari salinan:
+ * batas_waktu_pembayaran jadi jatuh temponya, kuota jadi sisa daya tampungnya,
+ * dokumen_wajib_kategori jadi checklist berkasnya. Menggeser tanggal gelombang
+ * yang sudah berakhir memindahkan jatuh tempo semua pendaftar di dalamnya
+ * SECARA SURUT - termasuk yang sudah terlanjur ditolak staf karena melewatinya.
+ */
+test('gelombang yang sudah berakhir tidak bisa diubah lagi', function () {
+    $pendaftaran = PendaftaranPpdb::where('gelombang_ppdb_id', $this->gelombang->id)->firstOrFail();
+    $tempoAsli = $pendaftaran->batasMinimalBayar()?->toDateString();
+
+    $this->gelombang->tutup();
+    $this->gelombang->update(['tanggal_selesai' => today()->subDay()]);
+
+    $this->actingAs($this->admin)
+        ->put(route('super-admin.gelombang.update', $this->gelombang), muatanGelombang($this->gelombang, [
+            'batas_waktu_pembayaran' => today()->addYear()->format('Y-m-d'),
+        ]))
+        ->assertRedirect(route('super-admin.gelombang.index'))
+        ->assertSessionHas('error');
+
+    // Inti seluruh aturan ini: jatuh tempo pendaftar lama tidak bergeser.
+    expect($pendaftaran->refresh()->batasMinimalBayar()?->toDateString())->toBe($tempoAsli);
+});
+
+test('gelombang yang sudah berakhir juga tidak bisa dibuka lagi', function () {
+    // Dua kuncinya harus sejalan. Kalau cuma Ubah yang beku sementara Buka
+    // masih hidup, gelombang lama bisa dihidupkan kembali apa adanya - dan
+    // pendaftar barunya masuk ke angkatan yang angkanya sudah selesai dihitung.
+    $this->gelombang->tutup();
+    $this->gelombang->update(['tanggal_selesai' => today()->subDay()]);
+
+    $this->actingAs($this->admin)
+        ->post(route('super-admin.gelombang.status', $this->gelombang), ['status_buka' => true])
+        ->assertSessionHas('error');
+
+    expect($this->gelombang->refresh()->status_buka)->toBeFalse();
+});
+
+test('menutup tidak pernah terhalang syarat apa pun', function () {
+    // Gelombang yang terlanjur terbuka sampai lewat jendelanya harus tetap bisa
+    // ditutup - kalau syarat membuka ikut dipakai di sini, dia terjebak terbuka.
+    $this->gelombang->update(['tanggal_selesai' => today()->subDay()]);
+
+    $this->actingAs($this->admin)
+        ->post(route('super-admin.gelombang.status', $this->gelombang), ['status_buka' => false])
+        ->assertSessionHasNoErrors();
+
+    expect($this->gelombang->refresh()->status_buka)->toBeFalse();
+});
+
+/**
+ * Badge di daftar dipetakan dari SATU kata yang dihitung server. Kalau layar
+ * menyimpulkan sendiri dari tiga boolean, cepat atau lambat badge-nya bilang
+ * lain dari yang ditegakkan server - dan yang paling berbahaya keadaan
+ * 'perlu_ditutup': tandanya bilang "Dibuka" padahal tidak ada yang bisa
+ * mendaftar.
+ */
+test('keadaan gelombang dihitung server, bukan disimpulkan layar', function (string $keadaan, callable $siapkan) {
+    $siapkan($this->gelombang);
+
+    $this->actingAs($this->admin)
+        ->get(route('super-admin.gelombang.index'))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('gelombang', function ($daftar) use ($keadaan) {
+                $baris = collect($daftar)->firstWhere('id', $this->gelombang->id);
+
+                return $baris['keadaan'] === $keadaan;
+            })
+            ->etc());
+})->with([
+    ['menerima', fn () => null],
+    ['perlu_ditutup', fn (GelombangPpdb $g) => $g->update(['tanggal_selesai' => today()->subDay()])],
+    ['siap', fn (GelombangPpdb $g) => $g->tutup()],
+    ['berakhir', function (GelombangPpdb $g) {
+        $g->tutup();
+        $g->update(['tanggal_selesai' => today()->subDay()]);
+    }],
+    ['belum_mulai', function (GelombangPpdb $g) {
+        $g->tutup();
+        $g->update(['tanggal_mulai' => today()->addMonth(), 'tanggal_selesai' => today()->addMonths(2)]);
+    }],
+]);
+
+test('daftar gelombang mengirim alasan kenapa satu gelombang belum bisa dibuka', function () {
+    $nanti = GelombangPpdb::create([
+        'tahun_ajaran_id' => $this->tahunAjaran->id,
+        'nama' => 'Gelombang 2',
+        'tanggal_mulai' => today()->addMonth(),
+        'tanggal_selesai' => today()->addMonths(2),
+        'status_buka' => false,
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get(route('super-admin.gelombang.index'))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('gelombang', function ($daftar) use ($nanti) {
+                $baris = collect($daftar)->firstWhere('id', $nanti->id);
+
+                return is_string($baris['alasan_tidak_bisa_dibuka']) && $baris['alasan_tidak_bisa_dibuka'] !== '';
+            })
+            ->etc());
 });
 
 test('menutup gelombang tidak menyentuh pendaftaran di dalamnya', function () {
@@ -442,16 +669,17 @@ test('jatuh tempo pembayaran tidak boleh mendahului penutupan pendaftaran', func
             'tanggal_mulai' => '2026-11-01',
             'tanggal_selesai' => '2026-12-31',
             'batas_waktu_pembayaran' => '2026-12-01',
-            'nominal_dasar' => [],
         ])
         ->assertSessionHasErrors('batas_waktu_pembayaran');
 });
 
 test('kuota dan minimal bayar tersimpan per jalur lewat halaman gelombang', function () {
+    $this->gelombang->tutup();
+
     $this->actingAs($this->admin)
         ->put(route('super-admin.gelombang.update', $this->gelombang), muatanGelombang($this->gelombang, [
             'kebijakan' => [
-                $this->reguler->id => ['kuota' => 40, 'minimal_bayar' => null],
+                $this->reguler->id => ['kuota' => 40, 'minimal_bayar' => 3_000_000],
                 $this->yatim->id => ['kuota' => 7, 'minimal_bayar' => 300_000],
             ],
         ]))
@@ -461,16 +689,98 @@ test('kuota dan minimal bayar tersimpan per jalur lewat halaman gelombang', func
         ->and(KebijakanKategori::minimalBayarUntuk($this->gelombang->id, $this->yatim->id))->toBe(300_000);
 });
 
+/*
+| Minimal bayar - SATU sumber, per jalur
+|
+| gelombang_ppdb.minimal_pembayaran dibuang 11 September 2026 (keputusan user).
+| Konsekuensinya harus ikut ditangani: tanpa nominal bawaan, tidak ada lagi yang
+| menambal jalur yang kosong - dan kosong yang jatuh ke NOL berarti pendaftarnya
+| langsung 'diterima' tanpa menyetor sepeser pun, diam-diam.
+*/
+
+test('minimal bayar wajib diisi tiap jalur', function () {
+    $this->gelombang->tutup();
+
+    $this->actingAs($this->admin)
+        ->put(route('super-admin.gelombang.update', $this->gelombang), muatanGelombang($this->gelombang, [
+            'kebijakan' => [$this->reguler->id => ['kuota' => 40, 'minimal_bayar' => null]],
+        ]))
+        ->assertSessionHasErrors('kebijakan.'.$this->reguler->id.'.minimal_bayar');
+});
+
+/**
+ * 0 SAH dan artinya jelas: jalur ini diterima tanpa menyetor. Yang dilarang
+ * mengosongkannya - supaya pembebasan itu tindakan yang diketik dengan sadar,
+ * bukan akibat isian yang kelewat.
+ */
+test('minimal bayar nol sah dan berarti diterima tanpa menyetor', function () {
+    $this->gelombang->tutup();
+
+    $this->actingAs($this->admin)
+        ->put(route('super-admin.gelombang.update', $this->gelombang), muatanGelombang($this->gelombang, [
+            'kebijakan' => [$this->yatim->id => ['kuota' => 5, 'minimal_bayar' => 0]],
+        ]))
+        ->assertSessionHasNoErrors();
+
+    expect(KebijakanKategori::minimalBayarUntuk($this->gelombang->id, $this->yatim->id))->toBe(0);
+});
+
+/**
+ * JARING PENGAMANNYA. Jalur yang belum punya baris kebijakan sama sekali - mis.
+ * jalur yang baru ditambahkan sesudah gelombangnya disimpan - jatuh ke TOTAL
+ * TAGIHAN, bukan nol. Salah ke arah yang kelihatan: sekolah bertanya kenapa
+ * jalur ini mahal sekali, lalu mengisinya. Kalau jatuh ke nol, yang terjadi
+ * sebaliknya - tidak ada yang bertanya apa pun sampai kursinya habis dibagikan
+ * ke orang yang belum membayar.
+ */
+test('jalur tanpa kebijakan harus lunas, bukan gratis', function () {
+    $baru = KategoriSiswa::create([
+        'nama' => 'Jalur Baru Belum Diatur',
+        'deskripsi' => 'Ditambahkan sesudah gelombangnya disimpan.',
+        'urutan' => 9,
+        'status_aktif' => true,
+    ]);
+
+    // Nominalnya ada supaya tagihannya terbit; yang sengaja TIDAK ada barisnya
+    // di kebijakan_kategori.
+    foreach (KomponenBiaya::aktif()->get() as $komponen) {
+        TarifKategori::create([
+            'gelombang_ppdb_id' => $this->gelombang->id,
+            'komponen_biaya_id' => $komponen->id,
+            'kategori_siswa_id' => $baru->id,
+            'nominal' => 500_000,
+        ]);
+    }
+
+    expect(KebijakanKategori::untuk($this->gelombang->id, $baru->id))->toBeNull();
+
+    $pendaftaran = PendaftaranPpdb::where('gelombang_ppdb_id', $this->gelombang->id)->firstOrFail()->replicate();
+    $pendaftaran->kategori_siswa_id = $baru->id;
+    $pendaftaran->nomor_pendaftaran = '99999';
+    $pendaftaran->nik = '1471010101200777';
+    $pendaftaran->minimal_bayar = null;
+    $pendaftaran->save();
+
+    $pendaftaran->terbitkanTagihan();
+    $pendaftaran->refresh();
+
+    expect($pendaftaran->minimal_bayar)
+        ->toBeGreaterThan(0)
+        ->toBe($pendaftaran->totalTagihan());
+});
+
 /**
  * Aturan yang paling gampang salah dipahami: kuota kosong berarti TIDAK
  * DIBATASI, bukan nol. Kalau terbalik, seluruh pendaftaran ikut tertutup cuma
  * gara-gara data yang belum sempat diisi.
  */
 test('kuota kosong berarti tidak dibatasi, kuota nol berarti tertutup', function () {
+    $this->gelombang->tutup();
+
     $kirim = fn (mixed $kuota) => $this->actingAs($this->admin)->put(
         route('super-admin.gelombang.update', $this->gelombang),
         muatanGelombang($this->gelombang, [
-            'kebijakan' => [$this->reguler->id => ['kuota' => $kuota, 'minimal_bayar' => null]],
+            'kebijakan' => [$this->reguler->id => ['kuota' => $kuota, 'minimal_bayar' => 3_000_000]],
         ])
     );
 
@@ -518,11 +828,21 @@ test('mengubah syarat berkas satu gelombang tidak menyentuh gelombang lain', fun
 });
 
 test('gelombang baru mewarisi syarat berkas dari gelombang sebelumnya', function () {
-    // Bawaannya diwarisi, bukan dikosongkan: gelombang yang tidak meminta berkas
-    // apa pun kelihatan seperti sistem rusak, bukan seperti keputusan sekolah.
+    // Bawaannya diwarisi sebagai isian formulir, bukan disimpan diam-diam
+    // sesudah gelombang dibuat. Admin bisa memeriksanya sebelum menekan Simpan.
     $sebelumnya = $this->gelombang->dokumenWajibUntuk($this->yatim->id);
 
     expect($sebelumnya)->toContain('surat_kematian_ayah');
+
+    $this->actingAs($this->admin)
+        ->get(route('super-admin.gelombang.create'))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('kebijakan', function ($daftar) use ($sebelumnya) {
+                $yatim = collect($daftar)->firstWhere('kategori_siswa_id', $this->yatim->id);
+
+                return $yatim['dokumen'] === $sebelumnya;
+            })
+            ->etc());
 
     $this->actingAs($this->admin)
         ->post(route('super-admin.gelombang.store'), [
@@ -531,8 +851,9 @@ test('gelombang baru mewarisi syarat berkas dari gelombang sebelumnya', function
             'tanggal_mulai' => '2026-11-01',
             'tanggal_selesai' => '2026-12-31',
             'batas_waktu_pembayaran' => '2027-01-31',
-            'minimal_pembayaran' => 3_000_000,
-            'nominal_dasar' => [],
+            'kebijakan' => [$this->yatim->id => ['kuota' => 5, 'minimal_bayar' => 400_000]],
+            'dokumen' => [$this->yatim->id => $sebelumnya],
+            'tarif' => [$this->yatim->id => []],
         ])
         ->assertSessionHasNoErrors();
 
@@ -545,6 +866,8 @@ test('mencabut syarat berkas tidak menghapus berkas yang sudah diunggah', functi
     $lama = PendaftaranPpdb::where('gelombang_ppdb_id', $this->gelombang->id)
         ->whereHas('dokumen', fn ($q) => $q->where('jenis_dokumen', 'pas_foto'))
         ->firstOrFail();
+
+    $this->gelombang->tutup();
 
     $this->actingAs($this->admin)
         ->put(route('super-admin.gelombang.update', $this->gelombang), muatanGelombang($this->gelombang, [
@@ -674,6 +997,8 @@ test('mengubah pertanyaan jalur tidak mengubah arti jawaban yang sudah masuk', f
 });
 
 test('jenis berkas yang tidak dikenal ditolak saat menyimpan gelombang', function () {
+    $this->gelombang->tutup();
+
     $this->actingAs($this->admin)
         ->put(route('super-admin.gelombang.update', $this->gelombang), muatanGelombang($this->gelombang, [
             'dokumen' => [$this->reguler->id => ['ijazah_s3']],
@@ -773,15 +1098,90 @@ test('jalur yang sudah dipakai pendaftar tidak bisa dihapus', function () {
 });
 
 /*
+| Ketentuan terkunci selagi pendaftaran dibuka
+|
+| Kuota, minimal bayar, nominal, dan syarat berkas semuanya mengenai pendaftar DI
+| DALAM gelombang itu - isolasinya antar gelombang, bukan per pendaftaran. Kalau
+| boleh diubah selagi pendaftarannya berjalan, dua keluarga yang mendaftar di
+| minggu berbeda menghadapi ketentuan yang berbeda tanpa pernah diberitahu.
+*/
+
+test('layar ubah tetap bisa DIBACA walau ketentuannya terkunci', function (string $keadaan) {
+    // Terkunci bukan berarti tidak kelihatan. Kalau layarnya ikut ditutup,
+    // kuota, nominal, dan syarat berkas satu angkatan lenyap dari pandangan
+    // selamanya - padahal justru itu yang perlu dibaca saat ada sengketa.
+    if ($keadaan === 'lewat') {
+        $this->gelombang->tutup();
+        $this->gelombang->update(['tanggal_selesai' => today()->subDay()]);
+    }
+
+    $this->actingAs($this->admin)
+        ->get(route('super-admin.gelombang.edit', $this->gelombang))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('terkunci', fn ($alasan) => is_string($alasan) && $alasan !== '')
+            ->etc());
+})->with(['terbuka', 'lewat']);
+
+/**
+ * Ditegakkan di server, bukan cuma dengan mematikan tombolnya di daftar. Tombol
+ * mati menyembunyikan jalannya; URL-nya tetap bisa dibuka langsung.
+ */
+test('ketentuan tidak bisa diubah selagi pendaftarannya dibuka', function () {
+    $kuotaAsli = KebijakanKategori::untuk($this->gelombang->id, $this->reguler->id)?->kuota;
+
+    $this->actingAs($this->admin)
+        ->put(route('super-admin.gelombang.update', $this->gelombang), muatanGelombang($this->gelombang, [
+            'kebijakan' => [$this->reguler->id => ['kuota' => 1, 'minimal_bayar' => 3_000_000]],
+        ]))
+        ->assertRedirect(route('super-admin.gelombang.index'))
+        ->assertSessionHas('error');
+
+    expect(KebijakanKategori::untuk($this->gelombang->id, $this->reguler->id)?->kuota)->toBe($kuotaAsli);
+});
+
+test('ketentuan bisa diubah lagi sesudah pendaftarannya ditutup', function () {
+    // Jalan keluarnya harus benar-benar ada, bukan sekadar larangan: tutup,
+    // ubah, lalu buka lagi.
+    $this->gelombang->tutup();
+
+    $this->actingAs($this->admin)
+        ->put(route('super-admin.gelombang.update', $this->gelombang), muatanGelombang($this->gelombang, [
+            'kebijakan' => [$this->reguler->id => ['kuota' => 33, 'minimal_bayar' => 3_000_000]],
+        ]))
+        ->assertSessionHasNoErrors();
+
+    expect(KebijakanKategori::untuk($this->gelombang->id, $this->reguler->id)->kuota)->toBe(33);
+});
+
+/**
+ * Menutup pendaftaran TIDAK menyentuh pendaftar yang sudah masuk - mereka tetap
+ * memegang kursinya beserta tenggatnya sendiri. Kalau tidak begitu, "tutup dulu
+ * baru ubah" jadi tindakan yang terlalu mahal untuk dipakai.
+ */
+test('menutup pendaftaran tidak menggugurkan yang sudah masuk', function () {
+    $sebelum = PendaftaranPpdb::where('gelombang_ppdb_id', $this->gelombang->id)
+        ->pluck('status', 'id');
+
+    $this->actingAs($this->admin)
+        ->post(route('super-admin.gelombang.status', $this->gelombang), ['status_buka' => false])
+        ->assertSessionHasNoErrors();
+
+    expect(PendaftaranPpdb::where('gelombang_ppdb_id', $this->gelombang->id)->pluck('status', 'id')->all())
+        ->toBe($sebelum->all());
+});
+
+/*
 | Tarif - per gelombang x jalur x komponen
 */
 
-test('nominal tersimpan untuk gelombang yang dipilih saja', function () {
+test('nominal tersimpan per jalur lewat halaman gelombang', function () {
+    $this->gelombang->tutup();
+
     $this->actingAs($this->admin)
-        ->put(route('super-admin.jalur.tarif', $this->yatim), [
-            'gelombang_ppdb_id' => $this->gelombang->id,
-            'tarif' => [$this->seragam->id => 500_000],
-        ])
+        ->put(route('super-admin.gelombang.update', $this->gelombang), muatanGelombang($this->gelombang, [
+            'tarif' => [$this->yatim->id => [$this->seragam->id => 500_000]],
+        ]))
         ->assertSessionHasNoErrors();
 
     $tarif = TarifKategori::where('gelombang_ppdb_id', $this->gelombang->id)
@@ -803,10 +1203,14 @@ test('nominal tersimpan untuk gelombang yang dipilih saja', function () {
  * ada, dan pos itu tidak muncul di tagihan sama sekali.
  */
 test('nol berarti dibebaskan, kosong berarti belum diatur', function () {
-    $kirim = fn (mixed $nominal) => $this->actingAs($this->admin)->put(route('super-admin.jalur.tarif', $this->yatim), [
-        'gelombang_ppdb_id' => $this->gelombang->id,
-        'tarif' => [$this->seragam->id => $nominal],
-    ]);
+    $this->gelombang->tutup();
+
+    $kirim = fn (mixed $nominal) => $this->actingAs($this->admin)->put(
+        route('super-admin.gelombang.update', $this->gelombang),
+        muatanGelombang($this->gelombang, [
+            'tarif' => [$this->yatim->id => [$this->seragam->id => $nominal]],
+        ])
+    );
 
     $kunci = [
         'gelombang_ppdb_id' => $this->gelombang->id,
@@ -895,23 +1299,80 @@ test('komponen non-aktif bisa dinyalakan lagi lewat modal ubah', function () {
     expect($this->seragam->refresh()->status_aktif)->toBeTrue();
 });
 
-test('komponen non-aktif tidak ditawarkan lagi di layar pengisian nominal', function () {
-    // Dulu diuji lewat layar Ubah Jalur. Layar itu diparkir sejak formulir jalur
-    // jadi modal, jadi yang diuji sekarang layar buat gelombang - satu-satunya
-    // tempat nominal masih bisa diisi, dan penyaringnya sama.
+test('komponen non-aktif tidak ditawarkan lagi di layar pengisian nominal', function (string $layar) {
+    // Tambah dan Ubah memakai formulir per jalur yang sama. Keduanya harus
+    // menyaring pos mati - mengisi harga buat sesuatu yang tidak akan
+    // ditagihkan cuma bikin bingung.
     $this->seragam->update(['status_aktif' => false]);
+    $this->gelombang->tutup();
+
+    $tujuan = $layar === 'create'
+        ? route('super-admin.gelombang.create')
+        : route('super-admin.gelombang.edit', $this->gelombang);
 
     $this->actingAs($this->admin)
-        ->get(route('super-admin.gelombang.create'))
+        ->get($tujuan)
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('komponen', fn ($komponen) => collect($komponen)->pluck('nama')->doesntContain('Seragam'))
             ->etc());
+})->with(['create', 'edit']);
+
+/**
+ * Layar harus menerima nominal yang SUDAH tersimpan, bukan kotak kosong. Kalau
+ * kosong, admin yang cuma mau membetulkan satu angka akan menyimpan formulir
+ * yang seluruh nominalnya kosong - dan kosong berarti pos itu dibuang dari
+ * tagihan, bukan dibiarkan.
+ */
+test('layar ubah gelombang mengirim nominal tiap jalur yang sudah tersimpan', function () {
+    $this->gelombang->tutup();
+
+    $tersimpan = TarifKategori::where('gelombang_ppdb_id', $this->gelombang->id)
+        ->where('kategori_siswa_id', $this->reguler->id)
+        ->where('komponen_biaya_id', $this->seragam->id)
+        ->value('nominal');
+
+    expect($tersimpan)->not->toBeNull();
+
+    $this->actingAs($this->admin)
+        ->get(route('super-admin.gelombang.edit', $this->gelombang))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('kebijakan', function ($daftar) use ($tersimpan) {
+                $baris = collect($daftar)->firstWhere('kategori_siswa_id', $this->reguler->id);
+
+                return $baris['tarif'][(string) $this->seragam->id] === (string) $tersimpan;
+            })
+            ->etc());
+});
+
+/**
+ * Nominal yang sudah tersimpan TIDAK ikut terhapus waktu posnya dimatikan -
+ * barisnya cuma berhenti ditawarkan di layar. Kalau ikut terhapus, menonaktifkan
+ * satu pos sebentar berarti mengetik ulang seluruh harganya untuk tiap jalur.
+ */
+test('mematikan pos biaya tidak membuang nominal yang sudah tersimpan', function () {
+    $tersimpan = TarifKategori::where('gelombang_ppdb_id', $this->gelombang->id)
+        ->where('komponen_biaya_id', $this->seragam->id)
+        ->count();
+
+    expect($tersimpan)->toBeGreaterThan(0);
+
+    $this->seragam->update(['status_aktif' => false]);
+    $this->gelombang->tutup();
+
+    // Layar tidak mengirimkan pos yang mati, jadi muatannya pun tidak menyebutnya.
+    $this->actingAs($this->admin)
+        ->put(route('super-admin.gelombang.update', $this->gelombang), muatanGelombang($this->gelombang))
+        ->assertSessionHasNoErrors();
+
+    expect(TarifKategori::where('gelombang_ppdb_id', $this->gelombang->id)
+        ->where('komponen_biaya_id', $this->seragam->id)
+        ->count())->toBe($tersimpan);
 });
 
 test('tambah dan ubah jalur tidak punya halaman sendiri', function (string $rute) {
     // Modal menggantikan dua halaman formulir, sama seperti tahun ajaran,
     // komponen biaya, dan berkas persyaratan.
-    expect(Illuminate\Support\Facades\Route::has($rute))->toBeFalse();
+    expect(Route::has($rute))->toBeFalse();
 })->with(['super-admin.jalur.create', 'super-admin.jalur.edit']);
 
 test('komponen biaya baru bawaannya aktif', function () {
@@ -923,7 +1384,7 @@ test('komponen biaya baru bawaannya aktif', function () {
 });
 
 test('tambah dan ubah komponen biaya tidak punya halaman sendiri', function (string $rute) {
-    expect(Illuminate\Support\Facades\Route::has($rute))->toBeFalse();
+    expect(Route::has($rute))->toBeFalse();
 })->with(['super-admin.komponen-biaya.create', 'super-admin.komponen-biaya.edit']);
 
 test('mengubah tarif tidak mengubah tagihan yang sudah terbit', function () {
@@ -934,11 +1395,12 @@ test('mengubah tarif tidak mengubah tagihan yang sudah terbit', function () {
     $totalSebelum = $pendaftaran->tagihanItem()->sum('nominal');
     $minimalSebelum = $pendaftaran->minimal_bayar;
 
+    $this->gelombang->tutup();
+
     $this->actingAs($this->admin)
-        ->put(route('super-admin.jalur.tarif', $pendaftaran->kategori_siswa_id), [
-            'gelombang_ppdb_id' => $this->gelombang->id,
-            'tarif' => [$this->seragam->id => 99_000_000],
-        ])
+        ->put(route('super-admin.gelombang.update', $this->gelombang), muatanGelombang($this->gelombang, [
+            'tarif' => [$pendaftaran->kategori_siswa_id => [$this->seragam->id => 99_000_000]],
+        ]))
         ->assertSessionHasNoErrors();
 
     $pendaftaran->refresh();
@@ -952,10 +1414,14 @@ test('status diterima tidak tercabut gara-gara konfigurasi diubah', function () 
         ->where('status', 'diterima')
         ->firstOrFail();
 
-    $this->actingAs($this->admin)->put(route('super-admin.jalur.tarif', $diterima->kategori_siswa_id), [
-        'gelombang_ppdb_id' => $this->gelombang->id,
-        'tarif' => [$this->seragam->id => 99_000_000],
-    ]);
+    $this->gelombang->tutup();
+
+    $this->actingAs($this->admin)->put(
+        route('super-admin.gelombang.update', $this->gelombang),
+        muatanGelombang($this->gelombang, [
+            'tarif' => [$diterima->kategori_siswa_id => [$this->seragam->id => 99_000_000]],
+        ])
+    );
 
     expect($diterima->refresh()->status)->toBe('diterima');
 });

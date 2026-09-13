@@ -19,26 +19,20 @@ return new class extends Migration
             $table->date('tanggal_selesai');
             // Jatuh tempo MINIMAL BAYAR (bukan pelunasan). Dasar staf untuk
             // menetapkan status 'ditolak' kalau sampai tanggal ini pembayaran
-            // belum menyentuh minimal_pembayaran di bawah. Beda dari
-            // tanggal_selesai, yang menutup jendela PENDAFTARAN; beda pula dari
-            // tahun_ajaran.batas_pelunasan, yang menagih sisa cicilan dan TIDAK
-            // memicu penolakan.
+            // belum mencapai kebijakan_kategori.minimal_bayar milik jalurnya.
+            // Beda dari tanggal_selesai, yang menutup jendela PENDAFTARAN; beda
+            // pula dari tahun_ajaran.batas_pelunasan, yang menagih sisa cicilan
+            // dan TIDAK memicu penolakan.
             $table->date('batas_waktu_pembayaran')->nullable();
-            // Nominal minimal BAWAAN yang harus terbayar supaya pendaftaran
-            // berstatus 'diterima'. Sisanya boleh dicicil sampai
-            // tahun_ajaran.batas_pelunasan.
+            // NOMINAL MINIMAL BAWAAN yang dulu ada di sini DIBUANG 11 September
+            // 2026 (keputusan user). Minimal bayar sekarang SATU sumber saja -
+            // kebijakan_kategori.minimal_bayar, per gelombang x jalur - jadi
+            // tidak ada lagi dua tempat yang bisa berbeda pendapat, dan tidak
+            // ada angka yang berlaku diam-diam tanpa pernah diketik Admin.
             //
-            // Ini nilai BAWAAN, bukan satu-satunya: jalur yang butuh angka lain
-            // (mis. Anak Yatim, yang dibebaskan uang pendaftaran & uang pangkal
-            // sehingga tagihannya jauh lebih kecil) mengisi
-            // kebijakan_kategori.minimal_bayar miliknya sendiri.
-            //
-            // Kolom 'minimal_bayar_persen_yatim' yang dulu ada di sini DIBUANG
-            // 8 September 2026. Dua sebabnya: namanya menyebut satu jalur
-            // sehingga jalur baru yang ditambahkan Admin lewat UI tidak akan
-            // pernah kebagian, dan persentase lebih susah dijelaskan ke wali
-            // daripada nominal. Penggantinya nominal per jalur.
-            $table->unsignedBigInteger('minimal_pembayaran')->nullable();
+            // Kolom 'minimal_bayar_persen_yatim' sudah lebih dulu dibuang
+            // 8 September 2026: namanya menyebut satu jalur sehingga jalur baru
+            // yang ditambahkan Admin lewat UI tidak akan pernah kebagian.
             $table->boolean('status_buka')->default(true);
             $table->timestamps();
         });

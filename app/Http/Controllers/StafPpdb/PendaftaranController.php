@@ -139,6 +139,12 @@ class PendaftaranController extends Controller
         // status_buka milik tahun lama bisa bernama gelombang yang tidak ada
         // di tahun aktif - dua penyaring itu lalu saling meniadakan, dan
         // halaman terbuka dengan tabel kosong tanpa sebab yang kelihatan.
+        //
+        // SENGAJA memakai status_buka mentah, bukan scope menerimaPendaftar().
+        // Ini cuma nilai awal sebuah penyaring, bukan gerbang: begitu jendela
+        // Gelombang 1 lewat, arsip yang paling berguna dibuka staf tetap
+        // Gelombang 1 - di situ datanya. Memakai scope bikin penyaringnya
+        // kosong dan halaman membuka seluruh arsip lintas gelombang.
         $gelombangAktif = $tahunAktif
             ? GelombangPpdb::where('tahun_ajaran_id', $tahunAktif->id)
                 ->where('status_buka', true)

@@ -114,8 +114,12 @@ class KebijakanKategori extends Model
     }
 
     /**
-     * Minimal bayar khusus jalur ini di gelombang ini. null = ikut nilai bawaan
-     * gelombang (gelombang_ppdb.minimal_pembayaran).
+     * Minimal bayar jalur ini di gelombang ini - SATU-SATUNYA sumbernya.
+     *
+     * null = belum pernah diatur, BUKAN "ikut bawaan": nominal bawaan gelombang
+     * sudah dibuang 11 September 2026. Yang memutuskan artinya
+     * PendaftaranPpdb::hitungMinimalBayar(), dan di sana null jatuh ke total
+     * tagihan - bukan nol.
      */
     public static function minimalBayarUntuk(int $gelombangId, int $kategoriSiswaId): ?int
     {

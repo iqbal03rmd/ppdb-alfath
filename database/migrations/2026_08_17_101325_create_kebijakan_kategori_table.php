@@ -31,8 +31,15 @@ return new class extends Migration
             // minimal_bayar - jadi ketidakterbatasannya pindah ke kolom ini.
             $table->unsignedInteger('kuota')->nullable();
 
-            // Minimal bayar khusus jalur ini. NULL = ikut nilai bawaan di
-            // gelombang_ppdb.minimal_pembayaran.
+            // Minimal bayar jalur ini - SATU-SATUNYA sumbernya sejak
+            // 11 September 2026; gelombang_ppdb.minimal_pembayaran dibuang.
+            //
+            // Diwajibkan lewat layar Ubah Gelombang, jadi NULL cuma mungkin
+            // kalau barisnya memang belum pernah ditulis - mis. jalur yang baru
+            // ditambahkan sesudah gelombangnya disimpan. Yang begitu jatuh ke
+            // TOTAL TAGIHAN (lihat PendaftaranPpdb::hitungMinimalBayar), bukan
+            // nol: jalur yang belum diatur harus terasa terlalu mahal, bukan
+            // diam-diam menerima semua orang tanpa bayar.
             //
             // Menggantikan gelombang_ppdb.minimal_bayar_persen_yatim yang lama.
             // Kolom itu memakai PERSENTASE dan namanya menyebut satu jalur, jadi

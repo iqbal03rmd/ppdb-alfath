@@ -96,7 +96,7 @@ class PendaftaranController extends Controller
     private function gelombangDibuka(): ?GelombangPpdb
     {
         return GelombangPpdb::with('tahunAjaran')
-            ->where('status_buka', true)
+            ->menerimaPendaftar()
             ->latest()
             ->first();
     }

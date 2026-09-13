@@ -39,7 +39,10 @@ class DashboardController extends Controller
             ...$this->tindakanBerikutnya($p),
         ]);
 
-        $gelombang = GelombangPpdb::where('status_buka', true)->latest()->first();
+        // Harus memakai syarat yang sama persis dengan
+        // PendaftaranController::gelombangDibuka(). Kalau beda, Beranda
+        // menawarkan gelombang yang formulirnya justru menolak.
+        $gelombang = GelombangPpdb::menerimaPendaftar()->latest()->first();
 
         return Inertia::render('wali-murid/dashboard', [
             'daftarPendaftaran' => $daftar->sortByDesc('perlu_tindakan')->values(),
