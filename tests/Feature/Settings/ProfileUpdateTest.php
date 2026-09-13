@@ -130,16 +130,16 @@ test('rute hapus akun sendiri sudah tidak ada', function () {
 
 /**
  * Route DELETE yang BOLEH ada cuma pada data konfigurasi yang tidak memegang
- * uang: komponen biaya dan jalur pendaftaran. Foreign key keduanya sengaja
- * tidak cascade ke pendaftaran, jadi yang sudah dipakai tetap tertolak.
+ * uang serta akun yang dipastikan belum punya jejak aktivitas PPDB.
  *
- * Yang TIDAK boleh: pengguna, tahun ajaran, gelombang, pendaftaran, pembayaran.
+ * Yang tetap TIDAK boleh: tahun ajaran, gelombang, pendaftaran, dan pembayaran.
  * Semuanya cascade sampai ke ledger transfer.
  */
 test('tidak ada route DELETE pada data yang memegang uang', function () {
-    // Ketiganya data konfigurasi yang TIDAK memegang uang maupun berkas, dan
-    // controller-nya masing-masing menolak menghapus yang sudah dipakai.
+    // Tiga data konfigurasi menolak yang sudah dipakai. Pengguna diperiksa lebih
+    // ketat: tidak boleh punya pendaftaran atau jejak sebagai pemeriksa.
     $boleh = [
+        'super-admin/pengguna/{pengguna}',
         'super-admin/konfigurasi/komponen-biaya/{komponenBiaya}',
         'super-admin/konfigurasi/jalur/{jalur}',
         'super-admin/konfigurasi/berkas-persyaratan/{berkasPersyaratan}',

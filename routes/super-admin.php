@@ -12,17 +12,16 @@ use Inertia\Inertia;
 /*
 | Modul Super Admin.
 |
-| Route DELETE cuma ada dua, dan dua-duanya pada data yang TIDAK memegang uang:
-| komponen biaya dan jalur pendaftaran. Foreign key-nya sengaja tidak cascade,
+| Route DELETE hanya boleh ada pada data yang aman dibuang. Komponen biaya dan
+| jalur pendaftaran dijaga foreign key agar yang sudah dipakai tidak terhapus;
 | jadi database sendiri menolak menghapus yang sudah dipakai pendaftaran atau
 | tagihan - controller-nya menangkap penolakan itu jadi pesan yang bisa dibaca.
 |
 | Yang ketiga berkas persyaratan, dengan syarat sama: belum pernah diunggah.
 |
-| Yang TIDAK boleh punya DELETE: pengguna, tahun ajaran, dan gelombang. Ketiganya
-| cascade sampai ke pendaftaran_ppdb -> pembayaran_ppdb, jadi satu penghapusan
-| bisa memusnahkan ledger transfer tanpa jejak. Yang dipakai di sana menonaktifkan
-| atau menutup, bukan menghapus.
+| Pengguna hanya boleh dihapus ketika tidak memiliki pendaftaran dan tidak pernah
+| memverifikasi pendaftaran/pembayaran. Tahun ajaran dan gelombang tetap tidak
+| boleh punya DELETE karena keduanya cascade sampai ke ledger pembayaran.
 */
 Route::middleware(['auth', 'role:super_admin'])
     ->prefix('super-admin')
@@ -40,6 +39,7 @@ Route::middleware(['auth', 'role:super_admin'])
 
         // Mencabut/mengembalikan hak masuk. Ini pengganti "hapus akun".
         Route::post('/pengguna/{pengguna}/status', [PenggunaController::class, 'status'])->name('pengguna.status');
+        Route::delete('/pengguna/{pengguna}', [PenggunaController::class, 'destroy'])->name('pengguna.destroy');
 
         /*
         | Konfigurasi PPDB - lima menu yang berdiri sendiri, bukan satu halaman

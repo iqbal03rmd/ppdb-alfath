@@ -6,27 +6,26 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
  * Kelola akun pengguna - satu-satunya tempat peran (role) ditetapkan.
  *
- * TIDAK ADA AKSI HAPUS di modul ini, dan itu bukan kelalaian. Rantai foreign
- * key-nya cascade sampai ke uang:
+ * Penghapusan hanya tersedia untuk akun tanpa satu pun jejak aktivitas PPDB.
+ * Rantai foreign key pemilik pendaftaran cascade sampai ke uang:
  *
  *   users -> pendaftaran_ppdb -> pembayaran_ppdb + tagihan_item
  *
  * Artinya satu klik "hapus" pada akun wali memusnahkan seluruh pendaftaran
  * anaknya BESERTA ledger transfernya - diam-diam, dan tidak bisa dibatalkan.
- * Yang tersedia cuma menonaktifkan (users.status_aktif): hak masuknya dicabut
- * tanpa menyentuh satu baris pun riwayat.
- *
- * Kalau suatu saat penghapusan permanen benar-benar dibutuhkan, yang harus
- * diubah lebih dulu aturan cascade di migration - bukan menambahkan destroy()
- * di sini.
+ * Karena itu akun yang memiliki pendaftaran atau pernah memverifikasi data tidak
+ * boleh dihapus. Untuk akun tersebut, nonaktifkan tetap menjadi satu-satunya
+ * cara mencabut akses tanpa menghilangkan riwayat.
  */
 class PenggunaController extends Controller
 {
@@ -48,7 +47,7 @@ class PenggunaController extends Controller
             // Dipakai buat dua hal di layar: menerangkan kenapa peran sebuah
             // akun terkunci, dan menyebut apa yang ikut terdampak kalau akunnya
             // dinonaktifkan. Lewat withCount, bukan memuat seluruh relasinya.
-            ->withCount('pendaftaran')
+            ->withCount(['pendaftaran', 'pendaftaranDiverifikasi', 'pembayaranDiverifikasi'])
             ->orderBy('name')
             ->get()
             ->map(fn (User $u) => [
@@ -56,12 +55,25 @@ class PenggunaController extends Controller
                 'name' => $u->name,
                 'email' => $u->email,
                 'telepon' => $u->telepon,
+                'role' => $u->role,
                 'peran' => self::PERAN[$u->role] ?? $u->role,
                 'status_aktif' => (bool) $u->status_aktif,
                 'jumlah_pendaftaran' => $u->pendaftaran_count,
                 // Ditandai dari server supaya layar tidak perlu membanding-
                 // bandingkan id sendiri untuk tahu mana barisnya sendiri.
                 'diri_sendiri' => $u->id === $request->user()->id,
+                'alasan_peran_terkunci' => $this->alasanPeranTerkunci(
+                    $request,
+                    $u,
+                    $u->pendaftaran_count > 0
+                ),
+                'bisa_dihapus' => $this->bisaDihapus(
+                    $request,
+                    $u,
+                    $u->pendaftaran_count > 0
+                        || $u->pendaftaran_diverifikasi_count > 0
+                        || $u->pembayaran_diverifikasi_count > 0
+                ),
             ])
             ->all();
 
@@ -197,6 +209,35 @@ class PenggunaController extends Controller
     }
 
     /**
+     * Hapus permanen hanya untuk akun yang belum meninggalkan jejak bisnis.
+     * Pemeriksaan dilakukan lagi di dalam transaksi: nilai `bisa_dihapus` dari
+     * index cuma untuk presentasi dan tidak pernah dipercaya sebagai pengaman.
+     */
+    public function destroy(Request $request, User $pengguna): RedirectResponse
+    {
+        $nama = $pengguna->name;
+
+        DB::transaction(function () use ($request, $pengguna): void {
+            $target = User::query()->lockForUpdate()->findOrFail($pengguna->id);
+
+            if (! $this->bisaDihapus($request, $target)) {
+                throw ValidationException::withMessages([
+                    'pengguna' => 'Akun tidak bisa dihapus karena sudah memiliki aktivitas PPDB atau merupakan akun Anda sendiri.',
+                ]);
+            }
+
+            // Tabel session tidak memakai foreign key ke users. Bersihkan agar
+            // sesi akun yang dihapus tidak meninggalkan baris yatim.
+            DB::table('sessions')->where('user_id', $target->id)->delete();
+            DB::table('password_reset_tokens')->where('email', $target->email)->delete();
+            $target->delete();
+        });
+
+        return to_route('super-admin.pengguna.index')
+            ->with('success', "Akun {$nama} dihapus permanen.");
+    }
+
+    /**
      * Kenapa peran akun ini tidak boleh diganti - null kalau boleh.
      *
      * Dua sebabnya, dua-duanya soal orang nyata:
@@ -210,17 +251,30 @@ class PenggunaController extends Controller
      *    wali_murid lagi, berkas anaknya tidak bisa dibuka siapa pun -
      *    termasuk dirinya - padahal datanya masih ada dan uangnya sudah masuk.
      */
-    private function alasanPeranTerkunci(Request $request, User $pengguna): ?string
+    private function alasanPeranTerkunci(Request $request, User $pengguna, ?bool $punyaPendaftaran = null): ?string
     {
         if ($pengguna->id === $request->user()->id) {
             return 'Anda tidak bisa mengubah peran akun Anda sendiri.';
         }
 
-        if ($pengguna->role === 'wali_murid' && $pengguna->pendaftaran()->exists()) {
+        if ($pengguna->role === 'wali_murid' && ($punyaPendaftaran ?? $pengguna->pendaftaran()->exists())) {
             return 'Peran akun ini terkunci karena sudah melakukan pendaftaran PPDB.';
         }
 
         return null;
+    }
+
+    private function bisaDihapus(Request $request, User $pengguna, ?bool $punyaJejak = null): bool
+    {
+        if ($pengguna->id === $request->user()->id) {
+            return false;
+        }
+
+        $punyaJejak ??= $pengguna->pendaftaran()->exists()
+            || $pengguna->pendaftaranDiverifikasi()->exists()
+            || $pengguna->pembayaranDiverifikasi()->exists();
+
+        return ! $punyaJejak;
     }
 
     /**

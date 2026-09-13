@@ -10,6 +10,7 @@ interface ConfirmationDialogProps {
     confirmLabel?: string;
     cancelLabel?: string;
     tone?: 'warning' | 'danger';
+    confirmDisabled?: boolean;
     onConfirm: () => void;
     onCancel: () => void;
 }
@@ -26,6 +27,7 @@ export default function ConfirmationDialog({
     confirmLabel = 'Lanjutkan',
     cancelLabel = 'Batal',
     tone = 'warning',
+    confirmDisabled = false,
     onConfirm,
     onCancel,
 }: ConfirmationDialogProps) {
@@ -60,6 +62,7 @@ export default function ConfirmationDialog({
                     </Button>
                     <Button
                         type="button"
+                        disabled={confirmDisabled}
                         onClick={onConfirm}
                         className={cn(
                             'rounded-xl font-semibold text-white',

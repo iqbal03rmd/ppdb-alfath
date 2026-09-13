@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\PembayaranPpdb;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia;
@@ -19,6 +20,11 @@ test('super admin bisa membuka daftar pengguna', function () {
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->component('super-admin/pengguna')
             ->has('pengguna', User::count())
+            // Nilai mentah dan alasan kunci dibawa bersama tabel agar modal
+            // Ubah bisa terbuka seketika tanpa request halaman kedua.
+            ->has('pengguna.0.role')
+            ->has('pengguna.0.alasan_peran_terkunci')
+            ->has('pengguna.0.bisa_dihapus')
         );
 });
 
@@ -197,7 +203,7 @@ test('wali tanpa pendaftaran masih boleh diubah perannya', function () {
 
 test('menonaktifkan akun tidak menghapus pendaftaran maupun pembayarannya', function () {
     $jumlahPendaftaran = $this->wali->pendaftaran()->count();
-    $jumlahPembayaran = \App\Models\PembayaranPpdb::whereIn(
+    $jumlahPembayaran = PembayaranPpdb::whereIn(
         'pendaftaran_ppdb_id',
         $this->wali->pendaftaran()->pluck('id')
     )->count();
@@ -207,7 +213,7 @@ test('menonaktifkan akun tidak menghapus pendaftaran maupun pembayarannya', func
 
     expect($this->wali->refresh()->status_aktif)->toBeFalse()
         ->and($this->wali->pendaftaran()->count())->toBe($jumlahPendaftaran)
-        ->and(\App\Models\PembayaranPpdb::whereIn(
+        ->and(PembayaranPpdb::whereIn(
             'pendaftaran_ppdb_id',
             $this->wali->pendaftaran()->pluck('id')
         )->count())->toBe($jumlahPembayaran);
@@ -258,18 +264,64 @@ test('akun aktif tidak terganggu middleware', function () {
         ->assertOk();
 });
 
-/**
- * Tidak boleh ada satu pun route yang bisa menghapus pengguna: users cascade
- * ke pendaftaran_ppdb, yang cascade lagi ke pembayaran_ppdb. Satu DELETE di
- * modul ini berarti ledger transfer bisa musnah tanpa jejak.
- */
-test('tidak ada route penghapusan pengguna', function () {
-    // Dipersempit ke route pengguna saja: sejak Konfigurasi PPDB ada, modul ini
-    // memang punya DELETE - tapi hanya pada komponen biaya dan jalur, yang
-    // tidak memegang uang. Penjagaan menyeluruhnya ada di ProfileUpdateTest.
-    $rute = collect(app('router')->getRoutes())
-        ->filter(fn ($r) => str_starts_with($r->getName() ?? '', 'super-admin.pengguna.'))
-        ->filter(fn ($r) => in_array('DELETE', $r->methods(), true));
+test('akun aktif tanpa aktivitas ppdb bisa langsung dihapus', function () {
+    $belumDipakai = User::factory()->create([
+        'role' => 'staf_ppdb',
+        'status_aktif' => true,
+    ]);
 
-    expect($rute)->toBeEmpty();
+    $this->actingAs($this->admin)
+        ->delete(route('super-admin.pengguna.destroy', $belumDipakai))
+        ->assertRedirect(route('super-admin.pengguna.index'));
+
+    $this->assertDatabaseMissing('users', ['id' => $belumDipakai->id]);
+});
+
+test('super admin tidak bisa menghapus akunnya sendiri', function () {
+    $this->actingAs($this->admin)
+        ->delete(route('super-admin.pengguna.destroy', $this->admin))
+        ->assertSessionHasErrors('pengguna');
+
+    $this->assertDatabaseHas('users', ['id' => $this->admin->id]);
+});
+
+test('akun pemilik pendaftaran tidak bisa dihapus dan seluruh datanya tetap utuh', function () {
+    $jumlahPendaftaran = $this->wali->pendaftaran()->count();
+    $jumlahPembayaran = PembayaranPpdb::whereIn(
+        'pendaftaran_ppdb_id',
+        $this->wali->pendaftaran()->pluck('id')
+    )->count();
+
+    $this->actingAs($this->admin)
+        ->delete(route('super-admin.pengguna.destroy', $this->wali))
+        ->assertSessionHasErrors('pengguna');
+
+    expect($this->wali->fresh())->not->toBeNull()
+        ->and($this->wali->pendaftaran()->count())->toBe($jumlahPendaftaran)
+        ->and(PembayaranPpdb::whereIn(
+            'pendaftaran_ppdb_id',
+            $this->wali->pendaftaran()->pluck('id')
+        )->count())->toBe($jumlahPembayaran);
+});
+
+test('akun yang pernah memverifikasi pendaftaran tidak bisa dihapus', function () {
+    $pemeriksa = User::factory()->create(['role' => 'staf_ppdb']);
+    $this->wali->pendaftaran()->firstOrFail()->update(['diverifikasi_oleh' => $pemeriksa->id]);
+
+    $this->actingAs($this->admin)
+        ->delete(route('super-admin.pengguna.destroy', $pemeriksa))
+        ->assertSessionHasErrors('pengguna');
+
+    $this->assertDatabaseHas('users', ['id' => $pemeriksa->id]);
+});
+
+test('akun yang pernah memverifikasi pembayaran tidak bisa dihapus', function () {
+    $pemeriksa = User::factory()->create(['role' => 'staf_ppdb']);
+    PembayaranPpdb::query()->firstOrFail()->update(['diverifikasi_oleh' => $pemeriksa->id]);
+
+    $this->actingAs($this->admin)
+        ->delete(route('super-admin.pengguna.destroy', $pemeriksa))
+        ->assertSessionHasErrors('pengguna');
+
+    $this->assertDatabaseHas('users', ['id' => $pemeriksa->id]);
 });

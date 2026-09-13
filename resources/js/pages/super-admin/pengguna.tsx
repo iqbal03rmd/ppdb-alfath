@@ -1,22 +1,29 @@
+import ConfirmationDialog from '@/components/confirmation-dialog';
 import { DataTable } from '@/components/data-table';
+import { FieldError, Input, Label } from '@/components/form-field';
 import PageContainer from '@/components/page-container';
 import PageHeader from '@/components/page-header';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { ChevronDown, UserPlus } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { ChevronDown, Lock, UserPlus } from 'lucide-react';
+import { FormEventHandler, useMemo, useState } from 'react';
 
 interface PenggunaItem {
     id: number;
     name: string;
     email: string;
     telepon: string | null;
+    role: string;
+    /** Label peran untuk tabel; `role` tetap disertakan untuk nilai formulir. */
     peran: string;
     status_aktif: boolean;
     jumlah_pendaftaran: number;
     diri_sendiri: boolean;
+    alasan_peran_terkunci: string | null;
+    bisa_dihapus: boolean;
 }
 
 interface PenggunaProps {
@@ -38,7 +45,7 @@ function Penyaring({ lebar, children }: { lebar: string; children: React.ReactNo
     );
 }
 
-const columns: ColumnDef<PenggunaItem>[] = [
+const buatKolom = (ubah: (pengguna: PenggunaItem) => void): ColumnDef<PenggunaItem>[] => [
     {
         id: 'pengguna',
         header: 'Pengguna',
@@ -87,12 +94,13 @@ const columns: ColumnDef<PenggunaItem>[] = [
         enableSorting: false,
         cell: ({ row }) => (
             <Button
-                asChild
+                type="button"
                 variant="outline"
                 size="sm"
+                onClick={() => ubah(row.original)}
                 className="rounded-xl border-[#1F509A]/40 bg-white font-semibold text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
             >
-                <Link href={route('super-admin.pengguna.edit', row.original.id)}>Ubah</Link>
+                Ubah
             </Button>
         ),
     },
@@ -104,6 +112,8 @@ export default function Pengguna({ pengguna, peran }: PenggunaProps) {
     // menyaring lebih dulu justru bisa menyembunyikan orang yang dicari.
     const [saringPeran, setSaringPeran] = useState('');
     const [saringStatus, setSaringStatus] = useState('');
+    /** null = tertutup; pengguna null di dalam objek = mode tambah. */
+    const [modal, setModal] = useState<{ pengguna: PenggunaItem | null } | null>(null);
 
     const barisTersaring = useMemo(
         () => pengguna.filter((p) => (!saringPeran || p.peran === saringPeran) && (!saringStatus || (saringStatus === 'aktif') === p.status_aktif)),
@@ -111,6 +121,10 @@ export default function Pengguna({ pengguna, peran }: PenggunaProps) {
     );
 
     const adaPenyaring = saringPeran !== '' || saringStatus !== '';
+    const columns = useMemo(() => buatKolom((pengguna) => setModal({ pengguna })), []);
+    // Sesudah status akun diubah, Inertia memperbarui props tanpa membuang state
+    // halaman. Ambil versi terbaru dari daftar agar badge di modal ikut berubah.
+    const penggunaModal = modal?.pengguna ? (pengguna.find((item) => item.id === modal.pengguna?.id) ?? modal.pengguna) : null;
 
     return (
         <AppLayout>
@@ -171,16 +185,334 @@ export default function Pengguna({ pengguna, peran }: PenggunaProps) {
                             {/* ml-auto mendorongnya ke ujung kanan baris, jadi
                                 jaraknya ke penyaring ikut melebar sendiri saat
                                 layar besar - tidak perlu jarak yang dipatok. */}
-                            <Button asChild className="ml-auto rounded-xl bg-[#E38E49] font-semibold text-white hover:bg-[#E38E49]/90">
-                                <Link href={route('super-admin.pengguna.create')}>
-                                    <UserPlus size={16} strokeWidth={2} />
-                                    Tambah Pengguna
-                                </Link>
+                            <Button
+                                type="button"
+                                onClick={() => setModal({ pengguna: null })}
+                                className="ml-auto rounded-xl bg-[#E38E49] font-semibold text-white hover:bg-[#E38E49]/90"
+                            >
+                                <UserPlus size={16} strokeWidth={2} />
+                                Tambah Pengguna
                             </Button>
                         </>
                     }
                 />
             </PageContainer>
+
+            {modal && (
+                <FormulirPengguna key={modal.pengguna?.id ?? 'pengguna-baru'} pengguna={penggunaModal} peran={peran} tutup={() => setModal(null)} />
+            )}
         </AppLayout>
+    );
+}
+
+/**
+ * Isi modal tambah/ubah. Sama seperti modal Konfigurasi PPDB, komponen lokal ini
+ * sengaja hidup di file halamannya dan diberi key agar state form selalu baru.
+ */
+function FormulirPengguna({ pengguna, peran, tutup }: { pengguna: PenggunaItem | null; peran: Record<string, string>; tutup: () => void }) {
+    const isEdit = pengguna !== null;
+    const peranTerkunci = !!pengguna?.alasan_peran_terkunci;
+    const [konfirmasiTutup, setKonfirmasiTutup] = useState(false);
+    const [konfirmasiNonaktif, setKonfirmasiNonaktif] = useState(false);
+    const [konfirmasiHapus, setKonfirmasiHapus] = useState(false);
+    const [memprosesStatus, setMemprosesStatus] = useState(false);
+    const [memprosesHapus, setMemprosesHapus] = useState(false);
+    const { data, setData, post, put, processing, errors, isDirty, reset, clearErrors } = useForm({
+        name: pengguna?.name ?? '',
+        email: pengguna?.email ?? '',
+        telepon: pengguna?.telepon ?? '',
+        role: pengguna?.role ?? '',
+        password: '',
+        password_confirmation: '',
+    });
+
+    const tutupLangsung = () => {
+        clearErrors();
+        reset();
+        tutup();
+    };
+
+    const mintaTutup = () => {
+        if (processing || memprosesStatus || memprosesHapus) return;
+        if (isDirty) setKonfirmasiTutup(true);
+        else tutupLangsung();
+    };
+
+    const submit: FormEventHandler = (event) => {
+        event.preventDefault();
+        const opsi = { preserveScroll: true, onSuccess: tutupLangsung };
+
+        if (pengguna) put(route('super-admin.pengguna.update', pengguna.id), opsi);
+        else post(route('super-admin.pengguna.store'), opsi);
+    };
+
+    const ubahStatus = (statusAktif: boolean) => {
+        if (!pengguna) return;
+
+        setMemprosesStatus(true);
+        router.post(
+            route('super-admin.pengguna.status', pengguna.id),
+            { status_aktif: statusAktif },
+            {
+                preserveScroll: true,
+                onSuccess: () => setKonfirmasiNonaktif(false),
+                onFinish: () => setMemprosesStatus(false),
+            },
+        );
+    };
+
+    const hapusAkun = () => {
+        if (!pengguna?.bisa_dihapus) return;
+
+        setMemprosesHapus(true);
+        router.delete(route('super-admin.pengguna.destroy', pengguna.id), {
+            preserveScroll: true,
+            onSuccess: tutupLangsung,
+            onFinish: () => setMemprosesHapus(false),
+        });
+    };
+
+    return (
+        <>
+            <Dialog open onOpenChange={(terbuka) => !terbuka && mintaTutup()}>
+                <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden border-0 bg-white p-0 shadow-2xl sm:max-w-2xl sm:rounded-2xl">
+                    <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+                        <DialogHeader className="shrink-0 border-b border-gray-100 px-6 py-5 pr-12 text-left">
+                            <DialogTitle className="text-lg font-semibold text-gray-900">
+                                {isEdit ? `Ubah Akun — ${pengguna.name}` : 'Tambah Pengguna'}
+                            </DialogTitle>
+                            <DialogDescription className="text-sm text-gray-500">
+                                {isEdit ? 'Perbarui identitas, peran, atau kata sandi akun.' : 'Buat akun baru dan tentukan perannya dalam sistem.'}
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
+                            <section>
+                                <h3 className="mb-4 text-sm font-semibold text-gray-900">Identitas Akun</h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <Label required htmlFor="name">
+                                            Nama Lengkap
+                                        </Label>
+                                        <Input
+                                            id="name"
+                                            value={data.name}
+                                            onChange={(nilai) => setData('name', nilai)}
+                                            placeholder="Nama sesuai identitas"
+                                        />
+                                        <FieldError message={errors.name} />
+                                    </div>
+
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div>
+                                            <Label required htmlFor="email">
+                                                Email
+                                            </Label>
+                                            <Input
+                                                id="email"
+                                                type="email"
+                                                autoComplete="off"
+                                                value={data.email}
+                                                onChange={(nilai) => setData('email', nilai)}
+                                                placeholder="nama@sekolah.sch.id"
+                                            />
+                                            <FieldError message={errors.email} />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="telepon">Telepon (opsional)</Label>
+                                            <Input
+                                                id="telepon"
+                                                value={data.telepon}
+                                                onChange={(nilai) => setData('telepon', nilai)}
+                                                placeholder="08xxxxxxxxxx"
+                                            />
+                                            <FieldError message={errors.telepon} />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <Label required htmlFor="role">
+                                            Peran dalam sistem
+                                        </Label>
+                                        <select
+                                            id="role"
+                                            value={data.role}
+                                            disabled={peranTerkunci}
+                                            onChange={(event) => setData('role', event.target.value)}
+                                            className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-600"
+                                        >
+                                            <option value="">Pilih peran</option>
+                                            {Object.entries(peran).map(([nilai, label]) => (
+                                                <option key={nilai} value={nilai}>
+                                                    {label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <FieldError message={errors.role} />
+                                        {pengguna?.alasan_peran_terkunci && (
+                                            <p className="mt-2 flex items-start gap-2 rounded-xl bg-[#D4EBF8]/60 p-3 text-xs text-[#0A3981]">
+                                                <Lock size={14} strokeWidth={2} className="mt-0.5 shrink-0" />
+                                                <span>{pengguna.alasan_peran_terkunci}</span>
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section className="border-t border-gray-100 pt-5">
+                                <h3 className="text-sm font-semibold text-gray-900">{isEdit ? 'Ganti Kata Sandi' : 'Kata Sandi'}</h3>
+                                {isEdit && <p className="mt-1 mb-4 text-xs text-gray-500">Biarkan kosong jika kata sandi tidak perlu diubah.</p>}
+                                <div className={`grid gap-4 sm:grid-cols-2 ${isEdit ? '' : 'mt-4'}`}>
+                                    <div>
+                                        <Label required={!isEdit} htmlFor="password">
+                                            {isEdit ? 'Kata Sandi Baru' : 'Kata Sandi'}
+                                        </Label>
+                                        <Input
+                                            id="password"
+                                            type="password"
+                                            autoComplete="new-password"
+                                            value={data.password}
+                                            onChange={(nilai) => setData('password', nilai)}
+                                            placeholder="Minimal 8 karakter"
+                                        />
+                                        <FieldError message={errors.password} />
+                                    </div>
+                                    <div>
+                                        <Label required={!isEdit} htmlFor="password_confirmation">
+                                            Ulangi Kata Sandi
+                                        </Label>
+                                        <Input
+                                            id="password_confirmation"
+                                            type="password"
+                                            autoComplete="new-password"
+                                            value={data.password_confirmation}
+                                            onChange={(nilai) => setData('password_confirmation', nilai)}
+                                            placeholder="Ketik ulang kata sandinya"
+                                        />
+                                        <FieldError message={errors.password_confirmation} />
+                                    </div>
+                                </div>
+                            </section>
+
+                            {pengguna && (
+                                <section className="flex flex-col gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="text-sm font-semibold text-gray-900">Hak Masuk</h3>
+                                            <span
+                                                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                                    pengguna.status_aktif ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                                                }`}
+                                            >
+                                                {pengguna.status_aktif ? 'Aktif' : 'Nonaktif'}
+                                            </span>
+                                        </div>
+                                        <p className="mt-1 text-xs text-gray-500">
+                                            {pengguna.diri_sendiri
+                                                ? 'Hak masuk akun Anda sendiri tidak dapat dicabut.'
+                                                : pengguna.status_aktif
+                                                  ? 'Menonaktifkan akun tidak menghapus data atau pendaftarannya.'
+                                                  : 'Akun ini tidak dapat masuk sampai diaktifkan kembali.'}
+                                        </p>
+                                    </div>
+
+                                    {!pengguna.diri_sendiri && (
+                                        <div className="flex shrink-0 flex-wrap gap-2">
+                                            {pengguna.status_aktif ? (
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    disabled={memprosesStatus || memprosesHapus}
+                                                    onClick={() => setKonfirmasiNonaktif(true)}
+                                                    className="rounded-xl border-red-200 bg-white font-semibold text-red-700 hover:bg-red-50 hover:text-red-800"
+                                                >
+                                                    Nonaktifkan Akun
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    type="button"
+                                                    disabled={memprosesStatus || memprosesHapus}
+                                                    onClick={() => ubahStatus(true)}
+                                                    className="rounded-xl bg-[#E38E49] font-semibold text-white hover:bg-[#E38E49]/90"
+                                                >
+                                                    {memprosesStatus ? 'Memproses...' : 'Aktifkan Kembali'}
+                                                </Button>
+                                            )}
+
+                                            {pengguna.bisa_dihapus && (
+                                                <Button
+                                                    type="button"
+                                                    disabled={memprosesStatus || memprosesHapus}
+                                                    onClick={() => setKonfirmasiHapus(true)}
+                                                    className="rounded-xl bg-red-600 font-semibold text-white hover:bg-red-700"
+                                                >
+                                                    Hapus Akun
+                                                </Button>
+                                            )}
+                                        </div>
+                                    )}
+                                </section>
+                            )}
+                        </div>
+
+                        <DialogFooter className="shrink-0 gap-2 border-t border-gray-100 bg-gray-50/80 px-6 py-4 sm:space-x-0">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={processing || memprosesStatus || memprosesHapus}
+                                onClick={mintaTutup}
+                                className="rounded-xl border-gray-300 bg-white font-semibold text-gray-700"
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={processing || memprosesStatus || memprosesHapus}
+                                className="rounded-xl bg-[#E38E49] font-semibold text-white hover:bg-[#E38E49]/90"
+                            >
+                                {processing ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Buat Akun'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <ConfirmationDialog
+                open={konfirmasiTutup}
+                title="Perubahan belum disimpan"
+                description="Perubahan pada akun ini akan hilang jika formulir ditutup."
+                confirmLabel="Tutup formulir"
+                cancelLabel="Lanjut mengisi"
+                tone="warning"
+                onConfirm={tutupLangsung}
+                onCancel={() => setKonfirmasiTutup(false)}
+            />
+
+            <ConfirmationDialog
+                open={konfirmasiNonaktif}
+                title="Nonaktifkan akun?"
+                description={`Akun ${pengguna?.name ?? ''} langsung kehilangan akses masuk. Data akun${
+                    pengguna && pengguna.jumlah_pendaftaran > 0 ? ` dan ${pengguna.jumlah_pendaftaran} pendaftarannya` : ''
+                }} tetap tersimpan.`}
+                confirmLabel={memprosesStatus ? 'Memproses...' : 'Ya, nonaktifkan'}
+                confirmDisabled={memprosesStatus}
+                cancelLabel="Batal"
+                tone="danger"
+                onConfirm={() => ubahStatus(false)}
+                onCancel={() => !memprosesStatus && setKonfirmasiNonaktif(false)}
+            />
+
+            <ConfirmationDialog
+                open={konfirmasiHapus}
+                title="Hapus akun secara permanen?"
+                description={`Akun ${pengguna?.name ?? ''} akan dihapus dan tidak dapat dipulihkan. Jika sedang masuk, sesinya langsung berakhir.`}
+                confirmLabel={memprosesHapus ? 'Menghapus...' : 'Ya, hapus permanen'}
+                cancelLabel="Batal"
+                tone="danger"
+                confirmDisabled={memprosesHapus}
+                onConfirm={hapusAkun}
+                onCancel={() => !memprosesHapus && setKonfirmasiHapus(false)}
+            />
+        </>
     );
 }
