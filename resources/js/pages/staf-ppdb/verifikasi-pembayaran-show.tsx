@@ -1,3 +1,4 @@
+import ConfirmationDialog from '@/components/confirmation-dialog';
 import PageContainer from '@/components/page-container';
 import PageHeader from '@/components/page-header';
 import { Button } from '@/components/ui/button';
@@ -91,6 +92,7 @@ export default function VerifikasiPembayaranShow({ pembayaran, pendaftaran, ring
     const membatalkanPengesahan = pembayaran.status === 'terverifikasi';
 
     const [formTolakTampil, setFormTolakTampil] = useState(false);
+    const [konfirmasiSah, setKonfirmasiSah] = useState(false);
 
     const sah = useForm({});
     const tolak = useForm({ catatan_verifikasi: '' });
@@ -242,9 +244,10 @@ export default function VerifikasiPembayaranShow({ pembayaran, pendaftaran, ring
 
                                         {bolehDisahkan && (
                                             <Button
+                                                type="button"
                                                 className="w-full rounded-xl font-bold"
                                                 disabled={sah.processing}
-                                                onClick={() => sah.post(route('staf-ppdb.verifikasi-pembayaran.sahkan', pembayaran.id))}
+                                                onClick={() => setKonfirmasiSah(true)}
                                             >
                                                 {sah.processing ? 'Memproses...' : 'Sahkan Transfer'}
                                             </Button>
@@ -327,6 +330,26 @@ export default function VerifikasiPembayaranShow({ pembayaran, pendaftaran, ring
                     </div>
                 </div>
             </PageContainer>
+
+            <ConfirmationDialog
+                open={konfirmasiSah}
+                title="Sahkan transfer?"
+                description={
+                    akanMembuatDiterima
+                        ? `Transfer ${formatRupiah(pembayaran.nominal_transfer)} akan disahkan dan pendaftaran ${pendaftaran.nama_pendaftar} otomatis diterima.`
+                        : `Transfer ${formatRupiah(pembayaran.nominal_transfer)} dari ${pendaftaran.nama_pendaftar} akan ditambahkan ke pembayaran terverifikasi.`
+                }
+                confirmLabel={sah.processing ? 'Memproses...' : 'Ya, sahkan'}
+                cancelLabel="Periksa lagi"
+                tone="warning"
+                confirmDisabled={sah.processing}
+                onConfirm={() =>
+                    sah.post(route('staf-ppdb.verifikasi-pembayaran.sahkan', pembayaran.id), {
+                        onSuccess: () => setKonfirmasiSah(false),
+                    })
+                }
+                onCancel={() => !sah.processing && setKonfirmasiSah(false)}
+            />
         </AppLayout>
     );
 }

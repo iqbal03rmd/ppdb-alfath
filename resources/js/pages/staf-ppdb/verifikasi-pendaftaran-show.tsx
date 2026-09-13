@@ -1,3 +1,4 @@
+import ConfirmationDialog from '@/components/confirmation-dialog';
 import PageContainer from '@/components/page-container';
 import PageHeader from '@/components/page-header';
 import { Button } from '@/components/ui/button';
@@ -72,6 +73,7 @@ export default function VerifikasiPendaftaranShow({ pendaftaran, waliMurid, berk
     // Kotak catatan disembunyikan sampai staf memilih "Minta Perbaikan", supaya
     // keputusan menyetujui tidak berdampingan dengan kolom isian yang mengganggu.
     const [formPerbaikanTampil, setFormPerbaikanTampil] = useState(false);
+    const [konfirmasiSetuju, setKonfirmasiSetuju] = useState(false);
 
     const setuju = useForm({});
     const perbaikan = useForm({ catatan_verifikasi: '' });
@@ -185,9 +187,10 @@ export default function VerifikasiPendaftaranShow({ pendaftaran, waliMurid, berk
                                         </p>
 
                                         <Button
+                                            type="button"
                                             className="w-full rounded-xl font-bold"
                                             disabled={setuju.processing}
-                                            onClick={() => setuju.post(route('staf-ppdb.verifikasi-pendaftaran.setujui', pendaftaran.id))}
+                                            onClick={() => setKonfirmasiSetuju(true)}
                                         >
                                             {setuju.processing ? 'Memproses...' : 'Setujui Pendaftaran'}
                                         </Button>
@@ -250,6 +253,22 @@ export default function VerifikasiPendaftaranShow({ pendaftaran, waliMurid, berk
                     </div>
                 </div>
             </PageContainer>
+
+            <ConfirmationDialog
+                open={konfirmasiSetuju}
+                title="Setujui pendaftaran?"
+                description={`Formulir dan berkas ${pendaftaran.nama_pendaftar} akan dinyatakan benar. Setelah itu wali dapat membuka tagihan dan mulai mengirim pembayaran.`}
+                confirmLabel={setuju.processing ? 'Memproses...' : 'Ya, setujui'}
+                cancelLabel="Periksa lagi"
+                tone="warning"
+                confirmDisabled={setuju.processing}
+                onConfirm={() =>
+                    setuju.post(route('staf-ppdb.verifikasi-pendaftaran.setujui', pendaftaran.id), {
+                        onSuccess: () => setKonfirmasiSetuju(false),
+                    })
+                }
+                onCancel={() => !setuju.processing && setKonfirmasiSetuju(false)}
+            />
         </AppLayout>
     );
 }
