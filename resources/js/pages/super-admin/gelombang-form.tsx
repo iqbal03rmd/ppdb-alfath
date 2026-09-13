@@ -1,11 +1,13 @@
+import ConfirmationDialog from '@/components/confirmation-dialog';
 import { FieldError, Input, Kartu, Label } from '@/components/form-field';
 import PageContainer from '@/components/page-container';
 import PageHeader from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import type { PendingVisit, VisitOptions } from '@inertiajs/core';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, Lock, TriangleAlert } from 'lucide-react';
-import { FormEventHandler, useEffect, useMemo, useState } from 'react';
+import { FormEventHandler, useEffect, useMemo, useRef, useState } from 'react';
 
 interface GelombangExisting {
     id: number;
@@ -15,6 +17,7 @@ interface GelombangExisting {
     tanggal_selesai: string;
     batas_waktu_pembayaran: string | null;
     status_buka: boolean;
+    bisa_pindah_tahun_ajaran: boolean;
 }
 
 interface BarisKebijakan {
@@ -53,7 +56,7 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
     // tetap server - ini supaya tidak ada yang mengetik lalu kecewa.
     const bacaSaja = !!terkunci;
 
-    const { data, setData, post, put, processing, errors } = useForm<{
+    const { data, setData, post, put, processing, errors, isDirty } = useForm<{
         tahun_ajaran_id: string;
         nama: string;
         tanggal_mulai: string;
@@ -75,6 +78,23 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
         tarif: Object.fromEntries((kebijakan ?? []).map((b) => [String(b.kategori_siswa_id), b.tarif])),
     });
 
+    const [jalurAktif, setJalurAktif] = useState(kebijakan?.[0]?.kategori_siswa_id ?? 0);
+    const [sudahMencobaSimpan, setSudahMencobaSimpan] = useState(false);
+    const [kunjunganTertunda, setKunjunganTertunda] = useState<PendingVisit | null>(null);
+    const sedangMenyimpan = useRef(false);
+    const lewatiPengamanSekali = useRef(false);
+
+    // Satu-satunya isian wajib di dalam tab adalah minimal bayar. Kuota boleh
+    // kosong (tak dibatasi), nominal boleh kosong (tidak ditagihkan), dan
+    // daftar berkas boleh kosong kalau memang tidak ada yang diwajibkan.
+    const jalurBelumLengkap = useMemo(
+        () =>
+            (kebijakan ?? [])
+                .filter((b) => (data.kebijakan[String(b.kategori_siswa_id)]?.minimal_bayar ?? '').trim() === '')
+                .map((b) => b.kategori_siswa_id),
+        [data.kebijakan, kebijakan],
+    );
+
     // Syarat berkas milik gelombang x jalur, bukan jalur saja — mengubahnya di
     // sini tidak menyentuh gelombang lain.
     const toggleDokumen = (kategoriId: number, jenis: string) => {
@@ -89,10 +109,30 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
+
+        setSudahMencobaSimpan(true);
+
+        if (jalurBelumLengkap.length > 0) {
+            setJalurAktif(jalurBelumLengkap[0]);
+
+            return;
+        }
+
+        const opsi = {
+            // onBefore milik visit dipanggil sebelum event global Inertia, jadi
+            // pengaman perubahan tidak menghalangi tombol Simpan itu sendiri.
+            onBefore: () => {
+                sedangMenyimpan.current = true;
+            },
+            onFinish: () => {
+                sedangMenyimpan.current = false;
+            },
+        };
+
         if (isEdit) {
-            put(route('super-admin.gelombang.update', gelombang.id));
+            put(route('super-admin.gelombang.update', gelombang.id), opsi);
         } else {
-            post(route('super-admin.gelombang.store'));
+            post(route('super-admin.gelombang.store'), opsi);
         }
     };
 
@@ -107,8 +147,6 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
             ...data.tarif,
             [String(kategoriId)]: { ...data.tarif[String(kategoriId)], [String(komponenId)]: nilai },
         });
-
-    const [jalurAktif, setJalurAktif] = useState(kebijakan?.[0]?.kategori_siswa_id ?? 0);
 
     // Bahaya khas tab: galat validasi jatuh di jalur yang sedang tidak terlihat,
     // jadi formulir gagal disimpan tanpa satu pun pesan di layar. Jalur yang
@@ -132,6 +170,77 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
             setJalurAktif(jalurBergalat[0]);
         }
     }, [jalurBergalat, jalurAktif]);
+
+    useEffect(() => {
+        if (bacaSaja) {
+            return;
+        }
+
+        const cegahTutupBrowser = (event: BeforeUnloadEvent) => {
+            if (!isDirty || sedangMenyimpan.current) {
+                return;
+            }
+
+            event.preventDefault();
+            event.returnValue = '';
+        };
+        const lepasPengamanInertia = router.on('before', (event) => {
+            const kunjungan = event.detail.visit;
+
+            // Prefetch cuma mengambil halaman di belakang layar dan tidak membuat
+            // admin meninggalkan formulir, jadi tidak perlu ditahan.
+            if (kunjungan.prefetch || !isDirty || sedangMenyimpan.current) {
+                return;
+            }
+
+            if (lewatiPengamanSekali.current) {
+                lewatiPengamanSekali.current = false;
+
+                return;
+            }
+
+            setKunjunganTertunda(kunjungan);
+
+            return false;
+        });
+
+        window.addEventListener('beforeunload', cegahTutupBrowser);
+
+        return () => {
+            lepasPengamanInertia();
+            window.removeEventListener('beforeunload', cegahTutupBrowser);
+        };
+    }, [bacaSaja, isDirty]);
+
+    const tinggalkanHalaman = () => {
+        if (!kunjunganTertunda) {
+            return;
+        }
+
+        const kunjungan = kunjunganTertunda;
+        const opsi: VisitOptions = {
+            method: kunjungan.method,
+            data: kunjungan.data,
+            replace: kunjungan.replace,
+            preserveScroll: kunjungan.preserveScroll,
+            preserveState: kunjungan.preserveState,
+            only: kunjungan.only,
+            except: kunjungan.except,
+            headers: kunjungan.headers,
+            errorBag: kunjungan.errorBag,
+            forceFormData: kunjungan.forceFormData,
+            queryStringArrayFormat: kunjungan.queryStringArrayFormat,
+            async: kunjungan.async,
+            showProgress: kunjungan.showProgress,
+            fresh: kunjungan.fresh,
+            reset: kunjungan.reset,
+            preserveUrl: kunjungan.preserveUrl,
+        };
+
+        setKunjunganTertunda(null);
+        lewatiPengamanSekali.current = true;
+        router.visit(kunjungan.url, opsi);
+    };
 
     return (
         <AppLayout>
@@ -181,7 +290,12 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
                                         id="tahun_ajaran_id"
                                         value={data.tahun_ajaran_id}
                                         onChange={(e) => setData('tahun_ajaran_id', e.target.value)}
-                                        disabled={bacaSaja}
+                                        disabled={bacaSaja || (isEdit && !gelombang.bisa_pindah_tahun_ajaran)}
+                                        title={
+                                            isEdit && !gelombang.bisa_pindah_tahun_ajaran
+                                                ? 'Tahun ajaran terkunci karena gelombang ini sudah memiliki pendaftar.'
+                                                : undefined
+                                        }
                                         className={gayaIsian}
                                     >
                                         <option value="">Pilih tahun ajaran</option>
@@ -264,6 +378,7 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
                                     {kebijakan.map((b) => {
                                         const aktif = b.kategori_siswa_id === jalurAktif;
                                         const bergalat = jalurBergalat.includes(b.kategori_siswa_id);
+                                        const belumLengkap = jalurBelumLengkap.includes(b.kategori_siswa_id);
 
                                         return (
                                             <button
@@ -279,10 +394,11 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
                                                 }
                                             >
                                                 {b.nama}
-                                                {bergalat && (
+                                                {(bergalat || belumLengkap) && (
                                                     <span
-                                                        aria-label="ada isian yang perlu dibetulkan"
-                                                        className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-600"
+                                                        aria-label={bergalat ? 'ada isian yang perlu dibetulkan' : 'jalur belum lengkap'}
+                                                        title={bergalat ? 'Ada isian yang perlu dibetulkan' : 'Minimal bayar belum diisi'}
+                                                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${bergalat ? 'bg-red-600' : 'bg-amber-500'}`}
                                                     />
                                                 )}
                                             </button>
@@ -336,7 +452,14 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
                                                                 disabled={bacaSaja}
                                                                 className={gayaIsian}
                                                             />
-                                                            <FieldError message={galat[`kebijakan.${b.kategori_siswa_id}.minimal_bayar`]} />
+                                                            <FieldError
+                                                                message={
+                                                                    galat[`kebijakan.${b.kategori_siswa_id}.minimal_bayar`] ??
+                                                                    (sudahMencobaSimpan && isian.minimal_bayar === ''
+                                                                        ? 'Minimal bayar wajib diisi. Isi 0 kalau jalur ini dibebaskan.'
+                                                                        : undefined)
+                                                                }
+                                                            />
                                                         </div>
                                                     </div>
 
@@ -425,6 +548,17 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
                     </div>
                 </form>
             </PageContainer>
+
+            <ConfirmationDialog
+                open={kunjunganTertunda !== null}
+                title="Perubahan belum disimpan"
+                description="Perubahan yang Anda buat pada gelombang ini akan hilang jika halaman ditinggalkan."
+                confirmLabel="Tinggalkan halaman"
+                cancelLabel="Tetap di sini"
+                tone="warning"
+                onConfirm={tinggalkanHalaman}
+                onCancel={() => setKunjunganTertunda(null)}
+            />
         </AppLayout>
     );
 }

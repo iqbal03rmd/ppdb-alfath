@@ -176,6 +176,7 @@ class GelombangController extends Controller
                 'tanggal_selesai' => $gelombang->tanggal_selesai?->format('Y-m-d'),
                 'batas_waktu_pembayaran' => $gelombang->batas_waktu_pembayaran?->format('Y-m-d'),
                 'status_buka' => (bool) $gelombang->status_buka,
+                'bisa_pindah_tahun_ajaran' => $gelombang->bisaPindahTahunAjaran(),
             ],
 
             // Layar ini merangkap dua: formulir Ubah, dan - kalau terkunci -
@@ -217,6 +218,13 @@ class GelombangController extends Controller
         }
 
         $data = $this->validasi($request);
+
+        if ((int) $data['tahun_ajaran_id'] !== $gelombang->tahun_ajaran_id && ! $gelombang->bisaPindahTahunAjaran()) {
+            return back()->with(
+                'error',
+                'Tahun ajaran tidak bisa diganti karena gelombang ini sudah memiliki pendaftar. Jadwal dan tagihan mereka harus tetap berada di angkatan asalnya.'
+            );
+        }
 
         $ketentuan = $this->validasiKetentuan($request);
 
@@ -496,31 +504,53 @@ class GelombangController extends Controller
      */
     private function validasiKetentuan(Request $request): array
     {
-        $kebijakan = $request->validate([
+        $aturanKebijakan = [
             'kebijakan' => ['present', 'array'],
             'kebijakan.*.kuota' => ['nullable', 'integer', 'min:0', 'max:10000'],
             // WAJIB, dan boleh 0. Tidak ada angka bawaan yang menambal jalur
             // yang kosong; pembebasan harus diketik sebagai 0 dengan sadar.
             'kebijakan.*.minimal_bayar' => ['required', 'integer', 'min:0'],
-        ], [
+        ];
+        $aturanBerkas = [
+            'dokumen' => ['present', 'array'],
+            'dokumen.*' => ['present', 'array'],
+            'dokumen.*.*' => ['string', Rule::in(array_keys(BerkasPersyaratan::peta()))],
+        ];
+        $aturanTarif = [
+            'tarif' => ['present', 'array'],
+            'tarif.*' => ['present', 'array'],
+            'tarif.*.*' => ['nullable', 'integer', 'min:0'],
+        ];
+
+        // Wildcard hanya memeriksa baris yang DIKIRIM. Tanpa aturan dinamis
+        // ini, satu jalur utuh bisa dihilangkan dari request dan lolos tanpa
+        // minimal bayar, daftar berkas, maupun sel nominalnya.
+        $idJalur = KategoriSiswa::pluck('id')->all();
+        $idKomponenAktif = KomponenBiaya::aktif()->pluck('id')->all();
+
+        foreach ($idJalur as $jalurId) {
+            $aturanKebijakan["kebijakan.{$jalurId}"] = ['required', 'array'];
+            $aturanKebijakan["kebijakan.{$jalurId}.minimal_bayar"] = ['required', 'integer', 'min:0'];
+            $aturanBerkas["dokumen.{$jalurId}"] = ['present', 'array'];
+            $aturanTarif["tarif.{$jalurId}"] = ['present', 'array'];
+
+            foreach ($idKomponenAktif as $komponenId) {
+                $aturanTarif["tarif.{$jalurId}.{$komponenId}"] = ['present', 'nullable', 'integer', 'min:0'];
+            }
+        }
+
+        $kebijakan = $request->validate($aturanKebijakan, [
             'kebijakan.*.kuota.integer' => 'Kuota harus berupa angka, atau dikosongkan kalau tidak dibatasi.',
             'kebijakan.*.kuota.min' => 'Kuota tidak boleh negatif.',
+            'kebijakan.*.required' => 'Ketentuan setiap jalur wajib dikirim.',
             'kebijakan.*.minimal_bayar.required' => 'Minimal bayar wajib diisi. Isi 0 kalau jalur ini memang diterima tanpa menyetor.',
             'kebijakan.*.minimal_bayar.integer' => 'Minimal bayar harus berupa angka.',
             'kebijakan.*.minimal_bayar.min' => 'Minimal bayar tidak boleh negatif.',
         ])['kebijakan'];
 
-        $berkas = $request->validate([
-            'dokumen' => ['present', 'array'],
-            'dokumen.*' => ['present', 'array'],
-            'dokumen.*.*' => ['string', Rule::in(array_keys(BerkasPersyaratan::peta()))],
-        ])['dokumen'];
+        $berkas = $request->validate($aturanBerkas)['dokumen'];
 
-        $tarif = $request->validate([
-            'tarif' => ['present', 'array'],
-            'tarif.*' => ['present', 'array'],
-            'tarif.*.*' => ['nullable', 'integer', 'min:0'],
-        ], [
+        $tarif = $request->validate($aturanTarif, [
             'tarif.*.*.integer' => 'Nominal harus berupa angka, atau dikosongkan kalau pos itu tidak ditagihkan ke jalur ini.',
             'tarif.*.*.min' => 'Nominal tidak boleh negatif.',
         ])['tarif'];

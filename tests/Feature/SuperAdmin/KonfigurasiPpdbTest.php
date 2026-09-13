@@ -39,23 +39,59 @@ beforeEach(function () {
  */
 function muatanGelombang(GelombangPpdb $g, array $timpa = []): array
 {
-
-    $dokumen = DokumenWajibKategori::where('gelombang_ppdb_id', $g->id)
+    $kebijakanTersimpan = KebijakanKategori::where('gelombang_ppdb_id', $g->id)->get()->keyBy('kategori_siswa_id');
+    $tarifTersimpan = TarifKategori::where('gelombang_ppdb_id', $g->id)
         ->get()
         ->groupBy('kategori_siswa_id')
-        ->map(fn ($baris) => $baris->pluck('jenis_dokumen')->all())
-        ->all();
+        ->map(fn ($baris) => $baris->keyBy('komponen_biaya_id'));
+    $dokumenTersimpan = DokumenWajibKategori::where('gelombang_ppdb_id', $g->id)
+        ->get()
+        ->groupBy('kategori_siswa_id')
+        ->map(fn ($baris) => $baris->pluck('jenis_dokumen')->all());
+    $komponen = KomponenBiaya::aktif()->get();
 
-    return [
+    $muatan = [
         'tahun_ajaran_id' => $g->tahun_ajaran_id,
         'nama' => $g->nama,
         'tanggal_mulai' => $g->tanggal_mulai?->format('Y-m-d'),
         'tanggal_selesai' => $g->tanggal_selesai?->format('Y-m-d'),
         'batas_waktu_pembayaran' => $g->batas_waktu_pembayaran?->format('Y-m-d'),
-        'minimal_pembayaran' => $g->minimal_pembayaran,
         'kebijakan' => [],
-        'dokumen' => $dokumen,
+        'dokumen' => [],
         'tarif' => [],
+    ];
+
+    foreach (KategoriSiswa::pluck('id') as $jalurId) {
+        $tersimpan = $kebijakanTersimpan->get($jalurId);
+        $muatan['kebijakan'][$jalurId] = [
+            'kuota' => $tersimpan?->kuota,
+            'minimal_bayar' => $tersimpan?->minimal_bayar,
+        ];
+        $muatan['dokumen'][$jalurId] = $dokumenTersimpan->get($jalurId, []);
+        $muatan['tarif'][$jalurId] = $komponen
+            ->mapWithKeys(fn (KomponenBiaya $k) => [$k->id => $tarifTersimpan->get($jalurId)?->get($k->id)?->nominal])
+            ->all();
+    }
+
+    // Timpa bentuknya seperti perubahan satu-dua isian dari UI; jalur dan sel
+    // lain tetap ikut terkirim, sama persis dengan useForm di halaman aslinya.
+    foreach (['kebijakan', 'tarif'] as $bagian) {
+        foreach ($timpa[$bagian] ?? [] as $jalurId => $nilai) {
+            // ID komponen berupa angka; spread PHP akan mengurutkan ulang
+            // kunci numeriknya menjadi 0, 1, 2. array_replace menjaga ID asli.
+            $muatan[$bagian][$jalurId] = array_replace($muatan[$bagian][$jalurId] ?? [], $nilai);
+        }
+
+        unset($timpa[$bagian]);
+    }
+
+    if (array_key_exists('dokumen', $timpa)) {
+        $muatan['dokumen'] = array_replace($muatan['dokumen'], $timpa['dokumen']);
+        unset($timpa['dokumen']);
+    }
+
+    return [
+        ...$muatan,
         ...$timpa,
     ];
 }
@@ -369,7 +405,7 @@ test('komponen biaya yang sudah punya nominal tidak bisa dihapus', function () {
 
 test('gelombang baru lahir tertutup dan ketentuannya langsung tersimpan per jalur', function () {
     $this->actingAs($this->admin)
-        ->post(route('super-admin.gelombang.store'), [
+        ->post(route('super-admin.gelombang.store'), muatanGelombang($this->gelombang, [
             'tahun_ajaran_id' => $this->tahunAjaran->id,
             'nama' => 'Gelombang 2',
             'tanggal_mulai' => '2026-11-01',
@@ -387,7 +423,7 @@ test('gelombang baru lahir tertutup dan ketentuannya langsung tersimpan per jalu
                 $this->reguler->id => [$this->seragam->id => 800_000],
                 $this->yatim->id => [$this->seragam->id => 0],
             ],
-        ])
+        ]))
         ->assertSessionHasNoErrors();
 
     $baru = GelombangPpdb::where('nama', 'Gelombang 2')->firstOrFail();
@@ -708,6 +744,27 @@ test('minimal bayar wajib diisi tiap jalur', function () {
         ->assertSessionHasErrors('kebijakan.'.$this->reguler->id.'.minimal_bayar');
 });
 
+test('satu jalur utuh tidak boleh dihilangkan dari muatan formulir', function (string $bagian, string $akhiran) {
+    $this->gelombang->tutup();
+    $muatan = muatanGelombang($this->gelombang);
+
+    if ($bagian === 'tarif') {
+        unset($muatan['tarif'][$this->reguler->id][$this->seragam->id]);
+        $kunci = "tarif.{$this->reguler->id}.{$this->seragam->id}";
+    } else {
+        unset($muatan[$bagian][$this->reguler->id]);
+        $kunci = "{$bagian}.{$this->reguler->id}{$akhiran}";
+    }
+
+    $this->actingAs($this->admin)
+        ->put(route('super-admin.gelombang.update', $this->gelombang), $muatan)
+        ->assertSessionHasErrors($kunci);
+})->with([
+    ['kebijakan', ''],
+    ['dokumen', ''],
+    ['tarif', ''],
+]);
+
 /**
  * 0 SAH dan artinya jelas: jalur ini diterima tanpa menyetor. Yang dilarang
  * mengosongkannya - supaya pembebasan itu tindakan yang diketik dengan sadar,
@@ -809,14 +866,17 @@ test('mengubah syarat berkas satu gelombang tidak menyentuh gelombang lain', fun
         'tanggal_mulai' => '2026-11-01',
         'tanggal_selesai' => '2026-12-31',
         'batas_waktu_pembayaran' => '2027-01-31',
-        'minimal_pembayaran' => 3_000_000,
         'status_buka' => false,
     ]);
 
     BerkasPersyaratan::create(['kode' => 'rapor_paud', 'nama' => 'Rapor PAUD', 'urutan' => 9]);
+    $kebijakanLengkap = KategoriSiswa::pluck('id')
+        ->mapWithKeys(fn (int $jalurId) => [$jalurId => ['kuota' => null, 'minimal_bayar' => 3_000_000]])
+        ->all();
 
     $this->actingAs($this->admin)
         ->put(route('super-admin.gelombang.update', $gelombangBaru), muatanGelombang($gelombangBaru, [
+            'kebijakan' => $kebijakanLengkap,
             'dokumen' => [$this->reguler->id => ['kartu_keluarga', 'rapor_paud']],
         ]))
         ->assertSessionHasNoErrors();
@@ -845,7 +905,7 @@ test('gelombang baru mewarisi syarat berkas dari gelombang sebelumnya', function
             ->etc());
 
     $this->actingAs($this->admin)
-        ->post(route('super-admin.gelombang.store'), [
+        ->post(route('super-admin.gelombang.store'), muatanGelombang($this->gelombang, [
             'tahun_ajaran_id' => $this->tahunAjaran->id,
             'nama' => 'Gelombang 2',
             'tanggal_mulai' => '2026-11-01',
@@ -853,8 +913,7 @@ test('gelombang baru mewarisi syarat berkas dari gelombang sebelumnya', function
             'batas_waktu_pembayaran' => '2027-01-31',
             'kebijakan' => [$this->yatim->id => ['kuota' => 5, 'minimal_bayar' => 400_000]],
             'dokumen' => [$this->yatim->id => $sebelumnya],
-            'tarif' => [$this->yatim->id => []],
-        ])
+        ]))
         ->assertSessionHasNoErrors();
 
     $baru = GelombangPpdb::where('nama', 'Gelombang 2')->firstOrFail();
@@ -1152,6 +1211,25 @@ test('ketentuan bisa diubah lagi sesudah pendaftarannya ditutup', function () {
         ->assertSessionHasNoErrors();
 
     expect(KebijakanKategori::untuk($this->gelombang->id, $this->reguler->id)->kuota)->toBe(33);
+});
+
+test('gelombang yang sudah punya pendaftar tidak bisa dipindah tahun ajaran', function () {
+    $arsip = TahunAjaran::create([
+        'nama' => '2027/2028',
+        'tahun_mulai' => 2027,
+        'batas_pelunasan' => '2028-03-31',
+        'status_aktif' => false,
+    ]);
+    $tahunAsal = $this->gelombang->tahun_ajaran_id;
+    $this->gelombang->tutup();
+
+    $this->actingAs($this->admin)
+        ->put(route('super-admin.gelombang.update', $this->gelombang), muatanGelombang($this->gelombang, [
+            'tahun_ajaran_id' => $arsip->id,
+        ]))
+        ->assertSessionHas('error');
+
+    expect($this->gelombang->refresh()->tahun_ajaran_id)->toBe($tahunAsal);
 });
 
 /**
