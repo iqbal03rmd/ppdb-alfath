@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Rules\NomorWhatsApp;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -26,14 +28,17 @@ class RegisteredUserController extends Controller
     /**
      * Handle an incoming registration request.
      *
-     * @throws \Illuminate\Validation\ValidationException
+     * @throws ValidationException
      */
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
-            'telepon' => 'required|string|max:20',
+            'telepon' => ['required', 'string', 'max:20', new NomorWhatsApp],
+            // Persetujuan harus merupakan pilihan nyata: menolak WhatsApp tidak
+            // boleh menghalangi wali membuat akun dan mendaftar sekolah.
+            'persetujuan_whatsapp' => ['required', 'boolean'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
@@ -41,6 +46,8 @@ class RegisteredUserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'telepon' => $request->telepon,
+            'notifikasi_whatsapp_aktif' => $request->boolean('persetujuan_whatsapp'),
+            'persetujuan_whatsapp_pada' => $request->boolean('persetujuan_whatsapp') ? now() : null,
             'role' => 'wali_murid',
             'password' => Hash::make($request->password),
         ]);

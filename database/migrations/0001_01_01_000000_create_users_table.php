@@ -18,6 +18,11 @@ return new class extends Migration
             $table->enum('role', ['wali_murid', 'staf_ppdb', 'kepala_sekolah', 'super_admin'])
                 ->default('wali_murid');
             $table->string('telepon')->nullable();
+            // Persetujuan WhatsApp milik pemilik akun, bukan keputusan Admin.
+            // Timestamp menyimpan bukti kapan persetujuan pertama diberikan;
+            // boolean adalah saklar yang bisa dimatikan lagi lewat Pengaturan.
+            $table->boolean('notifikasi_whatsapp_aktif')->default(false);
+            $table->timestamp('persetujuan_whatsapp_pada')->nullable();
             $table->boolean('status_aktif')->default(true);
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');

@@ -1,7 +1,11 @@
 <?php
 
+use App\Jobs\KirimNotifikasiWhatsApp;
+use App\Models\NotifikasiWhatsapp;
 use App\Models\PendaftaranPpdb;
+use App\Models\TarifKategori;
 use App\Models\User;
+use Illuminate\Support\Facades\Queue;
 
 /**
  * Test ini berjalan di atas data seed, bukan factory: model PPDB saling
@@ -62,6 +66,60 @@ test('setelah disetujui wali jadi boleh membayar', function () {
         ->post(route('staf-ppdb.verifikasi-pendaftaran.setujui', $this->pendaftaran));
 
     expect($this->pendaftaran->refresh()->bolehBayar())->toBeTrue();
+});
+
+test('menyetujui menerbitkan tagihan dan mengantrikan satu notifikasi whatsapp', function () {
+    config()->set('services.whatsapp.enabled', true);
+    config()->set('services.whatsapp.driver', 'log');
+    Queue::fake();
+
+    expect($this->pendaftaran->tagihanItem()->exists())->toBeFalse();
+
+    $this->actingAs($this->staf)
+        ->post(route('staf-ppdb.verifikasi-pendaftaran.setujui', $this->pendaftaran))
+        ->assertRedirect(route('staf-ppdb.verifikasi-pendaftaran.index'));
+
+    $notifikasi = NotifikasiWhatsapp::sole();
+
+    expect($this->pendaftaran->refresh()->tagihanItem()->exists())->toBeTrue()
+        ->and($this->pendaftaran->minimal_bayar)->not->toBeNull()
+        ->and($notifikasi->status)->toBe('menunggu')
+        ->and($notifikasi->nomor_tujuan)->toBe('6281200000001')
+        ->and($notifikasi->pesan)->toContain($this->pendaftaran->nama_pendaftar)
+        ->and($notifikasi->pesan)->toContain($this->pendaftaran->nomor_pendaftaran);
+
+    Queue::assertPushed(
+        KirimNotifikasiWhatsApp::class,
+        fn (KirimNotifikasiWhatsApp $job) => $job->notifikasiId === $notifikasi->id
+    );
+});
+
+test('notifikasi tidak diantrikan jika wali menonaktifkannya', function () {
+    config()->set('services.whatsapp.enabled', true);
+    Queue::fake();
+    $this->pendaftaran->user->update(['notifikasi_whatsapp_aktif' => false]);
+
+    $this->actingAs($this->staf)
+        ->post(route('staf-ppdb.verifikasi-pendaftaran.setujui', $this->pendaftaran));
+
+    expect(NotifikasiWhatsapp::sole()->status)->toBe('dilewati');
+    Queue::assertNothingPushed();
+});
+
+test('persetujuan dibatalkan jika tarif belum dikonfigurasi', function () {
+    TarifKategori::where('gelombang_ppdb_id', $this->pendaftaran->gelombang_ppdb_id)
+        ->where('kategori_siswa_id', $this->pendaftaran->kategori_siswa_id)
+        ->delete();
+
+    $this->actingAs($this->staf)
+        ->from(route('staf-ppdb.verifikasi-pendaftaran.show', $this->pendaftaran))
+        ->post(route('staf-ppdb.verifikasi-pendaftaran.setujui', $this->pendaftaran))
+        ->assertRedirect(route('staf-ppdb.verifikasi-pendaftaran.show', $this->pendaftaran))
+        ->assertSessionHas('error');
+
+    expect($this->pendaftaran->refresh()->status)->toBe('diajukan')
+        ->and($this->pendaftaran->tagihanItem()->exists())->toBeFalse()
+        ->and(NotifikasiWhatsapp::count())->toBe(0);
 });
 
 test('minta perbaikan menyimpan catatan dan mengembalikan bola ke wali', function () {

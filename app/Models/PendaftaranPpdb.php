@@ -267,10 +267,10 @@ class PendaftaranPpdb extends Model
      * oleh Admin tidak lagi mengubah tagihan pendaftaran ini.
      *
      * Idempotent - aman dipanggil berkali-kali, cuma menerbitkan sekali.
-     * Sekarang dipanggil lazy dari PembayaranController (saat wali pertama kali
-     * melihat tagihannya). Nanti kalau modul Staf jadi, panggil method yang sama
-     * di titik verifikasi berkas biar tagihan terbit lebih awal - nggak perlu
-     * ubah apa pun di sini karena idempotent.
+     * Titik normalnya sekarang VerifikasiPendaftaranController::setujui():
+     * begitu berkas lolos, tagihan diterbitkan sebelum notifikasi WhatsApp
+     * diantrikan. PembayaranController tetap memanggilnya secara idempotent
+     * sebagai pagar kompatibilitas untuk data lama yang belum punya snapshot.
      */
     public function terbitkanTagihan(): void
     {

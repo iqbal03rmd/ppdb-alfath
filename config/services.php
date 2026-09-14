@@ -35,4 +35,17 @@ return [
         ],
     ],
 
+    'whatsapp' => [
+        // Default mati mencegah data seed atau mesin developer mengirim pesan
+        // sungguhan tanpa sengaja.
+        'enabled' => env('WHATSAPP_ENABLED', false),
+        'driver' => env('WHATSAPP_DRIVER', 'log'),
+    ],
+
+    'fonnte' => [
+        'endpoint' => env('FONNTE_ENDPOINT', 'https://api.fonnte.com/send'),
+        'token' => env('FONNTE_TOKEN'),
+        'timeout' => env('FONNTE_TIMEOUT', 15),
+    ],
+
 ];

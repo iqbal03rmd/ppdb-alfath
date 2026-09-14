@@ -17,6 +17,8 @@ class User extends Authenticatable
         'password',
         'role',
         'telepon',
+        'notifikasi_whatsapp_aktif',
+        'persetujuan_whatsapp_pada',
         'status_aktif',
     ];
 
@@ -39,6 +41,7 @@ class User extends Authenticatable
      */
     protected $attributes = [
         'status_aktif' => true,
+        'notifikasi_whatsapp_aktif' => false,
     ];
 
     protected function casts(): array
@@ -47,6 +50,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'status_aktif' => 'boolean',
+            'notifikasi_whatsapp_aktif' => 'boolean',
+            'persetujuan_whatsapp_pada' => 'datetime',
         ];
     }
 

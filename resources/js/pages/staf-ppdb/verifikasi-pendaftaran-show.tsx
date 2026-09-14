@@ -183,7 +183,7 @@ export default function VerifikasiPendaftaranShow({ pendaftaran, waliMurid, berk
                                 {!formPerbaikanTampil ? (
                                     <>
                                         <p className="mb-4 text-sm text-gray-500">
-                                            Setujui kalau formulir dan berkasnya sudah benar. Setelah disetujui, wali bisa mulai membayar.
+                                            Setujui kalau formulir dan berkasnya sudah benar. Tagihan akan diterbitkan dan wali bisa mulai membayar.
                                         </p>
 
                                         <Button
@@ -257,7 +257,7 @@ export default function VerifikasiPendaftaranShow({ pendaftaran, waliMurid, berk
             <ConfirmationDialog
                 open={konfirmasiSetuju}
                 title="Setujui pendaftaran?"
-                description={`Formulir dan berkas ${pendaftaran.nama_pendaftar} akan dinyatakan benar. Setelah itu wali dapat membuka tagihan dan mulai mengirim pembayaran.`}
+                description={`Formulir dan berkas ${pendaftaran.nama_pendaftar} akan dinyatakan benar. Tagihan akan diterbitkan dan notifikasi WhatsApp diantrikan jika wali mengaktifkannya.`}
                 confirmLabel={setuju.processing ? 'Memproses...' : 'Ya, setujui'}
                 cancelLabel="Periksa lagi"
                 tone="warning"

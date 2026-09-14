@@ -26,6 +26,8 @@ export interface User {
     email: string;
     role: string;
     telepon: string | null;
+    notifikasi_whatsapp_aktif: boolean;
+    persetujuan_whatsapp_pada: string | null;
     email_verified_at: string | null;
     created_at: string;
     updated_at: string;

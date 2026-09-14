@@ -60,10 +60,39 @@ test('nomor telepon boleh dikosongkan', function () {
             'name' => $user->name,
             'email' => $user->email,
             'telepon' => '',
+            'notifikasi_whatsapp_aktif' => false,
         ])
         ->assertSessionHasNoErrors();
 
     expect($user->refresh()->telepon)->toBeNull();
+});
+
+test('wali bisa berhenti menerima notifikasi whatsapp', function () {
+    $user = User::factory()->create(['notifikasi_whatsapp_aktif' => true]);
+
+    $this->actingAs($user)
+        ->patch('/settings/profile', [
+            'name' => $user->name,
+            'email' => $user->email,
+            'telepon' => $user->telepon,
+            'notifikasi_whatsapp_aktif' => false,
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($user->refresh()->notifikasi_whatsapp_aktif)->toBeFalse();
+});
+
+test('notifikasi whatsapp aktif membutuhkan nomor tujuan', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->patch('/settings/profile', [
+            'name' => $user->name,
+            'email' => $user->email,
+            'telepon' => '',
+            'notifikasi_whatsapp_aktif' => true,
+        ])
+        ->assertSessionHasErrors('telepon');
 });
 
 /**

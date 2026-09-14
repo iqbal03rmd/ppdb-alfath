@@ -1,5 +1,6 @@
 import { FieldError, Input, Kartu, Label } from '@/components/form-field';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { type SharedData } from '@/types';
@@ -22,6 +23,7 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
         // ?? '' karena kolomnya nullable di database, sedangkan kotak isian
         // terkendali di React tidak boleh menerima null.
         telepon: auth.user.telepon ?? '',
+        notifikasi_whatsapp_aktif: auth.user.notifikasi_whatsapp_aktif,
     });
 
     const submit: FormEventHandler = (e) => {
@@ -78,6 +80,26 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                 <FieldError message={errors.telepon} />
                             </div>
                         </div>
+
+                        {auth.user.role === 'wali_murid' && (
+                            <div className="mt-5 flex items-start gap-3 rounded-xl border border-gray-200 bg-[#F5F9FD] p-4">
+                                <Checkbox
+                                    id="notifikasi_whatsapp_aktif"
+                                    checked={data.notifikasi_whatsapp_aktif}
+                                    onCheckedChange={(checked) => setData('notifikasi_whatsapp_aktif', checked === true)}
+                                    disabled={processing}
+                                />
+                                <div>
+                                    <label htmlFor="notifikasi_whatsapp_aktif" className="cursor-pointer text-sm font-medium text-gray-800">
+                                        Terima pembaruan proses PPDB melalui WhatsApp
+                                    </label>
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Pesan dikirim ke nomor WhatsApp yang tercantum di atas. Matikan pilihan ini untuk berhenti menerima notifikasi otomatis.
+                                    </p>
+                                    <FieldError message={errors.notifikasi_whatsapp_aktif} />
+                                </div>
+                            </div>
+                        )}
 
                         {mustVerifyEmail && auth.user.email_verified_at === null && (
                             <div className="mt-5 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">

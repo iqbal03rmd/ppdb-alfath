@@ -34,6 +34,14 @@ class ProfileController extends Controller
             $request->user()->email_verified_at = null;
         }
 
+        if (
+            $request->user()->isDirty('notifikasi_whatsapp_aktif')
+            && $request->user()->notifikasi_whatsapp_aktif
+            && $request->user()->persetujuan_whatsapp_pada === null
+        ) {
+            $request->user()->persetujuan_whatsapp_pada = now();
+        }
+
         $request->user()->save();
 
         return to_route('profile.edit')->with('success', 'Profil berhasil diperbarui.');

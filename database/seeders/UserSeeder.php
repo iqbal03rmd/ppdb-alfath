@@ -15,6 +15,8 @@ class UserSeeder extends Seeder
                 'email' => 'wali@ppdbalfath.test',
                 'telepon' => '081200000001',
                 'role' => 'wali_murid',
+                'notifikasi_whatsapp_aktif' => true,
+                'persetujuan_whatsapp_pada' => now(),
             ],
             [
                 'name' => 'Dedi Kurniawan',
@@ -44,6 +46,8 @@ class UserSeeder extends Seeder
                     'telepon' => $data['telepon'],
                     'role' => $data['role'],
                     'status_aktif' => true,
+                    'notifikasi_whatsapp_aktif' => $data['notifikasi_whatsapp_aktif'] ?? false,
+                    'persetujuan_whatsapp_pada' => $data['persetujuan_whatsapp_pada'] ?? null,
                     'email_verified_at' => now(),
                     'password' => 'password',
                 ]

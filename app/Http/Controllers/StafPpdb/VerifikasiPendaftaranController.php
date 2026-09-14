@@ -3,11 +3,16 @@
 namespace App\Http\Controllers\StafPpdb;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\KirimNotifikasiWhatsApp;
 use App\Models\BerkasPersyaratan;
+use App\Models\NotifikasiWhatsapp;
 use App\Models\PendaftaranPpdb;
 use App\Models\WaliMurid;
+use App\Rules\NomorWhatsApp;
+use DomainException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -121,22 +126,117 @@ class VerifikasiPendaftaranController extends Controller
      */
     public function setujui(Request $request, PendaftaranPpdb $pendaftaran): RedirectResponse
     {
-        abort_unless($pendaftaran->status === 'diajukan', 403, 'Pendaftaran ini sedang tidak menunggu verifikasi.');
+        try {
+            DB::transaction(function () use ($request, $pendaftaran): void {
+                // Guard dan penulisan berada di bawah kunci yang sama. Dua staf
+                // yang menekan Setujui bersamaan tidak boleh sama-sama lolos dan
+                // menerbitkan efek samping dua kali.
+                $terkunci = PendaftaranPpdb::query()
+                    ->with(['user', 'gelombang', 'tagihanItem'])
+                    ->lockForUpdate()
+                    ->findOrFail($pendaftaran->id);
 
-        $pendaftaran->update([
-            'status' => 'diverifikasi',
-            'diverifikasi_oleh' => $request->user()->id,
-            // Titik nol buat mengukur berapa lama wali menggantung sebelum
-            // transfer pertama - lihat komentarnya di migration. Cuma di sini
-            // yang mengisinya; mintaPerbaikan() dan tutup() sengaja tidak.
-            'diverifikasi_pada' => now(),
-            // Catatan perbaikan lama dibersihkan. Kalau ditinggalkan, wali masih
-            // membaca keluhan yang justru sudah dia betulkan.
-            'catatan_verifikasi' => null,
-        ]);
+                abort_unless($terkunci->status === 'diajukan', 403, 'Pendaftaran ini sedang tidak menunggu verifikasi.');
+
+                $terkunci->update([
+                    'status' => 'diverifikasi',
+                    'diverifikasi_oleh' => $request->user()->id,
+                    // Titik nol buat mengukur berapa lama wali menggantung sebelum
+                    // transfer pertama - lihat komentarnya di migration. Cuma di sini
+                    // yang mengisinya; mintaPerbaikan() dan tutup() sengaja tidak.
+                    'diverifikasi_pada' => now(),
+                    // Catatan perbaikan lama dibersihkan. Kalau ditinggalkan, wali masih
+                    // membaca keluhan yang justru sudah dia betulkan.
+                    'catatan_verifikasi' => null,
+                ]);
+
+                // Tagihan dan notifikasi adalah satu kejadian bisnis. Jangan
+                // memberi tahu wali sebelum snapshot tagihannya sungguh ada.
+                $terkunci->terbitkanTagihan();
+                $terkunci->load(['tagihanItem', 'user', 'gelombang']);
+
+                if (! $terkunci->tagihanSudahTerbit()) {
+                    throw new DomainException(
+                        'Pendaftaran belum dapat disetujui karena tarif jalur ini belum dikonfigurasi. Minta Super Admin melengkapi nominal Gelombang PPDB terlebih dahulu.'
+                    );
+                }
+
+                $this->antrekanNotifikasiTagihanDibuka($terkunci);
+            });
+        } catch (DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return to_route('staf-ppdb.verifikasi-pendaftaran.index')
-            ->with('success', "Pendaftaran {$pendaftaran->nomor_pendaftaran} diverifikasi. Wali sekarang bisa melakukan pembayaran.");
+            ->with('success', "Pendaftaran {$pendaftaran->nomor_pendaftaran} diverifikasi, tagihan diterbitkan, dan notifikasi WhatsApp diproses sesuai pengaturan wali.");
+    }
+
+    /**
+     * Catat satu notifikasi tagihan. Detail ini sengaja berada dekat dengan
+     * satu-satunya pemicunya agar alur TA mudah ditelusuri; kalau jenis pesan
+     * bertambah barulah layak dipindah menjadi service orchestration.
+     */
+    private function antrekanNotifikasiTagihanDibuka(PendaftaranPpdb $pendaftaran): void
+    {
+        $nomorTujuan = NomorWhatsApp::normalisasi($pendaftaran->user->telepon);
+        [$status, $keterangan] = $this->statusAwalNotifikasi($pendaftaran, $nomorTujuan);
+
+        $notifikasi = NotifikasiWhatsapp::firstOrCreate(
+            ['idempotency_key' => 'tagihan_dibuka:'.$pendaftaran->id],
+            [
+                'user_id' => $pendaftaran->user_id,
+                'pendaftaran_ppdb_id' => $pendaftaran->id,
+                'jenis' => 'tagihan_dibuka',
+                'nomor_tujuan' => $nomorTujuan,
+                'pesan' => $this->pesanTagihanDibuka($pendaftaran),
+                'status' => $status,
+                'keterangan_status' => $keterangan,
+            ]
+        );
+
+        if ($notifikasi->wasRecentlyCreated && $status === 'menunggu') {
+            KirimNotifikasiWhatsApp::dispatch($notifikasi->id)->afterCommit();
+        }
+    }
+
+    /** @return array{string, string|null} */
+    private function statusAwalNotifikasi(PendaftaranPpdb $pendaftaran, ?string $nomorTujuan): array
+    {
+        if (! config('services.whatsapp.enabled')) {
+            return ['dilewati', 'Pengiriman WhatsApp sedang dinonaktifkan.'];
+        }
+
+        if (! $pendaftaran->user->notifikasi_whatsapp_aktif) {
+            return ['dilewati', 'Wali tidak mengaktifkan notifikasi WhatsApp.'];
+        }
+
+        if ($nomorTujuan === null) {
+            return ['dilewati', 'Nomor WhatsApp wali kosong atau tidak valid.'];
+        }
+
+        return ['menunggu', null];
+    }
+
+    private function pesanTagihanDibuka(PendaftaranPpdb $pendaftaran): string
+    {
+        $formatRupiah = static fn (int $nominal): string => 'Rp'.number_format($nominal, 0, ',', '.');
+        $batasPembayaran = $pendaftaran->batasMinimalBayar()?->locale('id')->translatedFormat('d F Y') ?? 'Hubungi Staf PPDB';
+        $url = route('wali-murid.pembayaran.show', $pendaftaran, absolute: true);
+
+        return implode("\n", [
+            "Assalamu'alaikum, Bapak/Ibu {$pendaftaran->user->name}.",
+            '',
+            "Berkas pendaftaran {$pendaftaran->nama_pendaftar} ({$pendaftaran->nomor_pendaftaran}) telah disetujui. Tagihan PPDB sekarang sudah tersedia.",
+            '',
+            'Total tagihan: '.$formatRupiah($pendaftaran->totalTagihan()),
+            'Minimum pembayaran: '.$formatRupiah((int) $pendaftaran->minimalBayar()),
+            'Batas pembayaran minimum: '.$batasPembayaran,
+            '',
+            'Lihat rincian tagihan dan unggah bukti pembayaran:',
+            $url,
+            '',
+            'Pesan otomatis PPDB SDIT Al-Fath. Notifikasi dapat dinonaktifkan melalui menu Pengaturan akun.',
+        ]);
     }
 
     /**

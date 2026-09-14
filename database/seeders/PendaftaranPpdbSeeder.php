@@ -224,7 +224,7 @@ class PendaftaranPpdbSeeder extends Seeder
 
             // Tagihan diterbitkan (snapshot tarif dibekukan) buat pendaftaran yang
             // statusnya sudah boleh bayar - meniru apa yang terjadi di aplikasi
-            // waktu wali pertama kali membuka halaman Pembayaran.
+            // ketika staf menyetujui berkas dan membuka tagihan.
             if (in_array($data['status'], ['diverifikasi', 'diterima'])) {
                 $pendaftaran->terbitkanTagihan();
             }

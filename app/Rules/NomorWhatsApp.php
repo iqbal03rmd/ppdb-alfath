@@ -1,0 +1,40 @@
+<?php
+
+namespace App\Rules;
+
+use Closure;
+use Illuminate\Contracts\Validation\ValidationRule;
+
+/**
+ * Satu aturan kecil untuk memvalidasi sekaligus menormalkan nomor tujuan.
+ */
+class NomorWhatsApp implements ValidationRule
+{
+    public function validate(string $attribute, mixed $value, Closure $fail): void
+    {
+        if (! is_string($value) || self::normalisasi($value) === null) {
+            $fail('Nomor WhatsApp harus berupa nomor seluler Indonesia yang valid.');
+        }
+    }
+
+    public static function normalisasi(?string $nomor): ?string
+    {
+        if ($nomor === null || trim($nomor) === '') {
+            return null;
+        }
+
+        $angka = preg_replace('/\D+/', '', $nomor);
+
+        if ($angka === null || $angka === '') {
+            return null;
+        }
+
+        if (str_starts_with($angka, '0')) {
+            $angka = '62'.substr($angka, 1);
+        } elseif (str_starts_with($angka, '8')) {
+            $angka = '62'.$angka;
+        }
+
+        return preg_match('/^628\d{7,12}$/', $angka) === 1 ? $angka : null;
+    }
+}

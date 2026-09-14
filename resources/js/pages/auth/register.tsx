@@ -5,6 +5,7 @@ import { FormEventHandler } from 'react';
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/auth-layout';
@@ -13,6 +14,7 @@ type RegisterForm = {
     name: string;
     email: string;
     telepon: string;
+    persetujuan_whatsapp: boolean;
     password: string;
     password_confirmation: string;
 };
@@ -22,6 +24,7 @@ export default function Register() {
         name: '',
         email: '',
         telepon: '',
+        persetujuan_whatsapp: false,
         password: '',
         password_confirmation: '',
     });
@@ -90,6 +93,23 @@ export default function Register() {
                         </div>
                     </div>
 
+                    <div className="flex items-start gap-3 rounded-xl border border-gray-200 bg-[#F5F9FD] p-4">
+                        <Checkbox
+                            id="persetujuan_whatsapp"
+                            checked={data.persetujuan_whatsapp}
+                            onCheckedChange={(checked) => setData('persetujuan_whatsapp', checked === true)}
+                            disabled={processing}
+                            tabIndex={4}
+                        />
+                        <div className="min-w-0">
+                            <label htmlFor="persetujuan_whatsapp" className="cursor-pointer text-sm font-medium text-gray-800">
+                                Saya bersedia menerima pembaruan proses PPDB SDIT Al-Fath melalui WhatsApp.
+                            </label>
+                            <p className="mt-1 text-xs text-gray-500">Notifikasi dapat dinonaktifkan kembali melalui Pengaturan akun.</p>
+                            <InputError message={errors.persetujuan_whatsapp} />
+                        </div>
+                    </div>
+
                     {/* Password + Konfirmasi sebaris */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
@@ -98,7 +118,7 @@ export default function Register() {
                                 id="password"
                                 type="password"
                                 required
-                                tabIndex={4}
+                                tabIndex={5}
                                 autoComplete="new-password"
                                 value={data.password}
                                 onChange={(e) => setData('password', e.target.value)}
@@ -114,7 +134,7 @@ export default function Register() {
                                 id="password_confirmation"
                                 type="password"
                                 required
-                                tabIndex={5}
+                                tabIndex={6}
                                 autoComplete="new-password"
                                 value={data.password_confirmation}
                                 onChange={(e) => setData('password_confirmation', e.target.value)}
@@ -125,7 +145,7 @@ export default function Register() {
                         </div>
                     </div>
 
-                    <Button type="submit" className="mt-1 w-full" tabIndex={6} disabled={processing}>
+                    <Button type="submit" className="mt-1 w-full" tabIndex={7} disabled={processing}>
                         {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
                         Daftar
                     </Button>
@@ -133,7 +153,7 @@ export default function Register() {
 
                 <div className="text-muted-foreground text-center text-sm">
                     Sudah punya akun?{' '}
-                    <TextLink href={route('login')} tabIndex={7}>
+                    <TextLink href={route('login')} tabIndex={8}>
                         Masuk
                     </TextLink>
                 </div>
