@@ -119,7 +119,7 @@ class PendaftaranLaporanSeeder extends Seeder
 
     public function run(): void
     {
-        $gelombang = GelombangPpdb::where('nama', 'Gelombang 1')->first();
+        $gelombang = GelombangPpdb::with('dokumenWajib')->where('nama', 'Gelombang 1')->first();
         $kategoriId = KategoriSiswa::pluck('id', 'nama');
         // Dicari menurut jenis + nama, BUKAN lewat namaLengkap(). Label tampilan
         // boleh berubah kapan saja (kecamatannya baru saja ikut ditambahkan);
@@ -192,6 +192,16 @@ class PendaftaranLaporanSeeder extends Seeder
                 ['pendaftaran_ppdb_id' => $pendaftaran->id],
                 ['nama' => 'Wali '.$nama, 'nik' => '1471010101800001', 'hubungan' => 'Ayah', 'telepon' => '081200000100']
             );
+
+            // Semua baris laporan sudah melewati tahap draft. Buat dokumen
+            // sesuai konfigurasi jalurnya supaya status operasionalnya jujur:
+            // khususnya 'diajukan' tidak boleh berarti berkas masih 0/N.
+            foreach ($gelombang->dokumenWajibUntuk($pendaftaran->kategori_siswa_id) as $jenis) {
+                $pendaftaran->dokumen()->updateOrCreate(
+                    ['pendaftaran_ppdb_id' => $pendaftaran->id, 'jenis_dokumen' => $jenis],
+                    ['berkas' => 'seed-placeholder.png']
+                );
+            }
 
             if (in_array($status, ['diverifikasi', 'diterima', 'ditolak'])) {
                 $pendaftaran->terbitkanTagihan();

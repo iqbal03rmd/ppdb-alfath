@@ -40,6 +40,11 @@ class VerifikasiPendaftaranController extends Controller
             // Yang paling lama menunggu didahulukan - antrian, bukan tumpukan.
             ->oldest('updated_at')
             ->get()
+            // Status diajukan seharusnya hanya lahir setelah validasi berkas di
+            // sisi wali. Tetap saring di sini sebagai pagar untuk data impor,
+            // seed lama, atau perubahan manual yang melanggar aturan tersebut.
+            ->filter(fn (PendaftaranPpdb $p) => $p->berkasLengkap())
+            ->values()
             ->map(fn (PendaftaranPpdb $p) => [
                 'id' => $p->id,
                 'nomor_pendaftaran' => $p->nomor_pendaftaran,
@@ -70,6 +75,8 @@ class VerifikasiPendaftaranController extends Controller
     public function show(PendaftaranPpdb $pendaftaran): Response
     {
         $pendaftaran->load(['gelombang.dokumenWajib', 'kategoriSiswa', 'waliMurid', 'dokumen', 'user']);
+
+        $this->pastikanSiapDiperiksa($pendaftaran);
 
         return Inertia::render('staf-ppdb/verifikasi-pendaftaran-show', [
             'pendaftaran' => [
@@ -132,11 +139,11 @@ class VerifikasiPendaftaranController extends Controller
                 // yang menekan Setujui bersamaan tidak boleh sama-sama lolos dan
                 // menerbitkan efek samping dua kali.
                 $terkunci = PendaftaranPpdb::query()
-                    ->with(['user', 'gelombang', 'tagihanItem'])
+                    ->with(['user', 'gelombang.dokumenWajib', 'dokumen', 'tagihanItem'])
                     ->lockForUpdate()
                     ->findOrFail($pendaftaran->id);
 
-                abort_unless($terkunci->status === 'diajukan', 403, 'Pendaftaran ini sedang tidak menunggu verifikasi.');
+                $this->pastikanSiapDiperiksa($terkunci);
 
                 $terkunci->update([
                     'status' => 'diverifikasi',
@@ -249,7 +256,9 @@ class VerifikasiPendaftaranController extends Controller
      */
     public function mintaPerbaikan(Request $request, PendaftaranPpdb $pendaftaran): RedirectResponse
     {
-        abort_unless($pendaftaran->status === 'diajukan', 403, 'Pendaftaran ini sedang tidak menunggu verifikasi.');
+        $pendaftaran->load(['gelombang.dokumenWajib', 'dokumen']);
+
+        $this->pastikanSiapDiperiksa($pendaftaran);
 
         // Validasi ditulis langsung di sini, tidak lewat Form Request terpisah:
         // cuma satu kolom dan tidak ada aturan hak akses tambahan, jadi berkas
@@ -273,5 +282,19 @@ class VerifikasiPendaftaranController extends Controller
 
         return to_route('staf-ppdb.verifikasi-pendaftaran.index')
             ->with('success', "Permintaan perbaikan untuk {$pendaftaran->nomor_pendaftaran} sudah dikirim ke wali.");
+    }
+
+    /**
+     * Satu definisi untuk seluruh pintu verifikasi: sudah diserahkan wali dan
+     * seluruh dokumen yang diwajibkan jalurnya tersedia. UI bukan pengaman;
+     * aturan ini tetap diperiksa saat halaman atau endpoint ditembak langsung.
+     */
+    private function pastikanSiapDiperiksa(PendaftaranPpdb $pendaftaran): void
+    {
+        abort_unless(
+            $pendaftaran->status === 'diajukan' && $pendaftaran->berkasLengkap(),
+            403,
+            'Pendaftaran belum diajukan dengan berkas wajib yang lengkap.'
+        );
     }
 }

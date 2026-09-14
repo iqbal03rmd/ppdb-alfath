@@ -6,6 +6,7 @@ use App\Models\PendaftaranPpdb;
 use App\Models\TarifKategori;
 use App\Models\User;
 use Illuminate\Support\Facades\Queue;
+use Inertia\Testing\AssertableInertia as Assert;
 
 /**
  * Test ini berjalan di atas data seed, bukan factory: model PPDB saling
@@ -17,11 +18,17 @@ use Illuminate\Support\Facades\Queue;
 beforeEach(function () {
     $this->seed();
 
+    // Test tidak boleh mengikuti WHATSAPP_ENABLED milik mesin developer dan
+    // mengirim pesan sungguhan. Skenario notifikasi mengaktifkannya sendiri
+    // bersama Queue::fake() saat memang sedang menguji integrasi tersebut.
+    config()->set('services.whatsapp.enabled', false);
+
     $this->staf = User::where('email', 'staf@ppdbalfath.test')->firstOrFail();
 
-    // Seed menyediakan satu pendaftaran berstatus 'diajukan' - itulah yang
-    // muncul di antrian verifikasi.
-    $this->pendaftaran = PendaftaranPpdb::where('status', 'diajukan')->firstOrFail();
+    // Pilih skenario alur utama secara eksplisit. Seeder laporan juga punya
+    // beberapa data diajukan, jadi bergantung pada first() bisa menutupi data
+    // seed yang tidak konsisten.
+    $this->pendaftaran = PendaftaranPpdb::where('nomor_pendaftaran', 'PPDB-2026-00002')->firstOrFail();
 });
 
 test('staf bisa membuka antrian verifikasi', function () {
@@ -30,10 +37,40 @@ test('staf bisa membuka antrian verifikasi', function () {
         ->assertOk();
 });
 
+test('seluruh data seed yang diajukan sudah memiliki berkas wajib lengkap', function () {
+    $diajukan = PendaftaranPpdb::with(['gelombang.dokumenWajib', 'dokumen'])
+        ->where('status', 'diajukan')
+        ->get();
+
+    expect($diajukan)->not->toBeEmpty()
+        ->and($diajukan->every->berkasLengkap())->toBeTrue();
+});
+
+test('pendaftaran diajukan yang berkasnya tidak lengkap tidak muncul di antrian', function () {
+    $this->pendaftaran->dokumen()->firstOrFail()->delete();
+
+    $this->actingAs($this->staf)
+        ->get(route('staf-ppdb.verifikasi-pendaftaran.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('staf-ppdb/verifikasi-pendaftaran')
+            ->where('antrian', fn ($antrian) => collect($antrian)
+                ->doesntContain('id', $this->pendaftaran->id))
+        );
+});
+
 test('staf bisa membuka halaman periksa satu pendaftaran', function () {
     $this->actingAs($this->staf)
         ->get(route('staf-ppdb.verifikasi-pendaftaran.show', $this->pendaftaran))
         ->assertOk();
+});
+
+test('staf tidak bisa membuka halaman periksa sebelum pendaftaran siap diverifikasi', function () {
+    $this->pendaftaran->dokumen()->firstOrFail()->delete();
+
+    $this->actingAs($this->staf)
+        ->get(route('staf-ppdb.verifikasi-pendaftaran.show', $this->pendaftaran))
+        ->assertForbidden();
 });
 
 test('wali murid tidak boleh membuka halaman staf', function () {
@@ -171,6 +208,30 @@ test('tidak bisa menyetujui pendaftaran yang sedang tidak menunggu verifikasi', 
     $this->actingAs($this->staf)
         ->post(route('staf-ppdb.verifikasi-pendaftaran.setujui', $this->pendaftaran))
         ->assertForbidden();
+});
+
+test('tidak bisa menyetujui pendaftaran diajukan yang berkasnya tidak lengkap', function () {
+    $this->pendaftaran->dokumen()->firstOrFail()->delete();
+
+    $this->actingAs($this->staf)
+        ->post(route('staf-ppdb.verifikasi-pendaftaran.setujui', $this->pendaftaran))
+        ->assertForbidden();
+
+    expect($this->pendaftaran->refresh()->status)->toBe('diajukan')
+        ->and($this->pendaftaran->tagihanItem()->exists())->toBeFalse()
+        ->and(NotifikasiWhatsapp::count())->toBe(0);
+});
+
+test('tidak bisa meminta perbaikan untuk pendaftaran diajukan yang berkasnya tidak lengkap', function () {
+    $this->pendaftaran->dokumen()->firstOrFail()->delete();
+
+    $this->actingAs($this->staf)
+        ->post(route('staf-ppdb.verifikasi-pendaftaran.minta-perbaikan', $this->pendaftaran), [
+            'catatan_verifikasi' => 'Dokumen belum lengkap dan tidak boleh masuk proses pemeriksaan.',
+        ])
+        ->assertForbidden();
+
+    expect($this->pendaftaran->refresh()->status)->toBe('diajukan');
 });
 
 test('tidak bisa meminta perbaikan untuk pendaftaran yang sudah diterima', function () {
