@@ -4,6 +4,7 @@ use App\Http\Controllers\SuperAdmin\BerkasPersyaratanController;
 use App\Http\Controllers\SuperAdmin\GelombangController;
 use App\Http\Controllers\SuperAdmin\JalurController;
 use App\Http\Controllers\SuperAdmin\KomponenBiayaController;
+use App\Http\Controllers\SuperAdmin\PengaturanSistemController;
 use App\Http\Controllers\SuperAdmin\PenggunaController;
 use App\Http\Controllers\SuperAdmin\TahunAjaranController;
 use Illuminate\Support\Facades\Route;
@@ -40,6 +41,12 @@ Route::middleware(['auth', 'role:super_admin'])
         // Mencabut/mengembalikan hak masuk. Ini pengganti "hapus akun".
         Route::post('/pengguna/{pengguna}/status', [PenggunaController::class, 'status'])->name('pengguna.status');
         Route::delete('/pengguna/{pengguna}', [PenggunaController::class, 'destroy'])->name('pengguna.destroy');
+
+        // Pengaturan lintas-modul: identitas sekolah, tujuan pembayaran, dan
+        // konten landing. Sengaja di luar Konfigurasi PPDB karena nilainya tidak
+        // terikat satu tahun ajaran atau gelombang.
+        Route::get('/pengaturan-sistem', [PengaturanSistemController::class, 'edit'])->name('pengaturan-sistem.edit');
+        Route::put('/pengaturan-sistem', [PengaturanSistemController::class, 'update'])->name('pengaturan-sistem.update');
 
         /*
         | Konfigurasi PPDB - lima menu yang berdiri sendiri, bukan satu halaman

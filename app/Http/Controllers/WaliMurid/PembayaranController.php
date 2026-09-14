@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\WaliMurid\StorePembayaranRequest;
 use App\Models\PembayaranPpdb;
 use App\Models\PendaftaranPpdb;
+use App\Models\PengaturanSistem;
 use App\Models\TagihanItem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,7 +17,6 @@ use Inertia\Response;
 
 class PembayaranController extends Controller
 {
-
     public function index(Request $request): Response
     {
         $riwayat = PembayaranPpdb::with('pendaftaran')
@@ -76,6 +76,7 @@ class PembayaranController extends Controller
             ]);
         $batasMinimal = $pendaftaran->batasMinimalBayar();
         $batasPelunasan = $pendaftaran->batasPelunasan();
+        $pengaturan = PengaturanSistem::saatIni();
 
         return Inertia::render('wali-murid/pembayaran', [
             'pendaftaran' => [
@@ -99,6 +100,12 @@ class PembayaranController extends Controller
             'riwayatTransfer' => $riwayatTransfer,
             'tagihanTersedia' => $tagihanTersedia,
             'bisaBayar' => $pendaftaran->bolehBayar() && $tagihanTersedia && $sisaTagihan > 0 && ! $adaPending,
+            'informasiPembayaran' => $pengaturan->informasiRekeningLengkap() ? [
+                'nama_bank' => $pengaturan->nama_bank,
+                'nomor_rekening' => $pengaturan->nomor_rekening,
+                'nama_pemilik_rekening' => $pengaturan->nama_pemilik_rekening,
+                'instruksi' => $pengaturan->instruksi_pembayaran,
+            ] : null,
         ]);
     }
 

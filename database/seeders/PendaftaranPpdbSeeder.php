@@ -92,7 +92,7 @@ class PendaftaranPpdbSeeder extends Seeder
                 'nomor' => '00004',
                 'nama' => 'Aisyah Putri Lestari',
                 'kategori' => 'Anak Yatim',
-                'status' => 'diverifikasi',
+                'status' => 'pembayaran',
                 'catatan' => null,
                 'berkasLengkap' => true,
                 'pembayaran' => null,
@@ -101,10 +101,10 @@ class PendaftaranPpdbSeeder extends Seeder
                 'nomor' => '00005',
                 'nama' => 'Bagus Setiawan',
                 'kategori' => 'Reguler',
-                // Tetap 'diverifikasi', BUKAN 'diterima' - staf belum sempat menilai
+                // Tetap 'pembayaran', BUKAN 'diterima' - staf belum sempat menilai
                 // pembayaran ini (masih menunggu_verifikasi). 'diterima' baru dipakai
                 // setelah staf manual memutuskan pembayarannya cukup (lihat 00006).
-                'status' => 'diverifikasi',
+                'status' => 'pembayaran',
                 'catatan' => null,
                 'berkasLengkap' => true,
                 'pembayaran' => [
@@ -138,7 +138,7 @@ class PendaftaranPpdbSeeder extends Seeder
                 'nama' => 'Dimas Prakoso',
                 'kategori' => 'Anak Guru',
                 // 'ditolak' di sini BUKAN karena bukti transfer ditolak (itu tetap
-                // 'diverifikasi', lihat 00008) - ini staf yang manual nutup
+                // 'pembayaran', lihat 00008) - ini staf yang manual nutup
                 // pendaftaran karena nggak dibayar sampai batas waktu sekolah.
                 // Makanya nggak ada record pembayaran sama sekali di bawah.
                 'status' => 'ditolak',
@@ -151,8 +151,8 @@ class PendaftaranPpdbSeeder extends Seeder
                 'nama' => 'Rania Salsabila',
                 'kategori' => 'Reguler',
                 // Bukti transfer ditolak (nominal/foto bermasalah) - pendaftaran
-                // TETAP diverifikasi, wali cuma perlu unggah ulang bukti transfer.
-                'status' => 'diverifikasi',
+                // TETAP pembayaran, wali cuma perlu unggah ulang bukti transfer.
+                'status' => 'pembayaran',
                 'catatan' => null,
                 'berkasLengkap' => true,
                 'pembayaran' => [
@@ -225,7 +225,7 @@ class PendaftaranPpdbSeeder extends Seeder
             // Tagihan diterbitkan (snapshot tarif dibekukan) buat pendaftaran yang
             // statusnya sudah boleh bayar - meniru apa yang terjadi di aplikasi
             // ketika staf menyetujui berkas dan membuka tagihan.
-            if (in_array($data['status'], ['diverifikasi', 'diterima'])) {
+            if (in_array($data['status'], ['pembayaran', 'diterima'])) {
                 $pendaftaran->terbitkanTagihan();
             }
 

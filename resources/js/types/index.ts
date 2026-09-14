@@ -6,6 +6,7 @@ export interface Auth {
 
 export interface SharedData {
     name: string;
+    sistem: { nama_sekolah: string; tagline: string | null };
     quote: { message: string; author: string };
     auth: Auth;
     flash: { error: string | null; success: string | null };

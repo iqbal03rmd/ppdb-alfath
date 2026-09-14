@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import type { SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { ClipboardCheck, Wallet } from 'lucide-react';
+import { ClipboardCheck, CreditCard, Wallet } from 'lucide-react';
 
 interface AntrianItem {
     jumlah: number;
@@ -23,6 +23,7 @@ interface DashboardProps {
     antrian: {
         pendaftaran: AntrianItem;
         transfer: AntrianItem;
+        tahap_pembayaran: AntrianItem;
     };
     statistik: { pendaftaran: Record<string, number>; pembayaran: Record<string, number> };
     kuota: {
@@ -45,7 +46,7 @@ interface DashboardProps {
 const WARNA_STATUS: Record<string, string> = {
     draft: '#9CA3AF',
     diajukan: '#1F509A',
-    diverifikasi: '#0891B2',
+    pembayaran: '#0891B2',
     perlu_perbaikan: '#F59E0B',
     ditolak: '#DC2626',
     diterima: '#15803D',
@@ -54,7 +55,7 @@ const WARNA_STATUS: Record<string, string> = {
 const LABEL_STATUS: Record<string, string> = {
     draft: 'Draft',
     diajukan: 'Menunggu diperiksa',
-    diverifikasi: 'Diverifikasi',
+    pembayaran: 'Pembayaran',
     perlu_perbaikan: 'Perlu perbaikan',
     diterima: 'Diterima',
     ditolak: 'Ditolak',
@@ -93,7 +94,7 @@ function Kartu({ judul, children }: { judul: string; children: React.ReactNode }
     );
 }
 
-/** Kartu antrian: satu angka besar dan satu tautan ke antriannya. */
+/** Kartu ringkasan kerja: satu angka besar dan satu tautan ke daftar asalnya. */
 function KartuAntrian({
     judul,
     ikon,
@@ -184,7 +185,7 @@ export default function Dashboard({ antrian, statistik, kuota }: DashboardProps)
 
             <PageContainer wide>
                 <div className="space-y-6 pt-6">
-                    <div className="grid gap-6 sm:grid-cols-2">
+                    <div className="grid gap-6 md:grid-cols-3">
                         <KartuAntrian
                             judul="Pendaftaran Menunggu Diperiksa"
                             ikon={<ClipboardCheck size={18} strokeWidth={2} />}
@@ -203,6 +204,16 @@ export default function Dashboard({ antrian, statistik, kuota }: DashboardProps)
                             kalimatKosong="Tidak ada bukti transfer yang menunggu diperiksa."
                             tautan={route('staf-ppdb.verifikasi-pembayaran.index')}
                             labelTautan="Buka Antrian Pembayaran"
+                        />
+
+                        <KartuAntrian
+                            judul="Dalam Tahap Pembayaran"
+                            ikon={<CreditCard size={18} strokeWidth={2} />}
+                            jumlah={antrian.tahap_pembayaran.jumlah}
+                            satuan="pendaftaran"
+                            kalimatKosong="Tidak ada pendaftaran yang sedang berada di tahap pembayaran."
+                            tautan={route('staf-ppdb.pendaftaran.index', { status: 'pembayaran' })}
+                            labelTautan="Lihat Pendaftaran"
                         />
                     </div>
 

@@ -1,4 +1,5 @@
-import { Head, useForm } from '@inertiajs/react';
+import { type SharedData } from '@/types';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
@@ -20,6 +21,7 @@ type RegisterForm = {
 };
 
 export default function Register() {
+    const { sistem } = usePage<SharedData>().props;
     const { data, setData, post, processing, errors, reset } = useForm<RegisterForm>({
         name: '',
         email: '',
@@ -103,7 +105,7 @@ export default function Register() {
                         />
                         <div className="min-w-0">
                             <label htmlFor="persetujuan_whatsapp" className="cursor-pointer text-sm font-medium text-gray-800">
-                                Saya bersedia menerima pembaruan proses PPDB SDIT Al-Fath melalui WhatsApp.
+                                Saya bersedia menerima pembaruan proses PPDB {sistem.nama_sekolah} melalui WhatsApp.
                             </label>
                             <p className="mt-1 text-xs text-gray-500">Notifikasi dapat dinonaktifkan kembali melalui Pengaturan akun.</p>
                             <InputError message={errors.persetujuan_whatsapp} />

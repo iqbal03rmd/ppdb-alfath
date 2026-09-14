@@ -51,7 +51,7 @@ test('mengesahkan transfer mencatat pemeriksanya', function () {
  * "Tetapkan Diterima" terpisah.
  */
 test('mengesahkan transfer yang mencapai minimal bayar membuat pendaftaran otomatis diterima', function () {
-    expect($this->pendaftaran->status)->toBe('diverifikasi');
+    expect($this->pendaftaran->status)->toBe('pembayaran');
 
     $this->actingAs($this->staf)
         ->post(route('staf-ppdb.verifikasi-pembayaran.sahkan', $this->transfer));
@@ -75,7 +75,7 @@ test('membatalkan pengesahan menurunkan kembali status pendaftaran', function ()
         ]);
 
     expect($this->transfer->refresh()->status)->toBe('ditolak')
-        ->and($this->pendaftaran->refresh()->status)->toBe('diverifikasi');
+        ->and($this->pendaftaran->refresh()->status)->toBe('pembayaran');
 });
 
 test('menolak transfer tidak menolak pendaftarannya', function () {
@@ -86,7 +86,7 @@ test('menolak transfer tidak menolak pendaftarannya', function () {
 
     expect($this->transfer->refresh()->status)->toBe('ditolak')
         // Aturan yang gampang keliru: yang ditolak buktinya, bukan pendaftarannya.
-        ->and($this->pendaftaran->refresh()->status)->toBe('diverifikasi');
+        ->and($this->pendaftaran->refresh()->status)->toBe('pembayaran');
 });
 
 test('menolak tanpa alasan ditolak dan status transfer tidak berubah', function () {

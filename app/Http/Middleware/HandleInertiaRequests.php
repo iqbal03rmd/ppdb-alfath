@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\PengaturanSistem;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -37,10 +38,15 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
+        $pengaturan = PengaturanSistem::saatIni();
 
         return array_merge(parent::share($request), [
             ...parent::share($request),
             'name' => config('app.name'),
+            'sistem' => [
+                'nama_sekolah' => $pengaturan->nama_sekolah,
+                'tagline' => $pengaturan->tagline,
+            ],
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
                 'user' => $request->user(),

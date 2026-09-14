@@ -33,6 +33,7 @@ test('angka antrian cocok dengan isi antriannya', function () {
             ->component('staf-ppdb/dashboard')
             ->where('antrian.pendaftaran.jumlah', PendaftaranPpdb::where('status', 'diajukan')->count())
             ->where('antrian.transfer.jumlah', PembayaranPpdb::where('status', 'menunggu_verifikasi')->count())
+            ->where('antrian.tahap_pembayaran.jumlah', PendaftaranPpdb::where('status', 'pembayaran')->count())
         );
 });
 

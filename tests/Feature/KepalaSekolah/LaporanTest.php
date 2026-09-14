@@ -79,7 +79,7 @@ test('ringkasan beranda cocok dengan hitungan langsung', function () {
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('ringkasan.diterima', PendaftaranPpdb::where('status', 'diterima')->count())
             ->where('ringkasan.ditolak', PendaftaranPpdb::where('status', 'ditolak')->count())
-            ->where('ringkasan.diproses', PendaftaranPpdb::whereIn('status', ['diajukan', 'perlu_perbaikan', 'diverifikasi'])->count())
+            ->where('ringkasan.diproses', PendaftaranPpdb::whereIn('status', ['diajukan', 'perlu_perbaikan', 'pembayaran'])->count())
         );
 });
 
@@ -180,7 +180,7 @@ test('pendaftaran yang ditolak melepas kursi dan selisihnya terbaca di kolom dit
 
     $korban = PendaftaranPpdb::where('gelombang_ppdb_id', $kuota->gelombang_ppdb_id)
         ->where('kategori_siswa_id', $kuota->kategori_siswa_id)
-        ->whereIn('status', ['diajukan', 'perlu_perbaikan', 'diverifikasi'])
+        ->whereIn('status', ['diajukan', 'perlu_perbaikan', 'pembayaran'])
         ->first();
 
     if ($korban === null) {

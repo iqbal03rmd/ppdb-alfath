@@ -41,6 +41,7 @@ const Icon = {
     clipboardCheck: <ClipboardCheck size={18} strokeWidth={1.8} />,
     barChart: <BarChart3 size={18} strokeWidth={1.8} />,
     database: <Database size={18} strokeWidth={1.8} />,
+    settings: <Settings size={18} strokeWidth={1.8} />,
 };
 
 const menuByRole: Record<string, MenuItem[]> = {
@@ -80,6 +81,7 @@ const menuByRole: Record<string, MenuItem[]> = {
                 { label: 'Gelombang PPDB', href: '/super-admin/konfigurasi/gelombang' },
             ],
         },
+        { label: 'Pengaturan Sistem', href: '/super-admin/pengaturan-sistem', icon: Icon.settings },
     ],
 };
 
@@ -165,7 +167,7 @@ function MenuLipat({ item, url }: { item: MenuItem; url: string }) {
 }
 
 export default function AppLayout({ children }: { children: ReactNode }) {
-    const { auth, flash } = usePage<SharedData>().props;
+    const { auth, flash, sistem } = usePage<SharedData>().props;
     const { url } = usePage();
 
     const role = String(auth.user?.role ?? '');
@@ -220,11 +222,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 {/* Logo di tengah atas */}
                 <div className="flex flex-col items-center gap-2.5 pt-12 pb-8">
                     <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white p-1 shadow-md ring-4 ring-white ring-offset-2 ring-offset-[#D4EBF8]">
-                        <img src={logoAlFath} alt="Logo SDIT Al-Fath" className="h-full w-full rounded-full object-cover" />
+                        <img src={logoAlFath} alt={`Logo ${sistem.nama_sekolah}`} className="h-full w-full rounded-full object-cover" />
                     </div>
                     <div className="text-center">
                         <div style={{ fontFamily: 'Fraunces, serif' }} className="text-[18px] leading-tight font-semibold text-[#0A3981]">
-                            SDIT Al-Fath
+                            {sistem.nama_sekolah}
                         </div>
                         <div className="mt-0.5 flex items-center justify-center gap-1.5 text-[11px] text-gray-500">
                             <span className="h-px w-4 bg-[#E38E49]/50" />
@@ -311,7 +313,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                         <Menu size={20} strokeWidth={1.8} />
                     </button>
                     <span style={{ fontFamily: 'Fraunces, serif' }} className="text-[15px] font-semibold text-[#0A3981]">
-                        SDIT Al-Fath
+                        {sistem.nama_sekolah}
                     </span>
                 </div>
                 {children}

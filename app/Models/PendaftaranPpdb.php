@@ -23,9 +23,9 @@ class PendaftaranPpdb extends Model
      * 'ditolak' SENGAJA nggak masuk - status itu dipakai staf buat menutup
      * pendaftaran yang nggak dibayar sampai batas waktu. Kalau yang ditolak itu
      * bukti transfernya (bukan pendaftarannya), status pendaftaran tetap
-     * 'diverifikasi' dan ditangani lewat pembayaran.status, bukan di sini.
+     * 'pembayaran' dan ditangani lewat pembayaran.status, bukan di sini.
      */
-    public const STATUS_BOLEH_BAYAR = ['diverifikasi', 'diterima'];
+    public const STATUS_BOLEH_BAYAR = ['pembayaran', 'diterima'];
 
     /**
      * Boleh MELIHAT tagihan & riwayat transfer - lebih longgar daripada
@@ -34,7 +34,7 @@ class PendaftaranPpdb extends Model
      * pembayarannya sendiri (buat menanyakan sisa/refund ke sekolah); yang
      * dicabut cuma hak menambah transfer baru, bukan hak melihat.
      */
-    public const STATUS_BOLEH_LIHAT_TAGIHAN = ['diverifikasi', 'diterima', 'ditolak'];
+    public const STATUS_BOLEH_LIHAT_TAGIHAN = ['pembayaran', 'diterima', 'ditolak'];
 
     /**
      * Status yang masih boleh DITUTUP staf ('ditolak').
@@ -44,7 +44,7 @@ class PendaftaranPpdb extends Model
      * penerimaannya salah, yang dicabut pengesahan transfernya, dan status turun
      * sendiri lewat segarkanStatusPenerimaan().
      */
-    public const STATUS_BISA_DITUTUP = ['diajukan', 'perlu_perbaikan', 'diverifikasi'];
+    public const STATUS_BISA_DITUTUP = ['diajukan', 'perlu_perbaikan', 'pembayaran'];
 
     /**
      * Pilihan "tahu PPDB dari mana", beserta labelnya buat wali.
@@ -248,7 +248,7 @@ class PendaftaranPpdb extends Model
      * Boleh ditutup staf? Cuma soal status - tenggat TIDAK ikut membatasi di
      * sini.
      *
-     * Sempat dibuat sebaliknya (yang 'diverifikasi' baru boleh ditutup setelah
+     * Sempat dibuat sebaliknya (yang 'pembayaran' baru boleh ditutup setelah
      * tenggatnya lewat), dan itu keliru: wali yang menyatakan mengundurkan diri
      * di tengah gelombang jadi tidak bisa ditutup sama sekali, dan kursinya
      * tertahan sampai tenggat - persis masalah yang mau dihilangkan.
@@ -610,7 +610,7 @@ class PendaftaranPpdb extends Model
             // bisa saja sudah basi, dan ini menulis status berdasarkan uang.
             $this->load(['pembayaran', 'tagihanItem', 'kategoriSiswa']);
 
-            $seharusnya = $this->sudahPenuhiMinimal() ? 'diterima' : 'diverifikasi';
+            $seharusnya = $this->sudahPenuhiMinimal() ? 'diterima' : 'pembayaran';
 
             if ($seharusnya !== $this->status) {
                 $this->forceFill(['status' => $seharusnya])->save();

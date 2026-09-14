@@ -30,7 +30,7 @@ class PendaftaranController extends Controller
      * keputusan tetap diambil di halaman verifikasinya masing-masing, supaya
      * tidak ada dua tempat yang bisa mengubah hal yang sama.
      */
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $pendaftaran = PendaftaranPpdb::with([
             // tahunAjaran ikut di-load karena dipakai buat filter di layar. Tanpa
@@ -64,7 +64,7 @@ class PendaftaranController extends Controller
 
         return Inertia::render('staf-ppdb/pendaftaran', [
             'pendaftaran' => $pendaftaran,
-            'filterAwal' => $this->filterAwal(),
+            'filterAwal' => $this->filterAwal($request),
         ]);
     }
 
@@ -131,8 +131,12 @@ class PendaftaranController extends Controller
      * Kalau tidak ada yang aktif, hasilnya string kosong - artinya "semua",
      * dan staf melihat seluruh arsip apa adanya.
      */
-    private function filterAwal(): array
+    private function filterAwal(Request $request): array
     {
+        $status = in_array($request->query('status'), [
+            'draft', 'diajukan', 'perlu_perbaikan', 'pembayaran', 'diterima', 'ditolak',
+        ], true) ? $request->query('status') : '';
+
         $tahunAktif = TahunAjaran::where('status_aktif', true)->first();
 
         // Dicari khusus di dalam tahun ajaran aktif. Gelombang yang masih
@@ -153,8 +157,15 @@ class PendaftaranController extends Controller
             : null;
 
         return [
-            'tahunAjaran' => $tahunAktif?->nama ?? '',
-            'gelombang' => $gelombangAktif?->nama ?? '',
+            // Tautan dari dashboard menghitung seluruh data lintas tahun. Saat
+            // membawa status, jangan diam-diam mempersempitnya lagi ke tahun
+            // dan gelombang aktif sehingga angka kartu berbeda dari isi tabel.
+            'tahunAjaran' => $status === '' ? ($tahunAktif?->nama ?? '') : '',
+            'gelombang' => $status === '' ? ($gelombangAktif?->nama ?? '') : '',
+            // Status hanya diisi saat halaman dibuka dari ringkasan dashboard.
+            // Nilai lain diabaikan agar query string tidak bisa membuat tabel
+            // tampak kosong dengan status yang sebenarnya tidak pernah ada.
+            'status' => $status,
         ];
     }
 

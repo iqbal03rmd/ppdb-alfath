@@ -17,7 +17,7 @@ class DashboardController extends Controller
      * Layar kerja staf, bukan laporan.
      *
      * Isinya cuma hal yang bisa ditindaklanjuti hari itu juga: dua antrian yang
-     * menunggu dikerjakan, siapa yang perlu diputuskan, dan sisa daya tampung.
+     * menunggu dikerjakan, pendaftaran di tahap pembayaran, dan sisa daya tampung.
      * Angka-angka rekapitulasi (total uang masuk, grafik, sebaran status)
      * sengaja TIDAK ada di sini - tidak ada yang bisa dikerjakan staf dari
      * angka itu, dan tempatnya nanti di modul Kepala Sekolah.
@@ -32,9 +32,8 @@ class DashboardController extends Controller
     }
 
     /**
-     * Dua antrian yang menunggu dikerjakan staf. Cukup jumlahnya - rinciannya
-     * ada di halaman antriannya masing-masing, dan mengulangnya di sini cuma
-     * bikin layar ini ikut jadi tempat memeriksa.
+     * Dua antrian yang menunggu dikerjakan staf dan satu kelompok yang perlu
+     * dipantau. Cukup jumlahnya - rinciannya tetap dibuka di halaman asalnya.
      */
     private function antrian(): array
     {
@@ -44,6 +43,9 @@ class DashboardController extends Controller
             ],
             'transfer' => [
                 'jumlah' => PembayaranPpdb::where('status', 'menunggu_verifikasi')->count(),
+            ],
+            'tahap_pembayaran' => [
+                'jumlah' => PendaftaranPpdb::where('status', 'pembayaran')->count(),
             ],
         ];
     }

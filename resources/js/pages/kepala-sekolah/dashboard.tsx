@@ -30,7 +30,7 @@ interface DashboardProps {
  */
 const WARNA_STATUS: Record<string, string> = {
     diajukan: '#1F509A',
-    diverifikasi: '#0891B2',
+    pembayaran: '#0891B2',
     perlu_perbaikan: '#F59E0B',
     ditolak: '#DC2626',
     diterima: '#15803D',
@@ -38,7 +38,7 @@ const WARNA_STATUS: Record<string, string> = {
 
 const LABEL_STATUS: Record<string, string> = {
     diajukan: 'Menunggu diperiksa',
-    diverifikasi: 'Diverifikasi',
+    pembayaran: 'Pembayaran',
     perlu_perbaikan: 'Perlu perbaikan',
     diterima: 'Diterima',
     ditolak: 'Ditolak',

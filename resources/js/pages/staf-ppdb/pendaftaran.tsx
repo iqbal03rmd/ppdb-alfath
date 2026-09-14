@@ -24,13 +24,13 @@ interface PendaftaranItem {
 interface PendaftaranProps {
     pendaftaran: PendaftaranItem[];
     /** Tahun ajaran aktif & gelombang yang sedang dibuka, ditentukan backend. */
-    filterAwal: { tahunAjaran: string; gelombang: string };
+    filterAwal: { tahunAjaran: string; gelombang: string; status: string };
 }
 
 const statusBadge: Record<string, { label: string; className: string }> = {
     draft: { label: 'Draft', className: 'bg-gray-100 text-gray-600' },
     diajukan: { label: 'Diajukan', className: 'bg-blue-100 text-blue-700' },
-    diverifikasi: { label: 'Diverifikasi', className: 'bg-teal-100 text-teal-700' },
+    pembayaran: { label: 'Pembayaran', className: 'bg-teal-100 text-teal-700' },
     perlu_perbaikan: { label: 'Perlu Perbaikan', className: 'bg-amber-100 text-amber-700' },
     diterima: { label: 'Diterima', className: 'bg-green-100 text-green-700' },
     ditolak: { label: 'Ditolak', className: 'bg-red-100 text-red-700' },
@@ -148,8 +148,9 @@ export default function Pendaftaran({ pendaftaran, filterAwal }: PendaftaranProp
     // tetap bisa dipilih. "" berarti semua.
     const [tahunAjaran, setTahunAjaran] = useState(filterAwal.tahunAjaran);
     const [gelombang, setGelombang] = useState(filterAwal.gelombang);
+    const [status, setStatus] = useState(filterAwal.status);
 
-    // Dua penyaring yang berdiri sendiri, tidak saling mengunci. Menyaring
+    // Tiga penyaring yang berdiri sendiri, tidak saling mengunci. Menyaring
     // gelombang saja berarti "Gelombang 1 dari semua angkatan"; dipasang
     // berdua, keduanya menyempit.
     //
@@ -163,17 +164,21 @@ export default function Pendaftaran({ pendaftaran, filterAwal }: PendaftaranProp
     const daftarGelombang = useMemo(() => [...new Set(pendaftaran.map((p) => p.gelombang))].sort(), [pendaftaran]);
 
     const barisTersaring = useMemo(
-        () => pendaftaran.filter((p) => (!tahunAjaran || p.tahun_ajaran === tahunAjaran) && (!gelombang || p.gelombang === gelombang)),
-        [pendaftaran, tahunAjaran, gelombang],
+        () =>
+            pendaftaran.filter(
+                (p) =>
+                    (!tahunAjaran || p.tahun_ajaran === tahunAjaran) && (!gelombang || p.gelombang === gelombang) && (!status || p.status === status),
+            ),
+        [pendaftaran, tahunAjaran, gelombang, status],
     );
 
-    const adaPenyaring = tahunAjaran !== '' || gelombang !== '';
+    const adaPenyaring = tahunAjaran !== '' || gelombang !== '' || status !== '';
 
     // Halaman ini terbuka dengan penyaring sudah menyala, jadi kosongnya tabel
     // hampir selalu karena penyaring - bukan karena datanya tidak ada. Sebabnya
     // disebut supaya staf tidak menyimpulkan pendaftarannya hilang.
     const kalimatKosong = adaPenyaring
-        ? 'Tidak ada pendaftaran yang cocok dengan penyaring ini. Pilih "Semua tahun ajaran" atau gelombang lain untuk melihat sisanya.'
+        ? 'Tidak ada pendaftaran yang cocok dengan penyaring ini. Longgarkan salah satu pilihan untuk melihat data lainnya.'
         : 'Tidak ada pendaftaran yang cocok dengan pencarian.';
 
     return (
@@ -207,6 +212,22 @@ export default function Pendaftaran({ pendaftaran, filterAwal }: PendaftaranProp
                                         {daftarTahunAjaran.map((t) => (
                                             <option key={t} value={t}>
                                                 {t}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </Penyaring>
+
+                                <Penyaring lebar="w-48">
+                                    <select
+                                        className={gayaSelect}
+                                        value={status}
+                                        onChange={(e) => setStatus(e.target.value)}
+                                        aria-label="Saring menurut status pendaftaran"
+                                    >
+                                        <option value="">Semua status</option>
+                                        {Object.entries(statusBadge).map(([nilai, badge]) => (
+                                            <option key={nilai} value={nilai}>
+                                                {badge.label}
                                             </option>
                                         ))}
                                     </select>

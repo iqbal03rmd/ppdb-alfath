@@ -121,7 +121,7 @@ return new class extends Migration
             $table->enum('status', [
                 'draft',
                 'diajukan',
-                'diverifikasi',
+                'pembayaran',
                 'perlu_perbaikan',
                 'diterima',
                 'ditolak',

@@ -7,6 +7,7 @@ use App\Jobs\KirimNotifikasiWhatsApp;
 use App\Models\BerkasPersyaratan;
 use App\Models\NotifikasiWhatsapp;
 use App\Models\PendaftaranPpdb;
+use App\Models\PengaturanSistem;
 use App\Models\WaliMurid;
 use App\Rules\NomorWhatsApp;
 use DomainException;
@@ -122,7 +123,7 @@ class VerifikasiPendaftaranController extends Controller
     }
 
     /**
-     * Formulir + berkas dinyatakan benar. Status naik ke 'diverifikasi', dan di
+     * Formulir + berkas dinyatakan benar. Status naik ke 'pembayaran', dan di
      * titik itulah pembayaran terbuka buat wali.
      *
      * Guard status ada di sini, bukan cuma di tampilan: tombolnya memang
@@ -146,7 +147,7 @@ class VerifikasiPendaftaranController extends Controller
                 $this->pastikanSiapDiperiksa($terkunci);
 
                 $terkunci->update([
-                    'status' => 'diverifikasi',
+                    'status' => 'pembayaran',
                     'diverifikasi_oleh' => $request->user()->id,
                     // Titik nol buat mengukur berapa lama wali menggantung sebelum
                     // transfer pertama - lihat komentarnya di migration. Cuma di sini
@@ -226,6 +227,7 @@ class VerifikasiPendaftaranController extends Controller
 
     private function pesanTagihanDibuka(PendaftaranPpdb $pendaftaran): string
     {
+        $namaSekolah = PengaturanSistem::saatIni()->nama_sekolah;
         $formatRupiah = static fn (int $nominal): string => 'Rp'.number_format($nominal, 0, ',', '.');
         $batasPembayaran = $pendaftaran->batasMinimalBayar()?->locale('id')->translatedFormat('d F Y') ?? 'Hubungi Staf PPDB';
         $url = route('wali-murid.pembayaran.show', $pendaftaran, absolute: true);
@@ -242,7 +244,7 @@ class VerifikasiPendaftaranController extends Controller
             'Lihat rincian tagihan dan unggah bukti pembayaran:',
             $url,
             '',
-            'Pesan otomatis PPDB SDIT Al-Fath. Notifikasi dapat dinonaktifkan melalui menu Pengaturan akun.',
+            "Pesan otomatis PPDB {$namaSekolah}. Notifikasi dapat dinonaktifkan melalui menu Pengaturan akun.",
         ]);
     }
 
@@ -274,7 +276,7 @@ class VerifikasiPendaftaranController extends Controller
         $pendaftaran->update([
             'status' => 'perlu_perbaikan',
             'catatan_verifikasi' => $data['catatan_verifikasi'],
-            // Ikut dicatat walau hasilnya bukan "diverifikasi": meminta perbaikan
+            // Ikut dicatat walau hasilnya bukan "pembayaran": meminta perbaikan
             // sama saja tindakan memeriksa, dan wali berhak tahu siapa yang
             // memintanya. Kolomnya menyimpan pemeriksa TERAKHIR, bukan riwayat.
             'diverifikasi_oleh' => $request->user()->id,

@@ -1,5 +1,6 @@
 import logoAlFath from '@/assets/logo-alfath.jpg';
-import { Head, Link } from '@inertiajs/react';
+import { type SharedData } from '@/types';
+import { Head, Link, usePage } from '@inertiajs/react';
 
 interface AuthLayoutProps {
     children: React.ReactNode;
@@ -9,6 +10,8 @@ interface AuthLayoutProps {
 }
 
 export default function AuthSimpleLayout({ children, title, description }: AuthLayoutProps) {
+    const { sistem } = usePage<SharedData>().props;
+
     return (
         <div className="flex min-h-svh items-center justify-center bg-[#F5F9FD] p-4 md:p-10">
             <Head>
@@ -25,11 +28,11 @@ export default function AuthSimpleLayout({ children, title, description }: AuthL
 
                     <div className="relative z-10 flex flex-col items-center gap-5 px-10 text-center">
                         <div className="flex h-32 w-32 items-center justify-center rounded-full bg-white p-2 shadow-xl ring-4 ring-white/20">
-                            <img src={logoAlFath} alt="Logo SDIT Al-Fath" className="h-full w-full rounded-full object-cover" />
+                            <img src={logoAlFath} alt={`Logo ${sistem.nama_sekolah}`} className="h-full w-full rounded-full object-cover" />
                         </div>
                         <div>
                             <div style={{ fontFamily: 'Fraunces, serif' }} className="text-2xl font-semibold text-white">
-                                SDIT Al-Fath Pekanbaru
+                                {sistem.nama_sekolah}
                             </div>
                             <div className="mt-1 text-sm text-[#D4EBF8]">Sistem Informasi PPDB</div>
                         </div>
@@ -45,10 +48,10 @@ export default function AuthSimpleLayout({ children, title, description }: AuthL
                         {/* Logo kompak, cuma muncul di layar kecil (panel kiri disembunyikan) */}
                         <div className="mb-6 flex flex-col items-center gap-2 lg:hidden">
                             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white p-1 shadow-md ring-2 ring-[#D4EBF8]">
-                                <img src={logoAlFath} alt="Logo SDIT Al-Fath" className="h-full w-full rounded-full object-cover" />
+                                <img src={logoAlFath} alt={`Logo ${sistem.nama_sekolah}`} className="h-full w-full rounded-full object-cover" />
                             </div>
                             <div style={{ fontFamily: 'Fraunces, serif' }} className="text-[15px] font-semibold text-[#0A3981]">
-                                SDIT Al-Fath Pekanbaru
+                                {sistem.nama_sekolah}
                             </div>
                         </div>
 

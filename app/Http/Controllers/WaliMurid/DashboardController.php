@@ -98,7 +98,7 @@ class DashboardController extends Controller
         return match ($pendaftaran->status) {
             'draft', 'perlu_perbaikan' => 2,
             'diterima' => 4,
-            default => 3, // diajukan, diverifikasi, ditolak
+            default => 3, // diajukan, pembayaran, ditolak
         };
     }
 
@@ -149,7 +149,7 @@ class DashboardController extends Controller
             ];
         }
 
-        // diverifikasi / diterima - tinggal urusan pembayaran
+        // pembayaran / diterima - tinggal urusan pembayaran
         if ($pendaftaran->tagihanSudahTerbit() && $pendaftaran->sisaTagihan() <= 0) {
             return [
                 'tindakan' => $pendaftaran->status === 'diterima'

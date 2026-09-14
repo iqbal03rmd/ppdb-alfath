@@ -8,6 +8,7 @@ use App\Models\GelombangPpdb;
 use App\Models\KategoriSiswa;
 use App\Models\KebijakanKategori;
 use App\Models\KomponenBiaya;
+use App\Models\PengaturanSistem;
 use App\Models\TahunAjaran;
 use App\Models\TarifKategori;
 use Illuminate\Database\Seeder;
@@ -34,6 +35,10 @@ class MasterDataSeeder extends Seeder
 
     public function run(): void
     {
+        // Hanya dibuat kalau belum ada. Menjalankan seeder ulang tidak boleh
+        // menimpa identitas, rekening, atau isi landing yang sudah diubah Admin.
+        PengaturanSistem::firstOrCreate([], PengaturanSistem::bawaan());
+
         $tahunAjaran = TahunAjaran::updateOrCreate(
             ['nama' => '2026/2027'],
             [

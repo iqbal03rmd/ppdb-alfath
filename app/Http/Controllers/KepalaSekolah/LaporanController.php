@@ -40,7 +40,7 @@ class LaporanController extends Controller
             'ringkasan' => [
                 'total' => $masuk->count(),
                 'diterima' => $masuk->where('status', 'diterima')->count(),
-                'diproses' => $masuk->whereIn('status', ['diajukan', 'perlu_perbaikan', 'diverifikasi'])->count(),
+                'diproses' => $masuk->whereIn('status', ['diajukan', 'perlu_perbaikan', 'pembayaran'])->count(),
                 'ditolak' => $masuk->where('status', 'ditolak')->count(),
             ],
             'statistik' => [
@@ -86,7 +86,7 @@ class LaporanController extends Controller
                     // saklarnya belum ditekan.
                     'status_buka' => $g->sedangMenerimaPendaftar(),
                     'total' => $isi->count(),
-                    'diproses' => $isi->whereIn('status', ['diajukan', 'perlu_perbaikan', 'diverifikasi'])->count(),
+                    'diproses' => $isi->whereIn('status', ['diajukan', 'perlu_perbaikan', 'pembayaran'])->count(),
                     'diterima' => $isi->where('status', 'diterima')->count(),
                     'ditolak' => $isi->where('status', 'ditolak')->count(),
                     ...$this->keuangan($isi),

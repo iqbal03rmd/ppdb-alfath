@@ -40,7 +40,7 @@ class PendaftaranLaporanSeeder extends Seeder
      *   3 asal PAUD          'TK ADZKIYA' dst | '-' tidak lewat PAUD | '?Teks' diketik sendiri
      *   4 tahu dari          kunci PendaftaranPpdb::SUMBER_INFORMASI, '' = tidak menjawab
      *   5 status
-     *   6 diverifikasi       berapa hari lalu berkasnya disetujui (null = belum)
+     *   6 pembayaran         berapa hari lalu berkasnya disetujui (null = belum)
      *   7 transfer           [hari setelah verifikasi => nominal] yang SUDAH disahkan staf.
      *                        Lebih dari satu entri = mencicil.
      *
@@ -50,7 +50,7 @@ class PendaftaranLaporanSeeder extends Seeder
      * Kepala Sekolah.
      */
     private const BARIS = [
-        // --- Yang lancar: diverifikasi lalu cepat membayar -------------------
+        // --- Yang lancar: masuk pembayaran lalu cepat membayar ---------------
         ['Naufal Hafizh', 'Reguler', 'Marpoyan Damai', 'RA AL-FALAH', 'keluarga_teman', 'diterima', 40, [1 => 4_500_000]],
         ['Khalisa Zahra', 'Reguler', 'Bukit Raya', 'RA AL-FALAH', 'alumni_wali', 'diterima', 39, [2 => 4_500_000]],
         ['Arkan Dzaki', 'Reguler', 'Marpoyan Damai', 'TK ADZKIYA', 'keluarga_teman', 'diterima', 38, [1 => 3_000_000]],
@@ -74,15 +74,15 @@ class PendaftaranLaporanSeeder extends Seeder
         // --- Sudah boleh bayar, tapi belum menyetor sepeser pun --------------
         // Kelompok inilah yang paling perlu ditelepon staf, dan di laporan dia
         // sengaja tidak ikut ke rata-rata jeda karena jedanya belum selesai.
-        ['Danish Pratama', 'Reguler', 'Marpoyan Damai', 'TK ADZKIYA', 'keluarga_teman', 'diverifikasi', 20, []],
-        ['Hanan Syakira', 'Reguler', 'Bukit Raya', 'RA AL FITRAH 2', 'alumni_wali', 'diverifikasi', 18, []],
-        ['Elvano Rizky', 'Reguler', 'Binawidya', '-', '', 'diverifikasi', 16, []],
-        ['Kayla Azzahra', 'Anak Yatim', 'Kulim', 'RA AL MUKMINUN', 'guru_paud', 'diverifikasi', 15, []],
+        ['Danish Pratama', 'Reguler', 'Marpoyan Damai', 'TK ADZKIYA', 'keluarga_teman', 'pembayaran', 20, []],
+        ['Hanan Syakira', 'Reguler', 'Bukit Raya', 'RA AL FITRAH 2', 'alumni_wali', 'pembayaran', 18, []],
+        ['Elvano Rizky', 'Reguler', 'Binawidya', '-', '', 'pembayaran', 16, []],
+        ['Kayla Azzahra', 'Anak Yatim', 'Kulim', 'RA AL MUKMINUN', 'guru_paud', 'pembayaran', 15, []],
 
         // --- Sudah menyetor tapi belum mencapai minimal ----------------------
-        ['Zhafran Adib', 'Reguler', 'Tenayan Raya', 'TK ABDUL MULUK', 'media_sosial', 'diverifikasi', 22, [4 => 1_000_000]],
-        ['Alifa Ramadhani', 'Reguler', 'Limapuluh', 'KB AL-MUTTAQIN', 'keluarga_teman', 'diverifikasi', 19, [8 => 1_500_000]],
-        ['Rasyid Hakim', 'Saudara', 'Senapelan', 'RA LA-TAHZAN', 'alumni_wali', 'diverifikasi', 17, [6 => 2_000_000]],
+        ['Zhafran Adib', 'Reguler', 'Tenayan Raya', 'TK ABDUL MULUK', 'media_sosial', 'pembayaran', 22, [4 => 1_000_000]],
+        ['Alifa Ramadhani', 'Reguler', 'Limapuluh', 'KB AL-MUTTAQIN', 'keluarga_teman', 'pembayaran', 19, [8 => 1_500_000]],
+        ['Rasyid Hakim', 'Saudara', 'Senapelan', 'RA LA-TAHZAN', 'alumni_wali', 'pembayaran', 17, [6 => 2_000_000]],
 
         // --- Masih diproses staf --------------------------------------------
         ['Talita Syifa', 'Reguler', 'Marpoyan Damai', 'RA AL-FALAH', 'keluarga_teman', 'diajukan', null, []],
@@ -95,7 +95,7 @@ class PendaftaranLaporanSeeder extends Seeder
         // sendiri sudah jadi temuan - berapa keluarga yang rela menempuh jarak.
         ['Azzam Ghifari', 'Reguler', 'Siak Hulu', 'RA ADINDA', 'keluarga_teman', 'diterima', 27, [3 => 4_500_000]],
         ['Syakila Putri', 'Reguler', 'Tambang', '?TK Bina Insani Kampar', 'guru_paud', 'diterima', 26, [5 => 3_000_000]],
-        ['Rayyan Abqary', 'Reguler', '*', '?TK Al-Azhar Batam', 'media_sosial', 'diverifikasi', 14, [9 => 2_000_000]],
+        ['Rayyan Abqary', 'Reguler', '*', '?TK Al-Azhar Batam', 'media_sosial', 'pembayaran', 14, [9 => 2_000_000]],
 
         // --- Tidak lewat PAUD sama sekali ------------------------------------
         ['Fathir Ramadhan', 'Reguler', 'Rumbai Barat', '-', 'keluarga_teman', 'diterima', 25, [2 => 3_000_000]],
@@ -175,11 +175,11 @@ class PendaftaranLaporanSeeder extends Seeder
                     // 'diterima' TIDAK ditulis langsung walau kolom 5 menyebutnya.
                     // Status itu milik aturan domain - hasil dari uang yang sudah
                     // disahkan - jadi di sini semua yang sudah lolos berkas
-                    // dipasang 'diverifikasi' dulu, lalu dinaikkan sendiri oleh
+                    // dipasang 'pembayaran' dulu, lalu dinaikkan sendiri oleh
                     // segarkanStatusPenerimaan() sesudah transfernya dibuat.
                     // Dengan begitu data seed tidak mungkin memuat pendaftaran
                     // "diterima" yang ternyata belum mencapai minimal bayar.
-                    'status' => $status === 'diterima' ? 'diverifikasi' : $status,
+                    'status' => $status === 'diterima' ? 'pembayaran' : $status,
                     'catatan_verifikasi' => $status === 'ditolak'
                         ? 'Tidak mencapai minimal pembayaran sampai batas waktu yang ditentukan sekolah.'
                         : null,
@@ -203,7 +203,7 @@ class PendaftaranLaporanSeeder extends Seeder
                 );
             }
 
-            if (in_array($status, ['diverifikasi', 'diterima', 'ditolak'])) {
+            if (in_array($status, ['pembayaran', 'diterima', 'ditolak'])) {
                 $pendaftaran->terbitkanTagihan();
             }
 

@@ -35,7 +35,7 @@ class KebijakanKategori extends Model
      * (bukan disimpan sebagai penghitung), pelepasan itu terjadi sendiri tanpa
      * perlu dibereskan manual.
      */
-    public const STATUS_MEMAKAI_KUOTA = ['diajukan', 'perlu_perbaikan', 'diverifikasi', 'diterima'];
+    public const STATUS_MEMAKAI_KUOTA = ['diajukan', 'perlu_perbaikan', 'pembayaran', 'diterima'];
 
     protected $table = 'kebijakan_kategori';
 

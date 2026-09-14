@@ -45,6 +45,12 @@ interface PembayaranProps {
     statusPendaftaran: string;
     catatanVerifikasi: string | null;
     bisaBayar: boolean;
+    informasiPembayaran: {
+        nama_bank: string;
+        nomor_rekening: string;
+        nama_pemilik_rekening: string;
+        instruksi: string | null;
+    } | null;
 }
 
 const statusBadge: Record<string, { label: string; className: string }> = {
@@ -75,6 +81,7 @@ export default function Pembayaran({
     statusPendaftaran,
     catatanVerifikasi,
     bisaBayar,
+    informasiPembayaran,
 }: PembayaranProps) {
     const { data, setData, post, processing, errors } = useForm({
         nominal_transfer: '',
@@ -107,6 +114,39 @@ export default function Pembayaran({
 
             <PageContainer wide>
                 <AlurStepper aktif="Pembayaran" />
+
+                {tagihanTersedia && !pendaftaranDitolak &&
+                    (informasiPembayaran ? (
+                        <div className="mb-6 overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
+                            <div className="border-b border-gray-100 px-6 py-4">
+                                <h2 className="text-[15px] font-semibold text-gray-900">Tujuan Pembayaran</h2>
+                            </div>
+                            <div className="grid gap-5 p-6 sm:grid-cols-3">
+                                <div>
+                                    <p className="text-xs text-gray-500">Bank</p>
+                                    <p className="mt-1 text-sm font-semibold text-[#0A3981]">{informasiPembayaran.nama_bank}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500">Nomor Rekening</p>
+                                    <p className="mt-1 text-base font-bold tracking-wide text-[#0A3981]">{informasiPembayaran.nomor_rekening}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500">Atas Nama</p>
+                                    <p className="mt-1 text-sm font-semibold text-[#0A3981]">{informasiPembayaran.nama_pemilik_rekening}</p>
+                                </div>
+                            </div>
+                            {informasiPembayaran.instruksi && (
+                                <p className="whitespace-pre-line border-t border-[#D4EBF8] bg-[#F5F9FD] px-6 py-4 text-sm leading-6 text-gray-600">
+                                    {informasiPembayaran.instruksi}
+                                </p>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+                            <span className="font-semibold text-amber-800">Rekening pembayaran belum dicantumkan. </span>
+                            Hubungi Staf PPDB sebelum melakukan transfer.
+                        </div>
+                    ))}
 
                 {/* Peringatan tingkat halaman - lebar penuh di atas dua kolom, karena
                     menyangkut seluruh pendaftaran, bukan salah satu kolom saja. */}

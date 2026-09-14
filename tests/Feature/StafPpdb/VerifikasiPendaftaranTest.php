@@ -81,7 +81,7 @@ test('wali murid tidak boleh membuka halaman staf', function () {
         ->assertForbidden();
 });
 
-test('menyetujui membuat status jadi diverifikasi dan mencatat pemeriksanya', function () {
+test('menyetujui membuat status jadi pembayaran dan mencatat pemeriksanya', function () {
     // Sisa catatan dari pemeriksaan sebelumnya, harus ikut dibersihkan.
     $this->pendaftaran->update(['catatan_verifikasi' => 'Catatan lama dari pemeriksaan sebelumnya.']);
 
@@ -91,7 +91,7 @@ test('menyetujui membuat status jadi diverifikasi dan mencatat pemeriksanya', fu
 
     $this->pendaftaran->refresh();
 
-    expect($this->pendaftaran->status)->toBe('diverifikasi')
+    expect($this->pendaftaran->status)->toBe('pembayaran')
         ->and($this->pendaftaran->diverifikasi_oleh)->toBe($this->staf->id)
         ->and($this->pendaftaran->catatan_verifikasi)->toBeNull();
 });
@@ -203,7 +203,7 @@ test('catatan yang terlalu pendek ditolak', function () {
  * tombol, yang datang belakangan harus ditolak - bukan menimpa keputusan pertama.
  */
 test('tidak bisa menyetujui pendaftaran yang sedang tidak menunggu verifikasi', function () {
-    $this->pendaftaran->update(['status' => 'diverifikasi']);
+    $this->pendaftaran->update(['status' => 'pembayaran']);
 
     $this->actingAs($this->staf)
         ->post(route('staf-ppdb.verifikasi-pendaftaran.setujui', $this->pendaftaran))

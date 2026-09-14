@@ -61,6 +61,25 @@ test('penyaring terbuka pada tahun ajaran aktif dan gelombang yang dibuka', func
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('filterAwal.tahunAjaran', $tahunAktif->nama)
             ->where('filterAwal.gelombang', $gelombangDibuka->nama)
+            ->where('filterAwal.status', '')
+        );
+});
+
+test('penyaring status dari dashboard diteruskan ke halaman semua pendaftaran', function () {
+    $this->actingAs($this->staf)
+        ->get(route('staf-ppdb.pendaftaran.index', ['status' => 'pembayaran']))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('filterAwal.tahunAjaran', '')
+            ->where('filterAwal.gelombang', '')
+            ->where('filterAwal.status', 'pembayaran')
+        );
+});
+
+test('penyaring status yang tidak dikenal diabaikan', function () {
+    $this->actingAs($this->staf)
+        ->get(route('staf-ppdb.pendaftaran.index', ['status' => 'status-palsu']))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('filterAwal.status', '')
         );
 });
 
@@ -82,7 +101,7 @@ test('detail pendaftaran bisa dibuka untuk segala status', function (string $sta
     $this->actingAs($this->staf)
         ->get(route('staf-ppdb.pendaftaran.show', $pendaftaran))
         ->assertOk();
-})->with(['draft', 'diajukan', 'perlu_perbaikan', 'diverifikasi', 'diterima', 'ditolak']);
+})->with(['draft', 'diajukan', 'perlu_perbaikan', 'pembayaran', 'diterima', 'ditolak']);
 
 test('detail pendaftaran yang sudah bayar memuat angka pembayarannya', function () {
     $pendaftaran = PendaftaranPpdb::where('status', 'diterima')->firstOrFail();
@@ -123,7 +142,6 @@ test('pendaftaran yang lunas penuh tidak menyisakan tagihan', function () {
  * Menutup pendaftaran ('ditolak')
  * ==========================================================================
  */
-
 test('menutup pendaftaran menyimpan alasan dan pemeriksanya', function () {
     $pendaftaran = PendaftaranPpdb::where('status', 'perlu_perbaikan')->firstOrFail();
 
@@ -175,7 +193,7 @@ test('alasan wajib diisi - wali harus tahu sebabnya', function () {
  * kursinya tertahan sampai tenggat padahal walinya sudah pamit.
  */
 test('bisa ditutup walau tenggat pembayaran belum lewat', function () {
-    $pendaftaran = PendaftaranPpdb::where('status', 'diverifikasi')->firstOrFail();
+    $pendaftaran = PendaftaranPpdb::where('status', 'pembayaran')->firstOrFail();
 
     expect($pendaftaran->batasMinimalBayar()->isPast())->toBeFalse();
 
