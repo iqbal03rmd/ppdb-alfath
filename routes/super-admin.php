@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\SuperAdmin\BerkasPersyaratanController;
+use App\Http\Controllers\SuperAdmin\DashboardController;
 use App\Http\Controllers\SuperAdmin\GelombangController;
 use App\Http\Controllers\SuperAdmin\JalurController;
 use App\Http\Controllers\SuperAdmin\KomponenBiayaController;
@@ -8,7 +9,6 @@ use App\Http\Controllers\SuperAdmin\PengaturanSistemController;
 use App\Http\Controllers\SuperAdmin\PenggunaController;
 use App\Http\Controllers\SuperAdmin\TahunAjaranController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 /*
 | Modul Super Admin.
@@ -28,9 +28,7 @@ Route::middleware(['auth', 'role:super_admin'])
     ->prefix('super-admin')
     ->name('super-admin.')
     ->group(function () {
-        Route::get('/dashboard', function () {
-            return Inertia::render('super-admin/dashboard');
-        })->name('dashboard');
+        Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
         Route::get('/pengguna', [PenggunaController::class, 'index'])->name('pengguna.index');
         Route::get('/pengguna/tambah', [PenggunaController::class, 'create'])->name('pengguna.create');
