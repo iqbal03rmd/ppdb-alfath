@@ -101,27 +101,23 @@ export default function Dashboard({ daftarPendaftaran, ringkasan, gelombangDibuk
                             <p className="text-sm text-[#0A3981]">
                                 <b>{gelombangDibuka.nama}</b> dibuka sampai {gelombangDibuka.tanggal_selesai}.
                             </p>
-                            {/* Wali baru: mendaftar itu satu-satunya hal yang bisa dia lakukan,
-                                jadi tombolnya aksi utama. Wali yang sudah punya anak terdaftar:
-                                aksi utamanya ada di kartu anak, jadi yang ini turun jadi
-                                sekunder - satu aksi utama per layar.
+                            {/* Tombol di banner hanya untuk wali yang sudah punya pendaftaran.
+                                Wali baru mendapat tombol utamanya langsung di kartu kosong,
+                                tepat di tempat matanya mencari langkah pertama.
 
                                 Labelnya "Anak Lagi", bukan "Anak Lain": dalam bahasa
                                 sehari-hari "anak lain" terbaca sebagai anak milik orang
                                 lain, sedangkan yang dimaksud jelas anak wali ini juga. */}
-                            <Button
-                                asChild
-                                size="sm"
-                                variant={adaPendaftaran ? 'outline' : 'default'}
-                                className={
-                                    'h-8 rounded-xl font-bold ' +
-                                    (adaPendaftaran ? 'border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-white hover:text-[#0A3981]' : '')
-                                }
-                            >
-                                <Link href={route('wali-murid.pendaftaran.create')}>
-                                    {adaPendaftaran ? '+ Daftarkan Anak Lagi' : '+ Daftarkan Anak'}
-                                </Link>
-                            </Button>
+                            {adaPendaftaran && (
+                                <Button
+                                    asChild
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 rounded-xl border-[#1F509A]/40 bg-white font-bold text-[#1F509A] hover:bg-white hover:text-[#0A3981]"
+                                >
+                                    <Link href={route('wali-murid.pendaftaran.create')}>+ Daftarkan Anak Lagi</Link>
+                                </Button>
+                            )}
                         </div>
                     ) : (
                         <p className="text-sm text-gray-600">
@@ -171,11 +167,23 @@ export default function Dashboard({ daftarPendaftaran, ringkasan, gelombangDibuk
                                         <GraduationCap size={22} strokeWidth={1.8} />
                                     </span>
                                     <h2 className="text-[15px] font-semibold text-gray-900">Belum ada anak yang kamu daftarkan</h2>
-                                    <p className="mx-auto mt-1.5 max-w-sm text-sm text-gray-500">
-                                        {gelombangDibuka
-                                            ? 'Mulai lewat tombol Daftarkan Anak di atas, lalu ikuti empat tahap di samping.'
-                                            : 'Begitu sekolah membuka gelombang berikutnya, tombol untuk mendaftar akan muncul di atas.'}
-                                    </p>
+                                    {gelombangDibuka ? (
+                                        <>
+                                            <p className="mx-auto mt-1.5 max-w-sm text-sm text-gray-500">
+                                                Mulai pendaftaran dan ikuti empat tahap yang tersedia.
+                                            </p>
+                                            <Button asChild className="mt-5 rounded-xl bg-[#E38E49] px-6 font-bold text-white hover:bg-[#D97D37]">
+                                                <Link href={route('wali-murid.pendaftaran.create')}>
+                                                    <UserPlus size={17} strokeWidth={2} />
+                                                    Daftarkan Anak
+                                                </Link>
+                                            </Button>
+                                        </>
+                                    ) : (
+                                        <p className="mx-auto mt-1.5 max-w-sm text-sm text-gray-500">
+                                            Pendaftaran anak baru tersedia setelah sekolah membuka gelombang berikutnya.
+                                        </p>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="grid gap-4 sm:grid-cols-2">

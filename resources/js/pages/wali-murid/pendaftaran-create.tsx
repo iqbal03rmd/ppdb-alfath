@@ -228,24 +228,19 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPa
                                         </Label>
                                         <select
                                             id="kategori_siswa_id"
-                                            className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none"
+                                            className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none [&>option:disabled]:bg-gray-100 [&>option:disabled]:text-gray-400"
                                             value={data.kategori_siswa_id}
                                             onChange={(e) => setData('kategori_siswa_id', e.target.value)}
                                         >
                                             <option value="">Pilih kategori siswa</option>
                                             {kategoriSiswa.map((k) => (
-                                                <option key={k.id} value={k.id} disabled={k.penuh}>
+                                                <option key={k.id} value={k.id} disabled={k.penuh} className={k.penuh ? 'text-gray-400' : ''}>
                                                     {k.nama}
-                                                    {k.penuh ? ' — Kuota penuh' : k.sisa_kuota !== null ? ` — sisa kuota ${k.sisa_kuota}` : ''}
+                                                    {k.penuh ? ' — Penuh' : ''}
                                                 </option>
                                             ))}
                                         </select>
                                         {kategoriTerpilih?.deskripsi && <p className="mt-1 text-xs text-gray-500">{kategoriTerpilih.deskripsi}</p>}
-                                        {kategoriTerpilih && kategoriTerpilih.sisa_kuota !== null && !kategoriTerpilih.penuh && (
-                                            <p className="mt-1 text-xs text-[#1F509A]">
-                                                Sisa kuota kategori ini: <b>{kategoriTerpilih.sisa_kuota}</b> dari {kategoriTerpilih.kuota}.
-                                            </p>
-                                        )}
                                         <FieldError message={errors.kategori_siswa_id} />
                                     </div>
 
@@ -514,11 +509,7 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPa
                                 {kategoriTerpilih?.pertanyaan_khusus && (
                                     <Section title={`Data Pendukung: Jalur ${kategoriTerpilih.nama}`}>
                                         <Label htmlFor="jawaban_khusus">{kategoriTerpilih.pertanyaan_khusus}</Label>
-                                        <Input
-                                            id="jawaban_khusus"
-                                            value={data.jawaban_khusus}
-                                            onChange={(v) => setData('jawaban_khusus', v)}
-                                        />
+                                        <Input id="jawaban_khusus" value={data.jawaban_khusus} onChange={(v) => setData('jawaban_khusus', v)} />
                                         <FieldError message={errors.jawaban_khusus} />
                                     </Section>
                                 )}

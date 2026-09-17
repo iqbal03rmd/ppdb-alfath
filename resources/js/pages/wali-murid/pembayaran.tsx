@@ -115,7 +115,8 @@ export default function Pembayaran({
             <PageContainer wide>
                 <AlurStepper aktif="Pembayaran" />
 
-                {tagihanTersedia && !pendaftaranDitolak &&
+                {tagihanTersedia &&
+                    !pendaftaranDitolak &&
                     (informasiPembayaran ? (
                         <div className="mb-6 overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
                             <div className="border-b border-gray-100 px-6 py-4">
@@ -136,7 +137,7 @@ export default function Pembayaran({
                                 </div>
                             </div>
                             {informasiPembayaran.instruksi && (
-                                <p className="whitespace-pre-line border-t border-[#D4EBF8] bg-[#F5F9FD] px-6 py-4 text-sm leading-6 text-gray-600">
+                                <p className="border-t border-[#D4EBF8] bg-[#F5F9FD] px-6 py-4 text-sm leading-6 whitespace-pre-line text-gray-600">
                                     {informasiPembayaran.instruksi}
                                 </p>
                             )}
@@ -185,9 +186,8 @@ export default function Pembayaran({
                             </>
                         ) : (
                             <>
-                                <span className="font-semibold">Bayar minimal {formatRupiah(kurangMinimal)} lagi </span>
-                                sebelum {batasWaktuPembayaran} supaya pendaftaran diterima. Sisanya boleh dicicil
-                                {batasPelunasan ? ` sampai ${batasPelunasan}` : ''}.
+                                Capai total pembayaran <b>{formatRupiah(minimalBayar ?? kurangMinimal)}</b> paling lambat{' '}
+                                <b>{batasWaktuPembayaran}</b> agar pendaftaran diterima.
                             </>
                         )}
                     </div>

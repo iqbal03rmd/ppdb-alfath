@@ -69,13 +69,6 @@ export default function UnggahBerkas({ pendaftaran, dokumenList, bisaEdit }: Ung
                     </div>
                 )}
 
-                {bisaEdit && (
-                    <div className="mb-6 rounded-2xl border border-[#D4EBF8] bg-[#F5F9FD] p-5 text-sm text-[#0A3981]">
-                        Unggah dokumen berikut sesuai jalur pendaftaran. Format PDF/JPG/PNG, maksimal 2 MB per berkas. Dokumen bertanda{' '}
-                        <b>Belum Diunggah</b> wajib dilengkapi sebelum berkas dapat dikirim untuk diverifikasi Staf PPDB.
-                    </div>
-                )}
-
                 <div className="mb-6 overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
                     {dokumenList.map((doc, index) => (
                         <div
@@ -85,8 +78,13 @@ export default function UnggahBerkas({ pendaftaran, dokumenList, bisaEdit }: Ung
                             }
                         >
                             <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
                                     <h3 className="text-[15px] font-semibold text-gray-900">{doc.label}</h3>
+                                    {bisaEdit && (
+                                        <span className="rounded-md bg-[#FFF4E8] px-2 py-0.5 text-[11px] font-semibold text-[#B86522]">
+                                            PDF/JPG/PNG · Maks. 2 MB
+                                        </span>
+                                    )}
                                     {baruTersimpan === doc.jenis ? (
                                         <span className="animate-pulse rounded-full bg-green-500 px-2.5 py-0.5 text-xs font-semibold text-white">
                                             ✓ Tersimpan
