@@ -12,7 +12,6 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    
     public function __invoke(Request $request): Response
     {
         $pendaftaran = PendaftaranPpdb::with([
@@ -30,6 +29,7 @@ class DashboardController extends Controller
             'status' => $p->status,
             'catatan_verifikasi' => $p->catatan_verifikasi,
             'sisa_tagihan' => $p->bolehLihatTagihan() ? $p->sisaTagihan() : null,
+            'status_pembayaran' => $p->bolehLihatTagihan() ? $p->statusPelunasan() : null,
             'tahap' => $this->tahapKe($p),
             'tahap_total' => 4,
             'jatuh_tempo' => $p->jatuhTempoMinimal()?->locale('id')->translatedFormat('d F Y'),
@@ -190,13 +190,11 @@ class DashboardController extends Controller
             ];
         }
 
-        $sisa = $this->rupiah($pendaftaran->sisaTagihan());
-
         return [
             'tindakan' => $pendaftaran->menunggak()
-                ? "Diterima, tapi sisa cicilan {$sisa} sudah melewati batas pelunasan"
-                : "Diterima. Sisa cicilan {$sisa} boleh dilunasi bertahap",
-            'tombol' => 'Bayar Cicilan',
+                ? 'Pembayaran belum lunas dan batas pelunasan sudah lewat'
+                : 'Pendaftaran diterima, tetapi pembayaran belum lunas',
+            'tombol' => 'Bayar Sisa Tagihan',
             'rute' => 'pembayaran',
             'perlu_tindakan' => $pendaftaran->menunggak(),
         ];

@@ -69,7 +69,7 @@ const statusBadge: Record<string, { label: string; className: string }> = {
 // bukan status satu baris transfer - lihat PendaftaranPpdb::statusPelunasan().
 const pembayaranBadge: Record<string, { label: string; className: string }> = {
     menunggu_verifikasi: { label: 'Menunggu Verifikasi', className: 'bg-amber-100 text-amber-700' },
-    dicicil: { label: 'Dicicil', className: 'bg-amber-100 text-amber-700' },
+    dicicil: { label: 'Belum Lunas', className: 'bg-amber-100 text-amber-700' },
     lunas: { label: 'Lunas', className: 'bg-green-100 text-green-700' },
     ditolak: { label: 'Ditolak', className: 'bg-red-100 text-red-700' },
 };
@@ -146,10 +146,17 @@ export default function PendaftaranIndex({ pendaftaranList, expandId, gelombangD
                                                 <span className="text-gray-600">{item.pendaftaran.kategori}</span>
                                                 <span className="text-gray-600">{item.pendaftaran.gelombang}</span>
                                                 <span className="text-gray-600">{item.pendaftaran.tanggal_daftar}</span>
-                                                <span
-                                                    className={`inline-block w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${badge.className}`}
-                                                >
-                                                    {badge.label}
+                                                <span className="flex flex-wrap items-center gap-1.5">
+                                                    <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${badge.className}`}>
+                                                        {badge.label}
+                                                    </span>
+                                                    {item.pendaftaran.status === 'diterima' && item.statusPembayaran && (
+                                                        <span
+                                                            className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${pembayaranBadge[item.statusPembayaran].className}`}
+                                                        >
+                                                            {pembayaranBadge[item.statusPembayaran].label}
+                                                        </span>
+                                                    )}
                                                 </span>
                                             </div>
                                         </AccordionTrigger>
@@ -182,6 +189,14 @@ function PendaftaranDetailPanel({ item }: { item: PendaftaranItem }) {
     // dan dikirim sebagai prop - jangan dihitung ulang di sini, biar UI dan
     // server nggak pernah beda pendapat.
     const sudahBolehBayar = item.bolehBayar;
+    const labelTombolPembayaran =
+        item.statusPembayaran === 'lunas'
+            ? 'Lihat Pembayaran'
+            : pendaftaran.status === 'diterima' && item.statusPembayaran === 'dicicil'
+              ? 'Bayar Sisa Tagihan'
+              : item.statusPembayaran
+                ? 'Lihat Status Pembayaran'
+                : 'Bayar Sekarang';
 
     return (
         <div className="space-y-5">
@@ -268,9 +283,7 @@ function PendaftaranDetailPanel({ item }: { item: PendaftaranItem }) {
                             size="sm"
                             className="shrink-0 rounded-xl border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
                         >
-                            <Link href={route('wali-murid.pembayaran.show', pendaftaran.id)}>
-                                {item.statusPembayaran ? 'Lihat Status Pembayaran' : 'Bayar Sekarang'}
-                            </Link>
+                            <Link href={route('wali-murid.pembayaran.show', pendaftaran.id)}>{labelTombolPembayaran}</Link>
                         </Button>
                     ) : pendaftaran.status !== 'ditolak' ? (
                         <span className="shrink-0 text-xs text-gray-500">Menunggu berkas diverifikasi</span>

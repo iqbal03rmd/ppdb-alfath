@@ -14,6 +14,7 @@ interface RingkasanPendaftaran {
     status: string;
     catatan_verifikasi: string | null;
     sisa_tagihan: number | null;
+    status_pembayaran: string | null;
     tahap: number;
     tahap_total: number;
     tindakan: string;
@@ -57,6 +58,14 @@ const statusBadge: Record<string, { label: string; className: string }> = {
     ditolak: { label: 'Ditolak', className: 'bg-red-100 text-red-700' },
 };
 
+const pembayaranBadge: Record<string, { label: string; className: string }> = {
+    menunggu_verifikasi: { label: 'Menunggu Verifikasi', className: 'bg-amber-100 text-amber-700' },
+    dicicil: { label: 'Belum Lunas', className: 'bg-amber-100 text-amber-700' },
+    lunas: { label: 'Lunas', className: 'bg-green-100 text-green-700' },
+    ditolak: { label: 'Bukti Ditolak', className: 'bg-red-100 text-red-700' },
+    belum_bayar: { label: 'Belum Bayar', className: 'bg-gray-100 text-gray-600' },
+};
+
 const NAMA_TAHAP = ['Registrasi', 'Formulir', 'Unggah Berkas', 'Pembayaran'];
 
 function formatRupiah(nominal: number) {
@@ -74,12 +83,15 @@ export default function Dashboard({ daftarPendaftaran, ringkasan, gelombangDibuk
     const { auth } = usePage<SharedData>().props;
     const namaDepan = String(auth.user?.name ?? '').split(' ')[0];
     const adaPendaftaran = daftarPendaftaran.length > 0;
+    const adaDiterimaBelumLunas = daftarPendaftaran.some((item) => item.status === 'diterima' && item.sisa_tagihan !== null && item.sisa_tagihan > 0);
 
     const subtitleText = !adaPendaftaran
         ? 'Belum ada anak yang kamu daftarkan.'
         : ringkasan.perlu_tindakan > 0
           ? `${ringkasan.perlu_tindakan} pendaftaran menunggu tindakan kamu.`
-          : 'Semua pendaftaran sedang diproses sekolah — tidak ada yang perlu kamu lakukan.';
+          : adaDiterimaBelumLunas
+            ? 'Pendaftaran sudah diterima. Masih ada sisa tagihan yang perlu dilunasi.'
+            : 'Semua pendaftaran sedang diproses sekolah — tidak ada yang perlu kamu lakukan.';
 
     const tanggalHariIni = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -205,12 +217,26 @@ export default function Dashboard({ daftarPendaftaran, ringkasan, gelombangDibuk
                                                             {item.nomor_pendaftaran} · {item.kategori}
                                                         </p>
                                                     </div>
-                                                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${badge.className}`}>
-                                                        {badge.label}
-                                                    </span>
+                                                    <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
+                                                        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${badge.className}`}>
+                                                            {badge.label}
+                                                        </span>
+                                                        {item.status === 'diterima' && item.status_pembayaran && (
+                                                            <span
+                                                                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${pembayaranBadge[item.status_pembayaran].className}`}
+                                                            >
+                                                                {pembayaranBadge[item.status_pembayaran].label}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
 
-                                                <TahapMini tahap={item.tahap} total={item.tahap_total} ditolak={item.status === 'ditolak'} />
+                                                <TahapMini
+                                                    tahap={item.tahap}
+                                                    total={item.tahap_total}
+                                                    ditolak={item.status === 'ditolak'}
+                                                    pembayaranBelumLunas={item.status === 'diterima' && item.status_pembayaran !== 'lunas'}
+                                                />
 
                                                 <p className="mt-3 flex-1 text-sm text-gray-700">{item.tindakan}</p>
 
@@ -368,7 +394,17 @@ function Ringkas({
 }
 
 /** Empat titik: sejauh mana pendaftaran ini berjalan, tanpa perlu dibaca. */
-function TahapMini({ tahap, total, ditolak }: { tahap: number; total: number; ditolak: boolean }) {
+function TahapMini({
+    tahap,
+    total,
+    ditolak,
+    pembayaranBelumLunas,
+}: {
+    tahap: number;
+    total: number;
+    ditolak: boolean;
+    pembayaranBelumLunas: boolean;
+}) {
     return (
         <div className="mt-3 flex items-center gap-2">
             <div className="flex gap-1">
@@ -376,11 +412,22 @@ function TahapMini({ tahap, total, ditolak }: { tahap: number; total: number; di
                     <span
                         key={i}
                         title={NAMA_TAHAP[i]}
-                        className={'h-1.5 w-6 rounded-full ' + (ditolak ? 'bg-gray-200' : i < tahap ? 'bg-green-500' : 'bg-gray-200')}
+                        className={
+                            'h-1.5 w-6 rounded-full ' +
+                            (ditolak
+                                ? 'bg-gray-200'
+                                : pembayaranBelumLunas && i === total - 1
+                                  ? 'bg-amber-400'
+                                  : i < tahap
+                                    ? 'bg-green-500'
+                                    : 'bg-gray-200')
+                        }
                     />
                 ))}
             </div>
-            <span className="text-xs text-gray-500">{ditolak ? 'Berhenti' : tahap >= total ? 'Selesai' : `Tahap ${tahap} dari ${total}`}</span>
+            <span className="text-xs text-gray-500">
+                {ditolak ? 'Berhenti' : pembayaranBelumLunas ? 'Pembayaran belum lunas' : tahap >= total ? 'Selesai' : `Tahap ${tahap} dari ${total}`}
+            </span>
         </div>
     );
 }
