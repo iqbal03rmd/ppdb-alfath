@@ -91,15 +91,7 @@ function TombolHapus({ komponen }: { komponen: KomponenItem }) {
  * tiap kali modal dibuka, jadi isian selalu mulai dari baris yang barusan
  * diklik — bukan sisa ketikan dari baris sebelumnya.
  */
-function FormulirKomponen({
-    baris,
-    urutanBerikutnya,
-    tutup,
-}: {
-    baris: KomponenItem | null;
-    urutanBerikutnya: number;
-    tutup: () => void;
-}) {
+function FormulirKomponen({ baris, urutanBerikutnya, tutup }: { baris: KomponenItem | null; urutanBerikutnya: number; tutup: () => void }) {
     const { data, setData, post, put, processing, errors } = useForm({
         nama: baris?.nama ?? '',
         keterangan: baris?.keterangan ?? '',
@@ -133,7 +125,7 @@ function FormulirKomponen({
                         <Label required htmlFor="nama">
                             Nama Komponen
                         </Label>
-                        <Input id="nama" value={data.nama} onChange={(v) => setData('nama', v)} placeholder="Pembangunan" />
+                        <Input id="nama" value={data.nama} onChange={(v) => setData('nama', v)} placeholder="Uang Pembangunan" />
                         <FieldError message={errors.nama} />
                     </div>
                     <div>

@@ -12,6 +12,7 @@ class PembayaranPendaftaranAwal extends Model
 
     protected $fillable = [
         'user_id',
+        'gelombang_ppdb_id',
         'pendaftaran_ppdb_id',
         'diverifikasi_oleh',
         'nominal_tagihan',
@@ -35,6 +36,11 @@ class PembayaranPendaftaranAwal extends Model
     public function wali(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function gelombang(): BelongsTo
+    {
+        return $this->belongsTo(GelombangPpdb::class, 'gelombang_ppdb_id');
     }
 
     public function pendaftaran(): BelongsTo

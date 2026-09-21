@@ -6,6 +6,8 @@ use App\Models\KategoriSiswa;
 use App\Models\PembayaranPendaftaranAwal;
 use App\Models\PendaftaranPpdb;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
 
 /**
@@ -33,6 +35,7 @@ beforeEach(function () {
     $this->gelombang = GelombangPpdb::where('status_buka', true)->firstOrFail();
     PembayaranPendaftaranAwal::create([
         'user_id' => $this->wali->id,
+        'gelombang_ppdb_id' => $this->gelombang->id,
         'nominal_tagihan' => 125000,
         'nominal_transfer' => 125000,
         'tanggal_transfer' => today(),
@@ -57,6 +60,30 @@ function jendelaBelumMulai(GelombangPpdb $g): void
         'tanggal_mulai' => today()->addMonth(),
         'tanggal_selesai' => today()->addMonths(2),
     ]);
+}
+
+function muatanPendaftaranJendela(): array
+{
+    return [
+        'kategori_siswa_id' => KategoriSiswa::where('nama', 'Reguler')->value('id'),
+        'nama_pendaftar' => 'Anak Terlambat',
+        'nik' => '1471010101200099',
+        'tanggal_lahir' => '2020-05-05',
+        'tempat_lahir' => 'Pekanbaru',
+        'jenis_kelamin' => 'laki-laki',
+        'alamat' => 'Jl. Uji No. 1',
+        'rt' => '003',
+        'rw' => '005',
+        'kelurahan' => 'Sidomulyo Timur',
+        'kecamatan' => 'Marpoyan Damai',
+        'kota_kabupaten' => 'Kota Pekanbaru',
+        'provinsi' => 'Riau',
+        'tanpa_paud' => false,
+        'asal_paud_id' => AsalPaud::value('id'),
+        'wali_murid' => [
+            ['nama' => 'Wali Uji', 'nik' => '1471010101800099', 'hubungan' => 'Ayah', 'telepon' => '081200000099'],
+        ],
+    ];
 }
 
 test('gelombang di dalam jendelanya memang menerima pendaftar', function () {
@@ -88,12 +115,16 @@ test('saklar menyala tapi jendela belum mulai juga belum menerima pendaftar', fu
 test('wali tidak ditawari mendaftar lagi sesudah jendelanya lewat', function (string $rute) {
     jendelaLewat($this->gelombang);
 
-    $this->actingAs($this->wali)
-        ->get(route($rute))
-        ->assertOk()
-        ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where(str_contains($rute, 'create') ? 'gelombang' : 'gelombangDibuka', fn ($nilai) => $nilai === null || $nilai === false)
-            ->etc());
+    $respons = $this->actingAs($this->wali)->get(route($rute));
+
+    if (str_contains($rute, 'create')) {
+        $respons->assertRedirect(route('wali-murid.biaya-pendaftaran.show'));
+    } else {
+        $respons->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('gelombangDibuka', fn ($nilai) => $nilai === null || $nilai === false)
+                ->etc());
+    }
 })->with(['wali-murid.pendaftaran.index', 'wali-murid.pendaftaran.create']);
 
 test('beranda wali sepakat dengan formulirnya', function () {
@@ -112,26 +143,7 @@ test('beranda wali sepakat dengan formulirnya', function () {
  * menolak datanya - termasuk kalau permintaannya dikirim langsung.
  */
 test('pendaftaran baru ditolak sesudah jendelanya lewat', function () {
-    $muatan = [
-        'kategori_siswa_id' => KategoriSiswa::where('nama', 'Reguler')->value('id'),
-        'nama_pendaftar' => 'Anak Terlambat',
-        'nik' => '1471010101200099',
-        'tanggal_lahir' => '2020-05-05',
-        'tempat_lahir' => 'Pekanbaru',
-        'jenis_kelamin' => 'laki-laki',
-        'alamat' => 'Jl. Uji No. 1',
-        'rt' => '003',
-        'rw' => '005',
-        'kelurahan' => 'Sidomulyo Timur',
-        'kecamatan' => 'Marpoyan Damai',
-        'kota_kabupaten' => 'Kota Pekanbaru',
-        'provinsi' => 'Riau',
-        'tanpa_paud' => false,
-        'asal_paud_id' => AsalPaud::value('id'),
-        'wali_murid' => [
-            ['nama' => 'Wali Uji', 'nik' => '1471010101800099', 'hubungan' => 'Ayah', 'telepon' => '081200000099'],
-        ],
-    ];
+    $muatan = muatanPendaftaranJendela();
 
     // Kontrol: muatan yang sama diterima selagi jendelanya masih terbuka.
     // Tanpa ini, 422 di bawah bisa datang dari validasi yang gagal - bukan dari
@@ -144,6 +156,7 @@ test('pendaftaran baru ditolak sesudah jendelanya lewat', function () {
 
     PembayaranPendaftaranAwal::create([
         'user_id' => $this->wali->id,
+        'gelombang_ppdb_id' => $this->gelombang->id,
         'nominal_tagihan' => 125000,
         'nominal_transfer' => 125000,
         'tanggal_transfer' => today(),
@@ -156,7 +169,43 @@ test('pendaftaran baru ditolak sesudah jendelanya lewat', function () {
 
     $this->actingAs($this->wali)
         ->post(route('wali-murid.pendaftaran.store'), $muatan)
-        ->assertStatus(422);
+        ->assertRedirect(route('wali-murid.biaya-pendaftaran.show'));
+});
+
+test('draft tidak dapat diedit atau dikirim setelah gelombang ditutup', function () {
+    Storage::fake('public');
+
+    $this->actingAs($this->wali)
+        ->post(route('wali-murid.pendaftaran.store'), muatanPendaftaranJendela())
+        ->assertSessionHasNoErrors();
+
+    $pendaftaran = PendaftaranPpdb::where('nik', '1471010101200099')->firstOrFail();
+    $this->gelombang->tutup();
+
+    $this->actingAs($this->wali)
+        ->get(route('wali-murid.pendaftaran.edit', $pendaftaran))
+        ->assertForbidden();
+
+    $this->actingAs($this->wali)
+        ->post(route('wali-murid.pendaftaran.unggah-berkas.store', $pendaftaran), [
+            'jenis_dokumen' => 'kartu_keluarga',
+            'berkas' => UploadedFile::fake()->image('kk.jpg'),
+        ])
+        ->assertForbidden();
+
+    $this->actingAs($this->wali)
+        ->post(route('wali-murid.pendaftaran.unggah-berkas.submit', $pendaftaran))
+        ->assertForbidden();
+
+    $this->actingAs($this->wali)
+        ->get(route('wali-murid.dashboard'))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('daftarPendaftaran', function ($daftar) use ($pendaftaran) {
+                $draft = collect($daftar)->firstWhere('id', $pendaftaran->id);
+
+                return $draft['status'] === 'draft_kedaluwarsa' && $draft['tombol'] === null;
+            })
+            ->etc());
 });
 
 /*

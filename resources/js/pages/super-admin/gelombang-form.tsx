@@ -15,6 +15,7 @@ interface GelombangExisting {
     nama: string;
     tanggal_mulai: string;
     tanggal_selesai: string;
+    biaya_pendaftaran: number;
     batas_waktu_pembayaran: string | null;
     status_buka: boolean;
     bisa_pindah_tahun_ajaran: boolean;
@@ -61,6 +62,7 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
         nama: string;
         tanggal_mulai: string;
         tanggal_selesai: string;
+        biaya_pendaftaran: string;
         batas_waktu_pembayaran: string;
         kebijakan: Record<string, { kuota: string; minimal_bayar: string }>;
         dokumen: Record<string, string[]>;
@@ -70,6 +72,7 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
         nama: gelombang?.nama ?? '',
         tanggal_mulai: gelombang?.tanggal_mulai ?? '',
         tanggal_selesai: gelombang?.tanggal_selesai ?? '',
+        biaya_pendaftaran: String(gelombang?.biaya_pendaftaran ?? 125000),
         batas_waktu_pembayaran: gelombang?.batas_waktu_pembayaran ?? '',
         kebijakan: Object.fromEntries(
             (kebijakan ?? []).map((b) => [String(b.kategori_siswa_id), { kuota: b.kuota, minimal_bayar: b.minimal_bayar }]),
@@ -281,7 +284,7 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
                         )}
 
                         <Kartu judul="Jadwal Pendaftaran">
-                            <div className="mb-5 grid gap-5 sm:grid-cols-2">
+                            <div className="mb-5 grid gap-5 sm:grid-cols-3">
                                 <div>
                                     <Label required htmlFor="tahun_ajaran_id">
                                         Tahun Ajaran
@@ -320,6 +323,19 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
                                         disabled={bacaSaja}
                                     />
                                     <FieldError message={errors.nama} />
+                                </div>
+                                <div>
+                                    <Label required htmlFor="biaya_pendaftaran">
+                                        Biaya Pendaftaran per Anak
+                                    </Label>
+                                    <Input
+                                        id="biaya_pendaftaran"
+                                        value={data.biaya_pendaftaran}
+                                        onChange={(value) => setData('biaya_pendaftaran', value.replace(/\D/g, ''))}
+                                        placeholder="125000"
+                                        disabled={bacaSaja}
+                                    />
+                                    <FieldError message={errors.biaya_pendaftaran} />
                                 </div>
                             </div>
 

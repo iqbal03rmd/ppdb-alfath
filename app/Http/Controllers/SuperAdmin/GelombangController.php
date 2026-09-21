@@ -24,9 +24,10 @@ use Inertia\Response;
  * Gelombang PPDB - jendela pendaftaran beserta seluruh angka yang berlaku
  * selama jendela itu terbuka.
  *
- * Lima hal yang diatur di sini, dan kelimanya memang berubah tiap gelombang:
+ * Enam hal yang diatur di sini, dan semuanya memang berubah tiap gelombang:
  *
  *   tanggal           buka, tutup, dan jatuh tempo minimal bayar
+ *   biaya pendaftaran tiket untuk membuka satu formulir anak
  *   kuota per jalur   daya tampung, biasanya menyusut di gelombang berikutnya
  *   minimal bayar     setoran awal per jalur, wajib diisi
  *   nominal komponen  harga tiap pos biaya, per jalur
@@ -67,6 +68,7 @@ class GelombangController extends Controller
                 'tahun_ajaran' => $g->tahunAjaran->nama,
                 'tanggal_mulai' => $this->tanggal($g->tanggal_mulai),
                 'tanggal_selesai' => $this->tanggal($g->tanggal_selesai),
+                'biaya_pendaftaran' => (int) $g->biaya_pendaftaran,
                 'batas_waktu_pembayaran' => $this->tanggal($g->batas_waktu_pembayaran),
                 'status_buka' => (bool) $g->status_buka,
                 // Jumlah sel tarif yang sudah diisi. 0 berarti tagihan
@@ -174,6 +176,7 @@ class GelombangController extends Controller
                 'nama' => $gelombang->nama,
                 'tanggal_mulai' => $gelombang->tanggal_mulai?->format('Y-m-d'),
                 'tanggal_selesai' => $gelombang->tanggal_selesai?->format('Y-m-d'),
+                'biaya_pendaftaran' => (int) $gelombang->biaya_pendaftaran,
                 'batas_waktu_pembayaran' => $gelombang->batas_waktu_pembayaran?->format('Y-m-d'),
                 'status_buka' => (bool) $gelombang->status_buka,
                 'bisa_pindah_tahun_ajaran' => $gelombang->bisaPindahTahunAjaran(),
@@ -474,6 +477,7 @@ class GelombangController extends Controller
             'nama' => ['required', 'string', 'max:50'],
             'tanggal_mulai' => ['required', 'date'],
             'tanggal_selesai' => ['required', 'date', 'after_or_equal:tanggal_mulai'],
+            'biaya_pendaftaran' => ['required', 'integer', 'min:1'],
             // Jatuh tempo minimal bayar. Tidak boleh mendahului penutupan
             // pendaftaran: kalau lebih awal, ada pendaftar yang tenggat bayarnya
             // sudah lewat pada hari dia mendaftar.
@@ -484,6 +488,9 @@ class GelombangController extends Controller
             'tanggal_mulai.required' => 'Tanggal mulai pendaftaran wajib diisi.',
             'tanggal_selesai.required' => 'Tanggal selesai pendaftaran wajib diisi.',
             'tanggal_selesai.after_or_equal' => 'Tanggal selesai tidak boleh mendahului tanggal mulai.',
+            'biaya_pendaftaran.required' => 'Biaya pendaftaran per anak wajib diisi.',
+            'biaya_pendaftaran.integer' => 'Biaya pendaftaran harus berupa angka.',
+            'biaya_pendaftaran.min' => 'Biaya pendaftaran harus lebih dari nol.',
             'batas_waktu_pembayaran.after_or_equal' => 'Jatuh tempo pembayaran tidak boleh mendahului penutupan pendaftaran - '
                 .'kalau lebih awal, ada pendaftar yang tenggatnya sudah lewat pada hari dia mendaftar.',
         ]);

@@ -17,6 +17,10 @@ return new class extends Migration
             $table->string('nama');
             $table->date('tanggal_mulai');
             $table->date('tanggal_selesai');
+            // Biaya untuk membuka SATU formulir anak pada gelombang ini.
+            // Nominalnya milik gelombang, bukan pengaturan global, supaya
+            // perubahan periode berikutnya tidak mengubah tagihan lama.
+            $table->unsignedBigInteger('biaya_pendaftaran')->default(125000);
             // Jatuh tempo MINIMAL BAYAR (bukan pelunasan). Dasar staf untuk
             // menetapkan status 'ditolak' kalau sampai tanggal ini pembayaran
             // belum mencapai kebijakan_kategori.minimal_bayar milik jalurnya.

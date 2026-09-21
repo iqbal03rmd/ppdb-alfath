@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * Pos biaya PPDB - daftar global, dipakai semua gelombang.
  *
- * Komponennya sama tiap tahun ("Pembangunan" tetap Pembangunan); yang berubah
+ * Komponennya sama tiap tahun ("Uang Pembangunan" tetap Uang Pembangunan); yang berubah
  * cuma nominalnya, dan itu tinggal di TarifKategori per gelombang x jalur.
  */
 class KomponenBiaya extends Model

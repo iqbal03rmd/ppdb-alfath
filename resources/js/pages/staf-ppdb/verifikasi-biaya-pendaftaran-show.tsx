@@ -22,6 +22,8 @@ interface Props {
         bukti_url: string;
         bukti_gambar: boolean;
         sudah_digunakan: boolean;
+        gelombang: string;
+        gelombang_aktif: boolean;
     };
     wali: { nama: string; email: string; telepon: string | null };
     pendaftaran: { nama: string; nomor: string } | null;
@@ -49,8 +51,11 @@ export default function VerifikasiBiayaPendaftaranShow({ pembayaran, wali, penda
     const [tolakTampil, setTolakTampil] = useState(false);
     const sah = useForm({});
     const tolak = useForm({ catatan_verifikasi: '' });
-    const bolehSah = pembayaran.status === 'menunggu_verifikasi';
-    const bolehTolak = !pembayaran.sudah_digunakan && (pembayaran.status === 'menunggu_verifikasi' || pembayaran.status === 'terverifikasi');
+    const bolehSah = pembayaran.gelombang_aktif && pembayaran.status === 'menunggu_verifikasi';
+    const bolehTolak =
+        pembayaran.gelombang_aktif &&
+        !pembayaran.sudah_digunakan &&
+        (pembayaran.status === 'menunggu_verifikasi' || pembayaran.status === 'terverifikasi');
 
     return (
         <AppLayout>
@@ -96,6 +101,7 @@ export default function VerifikasiBiayaPendaftaranShow({ pembayaran, wali, penda
                             <Baris label="Wali" nilai={wali.nama} />
                             <Baris label="Email" nilai={wali.email} />
                             <Baris label="Telepon" nilai={wali.telepon ?? '-'} />
+                            <Baris label="Gelombang" nilai={pembayaran.gelombang} />
                             <Baris label="Biaya yang ditagihkan" nilai={rupiah(pembayaran.nominal_tagihan)} />
                             <Baris label="Nominal transfer" nilai={rupiah(pembayaran.nominal_transfer)} tebal />
                             <Baris label="Tanggal transfer" nilai={pembayaran.tanggal_transfer} />
@@ -106,6 +112,11 @@ export default function VerifikasiBiayaPendaftaranShow({ pembayaran, wali, penda
                                 </p>
                             )}
                         </Kartu>
+                        {!pembayaran.gelombang_aktif && (
+                            <p className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+                                Gelombang ini sudah ditutup sehingga pembayaran tidak dapat diproses lagi.
+                            </p>
+                        )}
                         {(bolehSah || bolehTolak) && (
                             <Kartu judul="Keputusan">
                                 {!tolakTampil ? (

@@ -1,1 +1,0 @@
-import{j as e}from"./app-Bs4Twz9I.js";import{P as a}from"./page-container-CvlPXkny.js";function l({title:t,subtitle:s,wide:r=!1}){return e.jsx("div",{className:"pt-8 pb-6",children:e.jsxs(a,{wide:r,flush:!0,children:[e.jsx("h1",{className:"text-2xl font-bold text-[#0A3981]",children:t}),s&&e.jsx("p",{className:"mt-1 text-sm text-gray-500",children:s})]})})}export{l as P};

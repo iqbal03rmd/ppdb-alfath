@@ -67,7 +67,7 @@ class PendaftaranController extends Controller
                 'jenis_kelamin' => $pendaftaran->jenis_kelamin,
                 'alamat' => $pendaftaran->alamat,
                 'kategori' => $pendaftaran->kategoriSiswa->nama,
-                'status' => $pendaftaran->status,
+                'status' => $pendaftaran->draftKedaluwarsa() ? 'draft_kedaluwarsa' : $pendaftaran->status,
                 'catatan_verifikasi' => $pendaftaran->catatan_verifikasi,
                 'tanggal_daftar' => $pendaftaran->created_at->locale('id')->translatedFormat('d F Y'),
                 'gelombang' => $pendaftaran->gelombang->nama,
@@ -202,9 +202,17 @@ class PendaftaranController extends Controller
 
         $pendaftaran = DB::transaction(function () use ($request, $gelombang, $pertanyaan) {
             User::query()->lockForUpdate()->findOrFail($request->user()->id);
+            $gelombangAktif = GelombangPpdb::query()->lockForUpdate()->findOrFail($gelombang->id);
+
+            abort_unless(
+                $gelombangAktif->sedangMenerimaPendaftar(),
+                422,
+                'Gelombang pendaftaran sudah ditutup. Tunggu gelombang berikutnya untuk mendaftar kembali.'
+            );
 
             $tiket = PembayaranPendaftaranAwal::query()
                 ->where('user_id', $request->user()->id)
+                ->where('gelombang_ppdb_id', $gelombangAktif->id)
                 ->terverifikasi()
                 ->belumDigunakan()
                 ->oldest()
@@ -217,18 +225,18 @@ class PendaftaranController extends Controller
                 'Pembayaran biaya pendaftaran anak belum disetujui atau tiket pendaftaran sudah digunakan.'
             );
 
-            KebijakanKategori::where('gelombang_ppdb_id', $gelombang->id)
+            KebijakanKategori::where('gelombang_ppdb_id', $gelombangAktif->id)
                 ->where('kategori_siswa_id', $request->kategori_siswa_id)
                 ->lockForUpdate()
                 ->first();
 
-            $this->abortJikaKuotaPenuh($gelombang, (int) $request->kategori_siswa_id);
+            $this->abortJikaKuotaPenuh($gelombangAktif, (int) $request->kategori_siswa_id);
 
             $pendaftaran = PendaftaranPpdb::create([
                 'user_id' => $request->user()->id,
-                'gelombang_ppdb_id' => $gelombang->id,
+                'gelombang_ppdb_id' => $gelombangAktif->id,
                 'kategori_siswa_id' => $request->kategori_siswa_id,
-                'nomor_pendaftaran' => $this->generateNomorPendaftaran($gelombang),
+                'nomor_pendaftaran' => $this->generateNomorPendaftaran($gelombangAktif),
                 'nama_pendaftar' => $request->nama_pendaftar,
                 'nik' => $request->nik,
                 'tanggal_lahir' => $request->tanggal_lahir,
@@ -266,7 +274,7 @@ class PendaftaranController extends Controller
         $this->authorizeEditable($pendaftaran);
 
         $pendaftaran->load('waliMurid');
-        $gelombang = $this->gelombangDibuka();
+        $gelombang = $pendaftaran->gelombang;
 
         return Inertia::render('wali-murid/pendaftaran-create', [
             'kategoriSiswa' => $this->kategoriDenganKuota($gelombang, $pendaftaran->kategori_siswa_id),
@@ -409,6 +417,12 @@ class PendaftaranController extends Controller
 
     private function authorizeEditable(PendaftaranPpdb $pendaftaran): void
     {
+        abort_if(
+            $pendaftaran->draftKedaluwarsa(),
+            403,
+            'Draft tidak dapat dilanjutkan karena gelombang pendaftarannya sudah ditutup. Daftar kembali pada gelombang berikutnya.'
+        );
+
         abort_unless(
             $pendaftaran->bisaDiedit(),
             403,

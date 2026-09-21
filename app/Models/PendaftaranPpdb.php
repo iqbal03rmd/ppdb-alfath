@@ -11,9 +11,7 @@ use Illuminate\Support\Facades\DB;
 
 class PendaftaranPpdb extends Model
 {
-    /**
-     * Formulir & berkas cuma boleh diubah selama masih di dua status ini.
-     */
+    /** Formulir perbaikan tetap hidup karena sudah pernah diajukan ke staf. */
     public const STATUS_BISA_DIEDIT = ['draft', 'perlu_perbaikan'];
 
     /**
@@ -231,7 +229,16 @@ class PendaftaranPpdb extends Model
 
     public function bisaDiedit(): bool
     {
-        return in_array($this->status, self::STATUS_BISA_DIEDIT);
+        if ($this->status === 'draft') {
+            return $this->gelombang?->sedangMenerimaPendaftar() ?? false;
+        }
+
+        return $this->status === 'perlu_perbaikan';
+    }
+
+    public function draftKedaluwarsa(): bool
+    {
+        return $this->status === 'draft' && ! $this->bisaDiedit();
     }
 
     public function bolehBayar(): bool

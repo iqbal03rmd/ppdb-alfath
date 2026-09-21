@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AsalPaud;
+use App\Models\GelombangPpdb;
 use App\Models\KategoriSiswa;
 use App\Models\PembayaranPendaftaranAwal;
 use App\Models\PendaftaranPpdb;
@@ -26,8 +27,10 @@ beforeEach(function () {
 
     $this->wali = User::where('email', 'wali@ppdbalfath.test')->firstOrFail();
     $this->paud = AsalPaud::firstOrFail();
+    $this->gelombang = GelombangPpdb::menerimaPendaftar()->firstOrFail();
     PembayaranPendaftaranAwal::create([
         'user_id' => $this->wali->id,
+        'gelombang_ppdb_id' => $this->gelombang->id,
         'nominal_tagihan' => 125000,
         'nominal_transfer' => 125000,
         'tanggal_transfer' => today(),

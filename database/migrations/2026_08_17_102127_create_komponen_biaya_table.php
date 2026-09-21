@@ -10,7 +10,7 @@ return new class extends Migration
      * Komponen biaya - daftar GLOBAL, bukan milik satu gelombang.
      *
      * Dulu tiap gelombang punya salinan komponennya sendiri
-     * (komponen_biaya.gelombang_ppdb_id). Itu berarti "Pembangunan" di
+     * (komponen_biaya.gelombang_ppdb_id). Itu berarti "Uang Pembangunan" di
      * Gelombang 1 dan di Gelombang 2 adalah dua baris berbeda yang tidak saling
      * kenal - laporan tidak bisa menjumlahkan uang pangkal lintas angkatan, dan
      * tiap gelombang baru harus mengetik ulang seluruh daftarnya.
@@ -43,7 +43,6 @@ return new class extends Migration
             // tidak bergeser sepeser pun, karena tagihan_item menyimpan nama
             // dan nominalnya sebagai salinan, bukan foreign key ke sini.
             $table->boolean('status_aktif')->default(true);
-
 
             $table->timestamps();
         });

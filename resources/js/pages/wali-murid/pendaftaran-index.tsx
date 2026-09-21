@@ -58,6 +58,7 @@ interface IndexProps {
 
 const statusBadge: Record<string, { label: string; className: string }> = {
     draft: { label: 'Draft', className: 'bg-gray-100 text-gray-600' },
+    draft_kedaluwarsa: { label: 'Draft Berakhir', className: 'bg-gray-200 text-gray-700' },
     diajukan: { label: 'Diajukan', className: 'bg-blue-100 text-blue-700' },
     pembayaran: { label: 'Pembayaran Sekolah', className: 'bg-teal-100 text-teal-700' },
     perlu_perbaikan: { label: 'Perlu Perbaikan', className: 'bg-amber-100 text-amber-700' },
@@ -204,6 +205,12 @@ function PendaftaranDetailPanel({ item }: { item: PendaftaranItem }) {
                 </div>
             )}
 
+            {pendaftaran.status === 'draft_kedaluwarsa' && (
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+                    Gelombang pendaftaran sudah ditutup. Draft ini tidak dapat dilanjutkan; silakan mendaftar kembali pada gelombang berikutnya.
+                </div>
+            )}
+
             {/* Checklist progres per-tahap, masing-masing dengan tombol aksinya sendiri */}
             <div className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-100">
                 <div className="flex items-center justify-between gap-4 bg-[#F5F9FD] p-4">
@@ -275,7 +282,7 @@ function PendaftaranDetailPanel({ item }: { item: PendaftaranItem }) {
                         >
                             <Link href={route('wali-murid.pembayaran.show', pendaftaran.id)}>{labelTombolPembayaran}</Link>
                         </Button>
-                    ) : pendaftaran.status !== 'ditolak' ? (
+                    ) : !['ditolak', 'draft_kedaluwarsa'].includes(pendaftaran.status) ? (
                         <span className="shrink-0 text-xs text-gray-500">Menunggu berkas diverifikasi</span>
                     ) : null}
                 </div>

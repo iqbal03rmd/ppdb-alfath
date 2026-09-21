@@ -58,6 +58,7 @@ class MasterDataSeeder extends Seeder
                 // sementara status_buka masih true, datanya jadi saling bertentangan.
                 'tanggal_mulai' => '2026-08-01',
                 'tanggal_selesai' => '2026-10-31',
+                'biaya_pendaftaran' => 125_000,
                 // Sengaja di masa depan biar tampilan normalnya kelihatan saat demo.
                 // Ubah ke tanggal lampau kalau mau menguji peringatan "batas waktu terlewat".
                 'batas_waktu_pembayaran' => '2026-11-30',
@@ -106,10 +107,11 @@ class MasterDataSeeder extends Seeder
     private function seedKomponenBiaya(): Collection
     {
         $daftar = [
-            ['nama' => 'Pembangunan', 'urutan' => 1, 'keterangan' => 'Biaya pembangunan & fasilitas sekolah, dibayar sekali saat diterima.'],
-            ['nama' => 'Seragam', 'urutan' => 2, 'keterangan' => 'Satu set seragam sekolah (harian, olahraga, muslim).'],
-            ['nama' => 'Buku', 'urutan' => 3, 'keterangan' => 'Paket buku pelajaran tahun pertama.'],
-            ['nama' => 'SPP Bulan Pertama', 'urutan' => 4, 'keterangan' => 'Iuran bulanan pertama, dibayar di muka.'],
+            [
+                'nama' => 'Uang Pembangunan',
+                'urutan' => 1,
+                'keterangan' => 'Sudah termasuk uang seragam, buku, dan SPP bulan pertama.',
+            ],
         ];
 
         return collect($daftar)
@@ -235,7 +237,8 @@ class MasterDataSeeder extends Seeder
     }
 
     /**
-     * Nominal tiap komponen, per jalur, untuk Gelombang 1.
+     * Nominal Uang Pembangunan per jalur untuk Gelombang 1. Komponen tunggal
+     * ini sudah mencakup seragam, buku, dan SPP bulan pertama.
      *
      * Nominal 0 SAH - artinya jalur itu dibebaskan dari pos tersebut, bukan
      * "belum diisi". Total per jalur:
@@ -254,13 +257,9 @@ class MasterDataSeeder extends Seeder
 
         $tarif = [
             //                     Reguler   Saudara  A.Yatim   A.Guru
-            // Seluruh selisih antar jalur ditaruh di sini: Reguler 4,5jt dan
-            // Saudara/Anak Guru 4jt, jadi bedanya pas 500rb dan gampang
-            // dijelaskan ke wali. Anak Yatim dibebaskan sepenuhnya.
-            'Pembangunan' => [3_000_000, 2_500_000, 0, 2_500_000],
-            'Seragam' => [750_000, 750_000, 750_000, 750_000],
-            'Buku' => [400_000, 400_000, 0, 400_000],
-            'SPP Bulan Pertama' => [350_000, 350_000, 175_000, 350_000],
+            // Seluruh selisih antar jalur ditaruh di komponen tunggal ini:
+            // Reguler 4,5jt, Saudara/Anak Guru 4jt, dan Anak Yatim 925rb.
+            'Uang Pembangunan' => [4_500_000, 4_000_000, 925_000, 4_000_000],
         ];
 
         foreach ($tarif as $namaKomponen => $nominalPerJalur) {

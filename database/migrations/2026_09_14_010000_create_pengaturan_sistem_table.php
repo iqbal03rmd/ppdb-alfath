@@ -25,7 +25,6 @@ return new class extends Migration
             $table->string('nomor_rekening', 100)->nullable();
             $table->string('nama_pemilik_rekening', 150)->nullable();
             $table->text('instruksi_pembayaran')->nullable();
-            $table->unsignedBigInteger('biaya_pendaftaran_awal')->default(125000);
 
             $table->string('judul_landing', 200);
             $table->text('deskripsi_landing');

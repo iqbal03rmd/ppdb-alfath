@@ -16,14 +16,16 @@ class VerifikasiBiayaPendaftaranController extends Controller
     public function index(): Response
     {
         return Inertia::render('staf-ppdb/verifikasi-biaya-pendaftaran', [
-            'antrian' => PembayaranPendaftaranAwal::with('wali:id,name,email,telepon')
+            'antrian' => PembayaranPendaftaranAwal::with(['wali:id,name,email,telepon', 'gelombang:id,nama'])
                 ->where('status', 'menunggu_verifikasi')
+                ->whereHas('gelombang', fn ($query) => $query->menerimaPendaftar())
                 ->oldest()
                 ->get()
                 ->map(fn (PembayaranPendaftaranAwal $p) => [
                     'id' => $p->id,
                     'nama_wali' => $p->wali->name,
                     'email' => $p->wali->email,
+                    'gelombang' => $p->gelombang->nama,
                     'nominal_transfer' => $p->nominal_transfer,
                     'tanggal_transfer' => $p->tanggal_transfer->locale('id')->translatedFormat('d F Y'),
                     'menunggu_sejak' => $p->created_at->locale('id')->translatedFormat('d F Y'),
@@ -33,7 +35,7 @@ class VerifikasiBiayaPendaftaranController extends Controller
 
     public function show(PembayaranPendaftaranAwal $pembayaran): Response
     {
-        $pembayaran->load(['wali:id,name,email,telepon', 'pendaftaran:id,nama_pendaftar,nomor_pendaftaran', 'diverifikasiOleh:id,name']);
+        $pembayaran->load(['wali:id,name,email,telepon', 'gelombang:id,nama,tanggal_mulai,tanggal_selesai,status_buka', 'pendaftaran:id,nama_pendaftar,nomor_pendaftaran', 'diverifikasiOleh:id,name']);
 
         return Inertia::render('staf-ppdb/verifikasi-biaya-pendaftaran-show', [
             'pembayaran' => [
@@ -52,6 +54,8 @@ class VerifikasiBiayaPendaftaranController extends Controller
                     true
                 ),
                 'sudah_digunakan' => $pembayaran->digunakan_pada !== null,
+                'gelombang' => $pembayaran->gelombang->nama,
+                'gelombang_aktif' => $pembayaran->gelombang->sedangMenerimaPendaftar(),
             ],
             'wali' => [
                 'nama' => $pembayaran->wali->name,
@@ -71,6 +75,11 @@ class VerifikasiBiayaPendaftaranController extends Controller
             $target = PembayaranPendaftaranAwal::query()->lockForUpdate()->findOrFail($pembayaran->id);
 
             abort_unless($target->status === 'menunggu_verifikasi', 403, 'Pembayaran ini sudah pernah diputuskan.');
+            abort_unless(
+                $target->gelombang->sedangMenerimaPendaftar(),
+                403,
+                'Pembayaran tidak dapat disahkan karena gelombang pendaftarannya sudah ditutup.'
+            );
             abort_if(
                 $target->nominal_transfer < $target->nominal_tagihan,
                 422,
@@ -106,6 +115,11 @@ class VerifikasiBiayaPendaftaranController extends Controller
                 in_array($target->status, ['menunggu_verifikasi', 'terverifikasi'], true),
                 403,
                 'Pembayaran ini sudah ditolak sebelumnya.'
+            );
+            abort_unless(
+                $target->gelombang->sedangMenerimaPendaftar(),
+                403,
+                'Pembayaran tidak dapat diubah karena gelombang pendaftarannya sudah ditutup.'
             );
             abort_if(
                 $target->digunakan_pada !== null || $target->pendaftaran_ppdb_id !== null,

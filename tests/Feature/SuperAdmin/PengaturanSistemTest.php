@@ -96,7 +96,6 @@ function pengaturanSistemPayload(): array
         'nomor_rekening' => '1234567890',
         'nama_pemilik_rekening' => 'Yayasan Al-Fath',
         'instruksi_pembayaran' => 'Cantumkan nomor pendaftaran pada berita transfer.',
-        'biaya_pendaftaran_awal' => 125000,
         'judul_landing' => 'PPDB Tahun Ajaran Baru',
         'deskripsi_landing' => 'Pendaftaran peserta didik baru kini dapat dilakukan secara daring.',
         'pengumuman_landing' => 'Kuota terbatas selama gelombang pendaftaran berlangsung.',

@@ -25,11 +25,12 @@ beforeEach(function () {
     $this->gelombang = GelombangPpdb::where('tahun_ajaran_id', $this->tahunAjaran->id)->firstOrFail();
     $this->reguler = KategoriSiswa::where('nama', 'Reguler')->firstOrFail();
     $this->yatim = KategoriSiswa::where('nama', 'Anak Yatim')->firstOrFail();
-    $this->seragam = KomponenBiaya::where('nama', 'Seragam')->firstOrFail();
+    $this->pembangunan = KomponenBiaya::where('nama', 'Uang Pembangunan')->firstOrFail();
 
     $wali = User::where('role', 'wali_murid')->firstOrFail();
     PembayaranPendaftaranAwal::create([
         'user_id' => $wali->id,
+        'gelombang_ppdb_id' => $this->gelombang->id,
         'nominal_tagihan' => 125000,
         'nominal_transfer' => 125000,
         'tanggal_transfer' => today(),
@@ -67,6 +68,7 @@ function muatanGelombang(GelombangPpdb $g, array $timpa = []): array
         'nama' => $g->nama,
         'tanggal_mulai' => $g->tanggal_mulai?->format('Y-m-d'),
         'tanggal_selesai' => $g->tanggal_selesai?->format('Y-m-d'),
+        'biaya_pendaftaran' => $g->biaya_pendaftaran,
         'batas_waktu_pembayaran' => $g->batas_waktu_pembayaran?->format('Y-m-d'),
         'kebijakan' => [],
         'dokumen' => [],
@@ -402,13 +404,13 @@ test('komponen biaya yang belum punya nominal boleh dihapus', function () {
 });
 
 test('komponen biaya yang sudah punya nominal tidak bisa dihapus', function () {
-    expect($this->seragam->tarif()->exists())->toBeTrue();
+    expect($this->pembangunan->tarif()->exists())->toBeTrue();
 
     $this->actingAs($this->admin)
-        ->delete(route('super-admin.komponen-biaya.destroy', $this->seragam))
+        ->delete(route('super-admin.komponen-biaya.destroy', $this->pembangunan))
         ->assertSessionHas('error');
 
-    expect(KomponenBiaya::find($this->seragam->id))->not->toBeNull();
+    expect(KomponenBiaya::find($this->pembangunan->id))->not->toBeNull();
 });
 
 /*
@@ -432,8 +434,8 @@ test('gelombang baru lahir tertutup dan ketentuannya langsung tersimpan per jalu
                 $this->yatim->id => ['kartu_keluarga', 'surat_kematian_ayah'],
             ],
             'tarif' => [
-                $this->reguler->id => [$this->seragam->id => 800_000],
-                $this->yatim->id => [$this->seragam->id => 0],
+                $this->reguler->id => [$this->pembangunan->id => 800_000],
+                $this->yatim->id => [$this->pembangunan->id => 0],
             ],
         ]))
         ->assertSessionHasNoErrors();
@@ -448,11 +450,11 @@ test('gelombang baru lahir tertutup dan ketentuannya langsung tersimpan per jalu
         ->and(KebijakanKategori::minimalBayarUntuk($baru->id, $this->yatim->id))->toBe(400_000)
         ->and(TarifKategori::where('gelombang_ppdb_id', $baru->id)
             ->where('kategori_siswa_id', $this->reguler->id)
-            ->where('komponen_biaya_id', $this->seragam->id)
+            ->where('komponen_biaya_id', $this->pembangunan->id)
             ->value('nominal'))->toBe(800_000)
         ->and(TarifKategori::where('gelombang_ppdb_id', $baru->id)
             ->where('kategori_siswa_id', $this->yatim->id)
-            ->where('komponen_biaya_id', $this->seragam->id)
+            ->where('komponen_biaya_id', $this->pembangunan->id)
             ->value('nominal'))->toBe(0)
         ->and($baru->dokumenWajibUntuk($this->yatim->id))->toContain('surat_kematian_ayah');
 });
@@ -468,17 +470,17 @@ test('harga boleh berbeda antar gelombang untuk komponen yang sama', function ()
 
     TarifKategori::create([
         'gelombang_ppdb_id' => $baru->id,
-        'komponen_biaya_id' => $this->seragam->id,
+        'komponen_biaya_id' => $this->pembangunan->id,
         'kategori_siswa_id' => $this->reguler->id,
         'nominal' => 800_000,
     ]);
 
     $lama = TarifKategori::where('gelombang_ppdb_id', $this->gelombang->id)
-        ->where('komponen_biaya_id', $this->seragam->id)
+        ->where('komponen_biaya_id', $this->pembangunan->id)
         ->where('kategori_siswa_id', $this->reguler->id)
         ->firstOrFail();
 
-    expect($lama->nominal)->toBe(750_000);
+    expect($lama->nominal)->toBe(4_500_000);
 });
 
 test('membuka gelombang menutup gelombang lain', function () {
@@ -695,7 +697,7 @@ test('daftar gelombang mengirim alasan kenapa satu gelombang belum bisa dibuka',
             ->etc());
 });
 
-test('menutup gelombang tidak menyentuh pendaftaran di dalamnya', function () {
+test('menutup gelombang tidak mengubah status tersimpan pendaftaran di dalamnya', function () {
     $sebelum = $this->gelombang->pendaftaran()->pluck('status', 'id');
 
     expect($sebelum)->not->toBeEmpty();
@@ -761,8 +763,8 @@ test('satu jalur utuh tidak boleh dihilangkan dari muatan formulir', function (s
     $muatan = muatanGelombang($this->gelombang);
 
     if ($bagian === 'tarif') {
-        unset($muatan['tarif'][$this->reguler->id][$this->seragam->id]);
-        $kunci = "tarif.{$this->reguler->id}.{$this->seragam->id}";
+        unset($muatan['tarif'][$this->reguler->id][$this->pembangunan->id]);
+        $kunci = "tarif.{$this->reguler->id}.{$this->pembangunan->id}";
     } else {
         unset($muatan[$bagian][$this->reguler->id]);
         $kunci = "{$bagian}.{$this->reguler->id}{$akhiran}";
@@ -1245,11 +1247,11 @@ test('gelombang yang sudah punya pendaftar tidak bisa dipindah tahun ajaran', fu
 });
 
 /**
- * Menutup pendaftaran TIDAK menyentuh pendaftar yang sudah masuk - mereka tetap
- * memegang kursinya beserta tenggatnya sendiri. Kalau tidak begitu, "tutup dulu
- * baru ubah" jadi tindakan yang terlalu mahal untuk dipakai.
+ * Menutup pendaftaran tidak mengubah atau menghapus baris pendaftar. Yang sudah
+ * submit tetap memegang kursi dan tenggat; draft tetap tersimpan tetapi akses
+ * edit/upload/submit-nya dikunci oleh PendaftaranPpdb::bisaDiedit().
  */
-test('menutup pendaftaran tidak menggugurkan yang sudah masuk', function () {
+test('menutup pendaftaran tidak mengubah status yang sudah tersimpan', function () {
     $sebelum = PendaftaranPpdb::where('gelombang_ppdb_id', $this->gelombang->id)
         ->pluck('status', 'id');
 
@@ -1270,21 +1272,21 @@ test('nominal tersimpan per jalur lewat halaman gelombang', function () {
 
     $this->actingAs($this->admin)
         ->put(route('super-admin.gelombang.update', $this->gelombang), muatanGelombang($this->gelombang, [
-            'tarif' => [$this->yatim->id => [$this->seragam->id => 500_000]],
+            'tarif' => [$this->yatim->id => [$this->pembangunan->id => 500_000]],
         ]))
         ->assertSessionHasNoErrors();
 
     $tarif = TarifKategori::where('gelombang_ppdb_id', $this->gelombang->id)
-        ->where('komponen_biaya_id', $this->seragam->id)
+        ->where('komponen_biaya_id', $this->pembangunan->id)
         ->where('kategori_siswa_id', $this->yatim->id)
         ->firstOrFail();
 
     expect($tarif->nominal)->toBe(500_000)
         // Jalur lain tidak ikut berubah.
         ->and(TarifKategori::where('gelombang_ppdb_id', $this->gelombang->id)
-            ->where('komponen_biaya_id', $this->seragam->id)
+            ->where('komponen_biaya_id', $this->pembangunan->id)
             ->where('kategori_siswa_id', $this->reguler->id)
-            ->value('nominal'))->toBe(750_000);
+            ->value('nominal'))->toBe(4_500_000);
 });
 
 /**
@@ -1298,13 +1300,13 @@ test('nol berarti dibebaskan, kosong berarti belum diatur', function () {
     $kirim = fn (mixed $nominal) => $this->actingAs($this->admin)->put(
         route('super-admin.gelombang.update', $this->gelombang),
         muatanGelombang($this->gelombang, [
-            'tarif' => [$this->yatim->id => [$this->seragam->id => $nominal]],
+            'tarif' => [$this->yatim->id => [$this->pembangunan->id => $nominal]],
         ])
     );
 
     $kunci = [
         'gelombang_ppdb_id' => $this->gelombang->id,
-        'komponen_biaya_id' => $this->seragam->id,
+        'komponen_biaya_id' => $this->pembangunan->id,
         'kategori_siswa_id' => $this->yatim->id,
     ];
 
@@ -1329,12 +1331,12 @@ test('komponen non-aktif berhenti ikut ke tagihan baru', function () {
         ->where('kategori_siswa_id', $this->reguler->id)
         ->sum('nominal');
 
-    $hargaSeragam = TarifKategori::where('gelombang_ppdb_id', $this->gelombang->id)
+    $hargaPembangunan = TarifKategori::where('gelombang_ppdb_id', $this->gelombang->id)
         ->where('kategori_siswa_id', $this->reguler->id)
-        ->where('komponen_biaya_id', $this->seragam->id)
+        ->where('komponen_biaya_id', $this->pembangunan->id)
         ->value('nominal');
 
-    $this->seragam->update(['status_aktif' => false]);
+    $this->pembangunan->update(['status_aktif' => false]);
 
     // Pendaftaran yang tagihannya BELUM terbit - dia yang merasakan akibatnya.
     $baru = PendaftaranPpdb::where('gelombang_ppdb_id', $this->gelombang->id)
@@ -1344,10 +1346,10 @@ test('komponen non-aktif berhenti ikut ke tagihan baru', function () {
 
     $baru->terbitkanTagihan();
 
-    expect($baru->tagihanItem()->sum('nominal'))->toBe((int) ($totalPenuh - $hargaSeragam))
-        ->and($baru->tagihanItem()->where('nama_komponen', 'Seragam')->exists())->toBeFalse()
+    expect($baru->tagihanItem()->sum('nominal'))->toBe((int) ($totalPenuh - $hargaPembangunan))
+        ->and($baru->tagihanItem()->where('nama_komponen', 'Uang Pembangunan')->exists())->toBeFalse()
         // Baris tarifnya TIDAK ikut hilang - dinyalakan lagi, harganya utuh.
-        ->and(TarifKategori::where('komponen_biaya_id', $this->seragam->id)->count())->toBeGreaterThan(0);
+        ->and(TarifKategori::where('komponen_biaya_id', $this->pembangunan->id)->count())->toBeGreaterThan(0);
 });
 
 test('menonaktifkan komponen tidak menyentuh tagihan yang sudah terbit', function () {
@@ -1364,36 +1366,36 @@ test('menonaktifkan komponen tidak menyentuh tagihan yang sudah terbit', functio
     $barisSebelum = $pendaftaran->tagihanItem()->count();
     $minimalSebelum = $pendaftaran->minimal_bayar;
 
-    $this->seragam->update(['status_aktif' => false]);
+    $this->pembangunan->update(['status_aktif' => false]);
 
     $pendaftaran->refresh();
 
     expect($pendaftaran->tagihanItem()->sum('nominal'))->toBe($totalSebelum)
         ->and($pendaftaran->tagihanItem()->count())->toBe($barisSebelum)
         ->and($pendaftaran->minimal_bayar)->toBe($minimalSebelum)
-        ->and($pendaftaran->tagihanItem()->where('nama_komponen', 'Seragam')->exists())->toBeTrue();
+        ->and($pendaftaran->tagihanItem()->where('nama_komponen', 'Uang Pembangunan')->exists())->toBeTrue();
 });
 
 test('komponen non-aktif bisa dinyalakan lagi lewat modal ubah', function () {
-    $this->seragam->update(['status_aktif' => false]);
+    $this->pembangunan->update(['status_aktif' => false]);
 
     $this->actingAs($this->admin)
-        ->put(route('super-admin.komponen-biaya.update', $this->seragam), [
-            'nama' => $this->seragam->nama,
-            'urutan' => $this->seragam->urutan,
-            'keterangan' => $this->seragam->keterangan,
+        ->put(route('super-admin.komponen-biaya.update', $this->pembangunan), [
+            'nama' => $this->pembangunan->nama,
+            'urutan' => $this->pembangunan->urutan,
+            'keterangan' => $this->pembangunan->keterangan,
             'status_aktif' => true,
         ])
         ->assertSessionHasNoErrors();
 
-    expect($this->seragam->refresh()->status_aktif)->toBeTrue();
+    expect($this->pembangunan->refresh()->status_aktif)->toBeTrue();
 });
 
 test('komponen non-aktif tidak ditawarkan lagi di layar pengisian nominal', function (string $layar) {
     // Tambah dan Ubah memakai formulir per jalur yang sama. Keduanya harus
     // menyaring pos mati - mengisi harga buat sesuatu yang tidak akan
     // ditagihkan cuma bikin bingung.
-    $this->seragam->update(['status_aktif' => false]);
+    $this->pembangunan->update(['status_aktif' => false]);
     $this->gelombang->tutup();
 
     $tujuan = $layar === 'create'
@@ -1403,7 +1405,7 @@ test('komponen non-aktif tidak ditawarkan lagi di layar pengisian nominal', func
     $this->actingAs($this->admin)
         ->get($tujuan)
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('komponen', fn ($komponen) => collect($komponen)->pluck('nama')->doesntContain('Seragam'))
+            ->where('komponen', fn ($komponen) => collect($komponen)->pluck('nama')->doesntContain('Uang Pembangunan'))
             ->etc());
 })->with(['create', 'edit']);
 
@@ -1418,7 +1420,7 @@ test('layar ubah gelombang mengirim nominal tiap jalur yang sudah tersimpan', fu
 
     $tersimpan = TarifKategori::where('gelombang_ppdb_id', $this->gelombang->id)
         ->where('kategori_siswa_id', $this->reguler->id)
-        ->where('komponen_biaya_id', $this->seragam->id)
+        ->where('komponen_biaya_id', $this->pembangunan->id)
         ->value('nominal');
 
     expect($tersimpan)->not->toBeNull();
@@ -1429,7 +1431,7 @@ test('layar ubah gelombang mengirim nominal tiap jalur yang sudah tersimpan', fu
             ->where('kebijakan', function ($daftar) use ($tersimpan) {
                 $baris = collect($daftar)->firstWhere('kategori_siswa_id', $this->reguler->id);
 
-                return $baris['tarif'][(string) $this->seragam->id] === (string) $tersimpan;
+                return $baris['tarif'][(string) $this->pembangunan->id] === (string) $tersimpan;
             })
             ->etc());
 });
@@ -1441,12 +1443,12 @@ test('layar ubah gelombang mengirim nominal tiap jalur yang sudah tersimpan', fu
  */
 test('mematikan pos biaya tidak membuang nominal yang sudah tersimpan', function () {
     $tersimpan = TarifKategori::where('gelombang_ppdb_id', $this->gelombang->id)
-        ->where('komponen_biaya_id', $this->seragam->id)
+        ->where('komponen_biaya_id', $this->pembangunan->id)
         ->count();
 
     expect($tersimpan)->toBeGreaterThan(0);
 
-    $this->seragam->update(['status_aktif' => false]);
+    $this->pembangunan->update(['status_aktif' => false]);
     $this->gelombang->tutup();
 
     // Layar tidak mengirimkan pos yang mati, jadi muatannya pun tidak menyebutnya.
@@ -1455,7 +1457,7 @@ test('mematikan pos biaya tidak membuang nominal yang sudah tersimpan', function
         ->assertSessionHasNoErrors();
 
     expect(TarifKategori::where('gelombang_ppdb_id', $this->gelombang->id)
-        ->where('komponen_biaya_id', $this->seragam->id)
+        ->where('komponen_biaya_id', $this->pembangunan->id)
         ->count())->toBe($tersimpan);
 });
 
@@ -1489,7 +1491,7 @@ test('mengubah tarif tidak mengubah tagihan yang sudah terbit', function () {
 
     $this->actingAs($this->admin)
         ->put(route('super-admin.gelombang.update', $this->gelombang), muatanGelombang($this->gelombang, [
-            'tarif' => [$pendaftaran->kategori_siswa_id => [$this->seragam->id => 99_000_000]],
+            'tarif' => [$pendaftaran->kategori_siswa_id => [$this->pembangunan->id => 99_000_000]],
         ]))
         ->assertSessionHasNoErrors();
 
@@ -1509,7 +1511,7 @@ test('status diterima tidak tercabut gara-gara konfigurasi diubah', function () 
     $this->actingAs($this->admin)->put(
         route('super-admin.gelombang.update', $this->gelombang),
         muatanGelombang($this->gelombang, [
-            'tarif' => [$diterima->kategori_siswa_id => [$this->seragam->id => 99_000_000]],
+            'tarif' => [$diterima->kategori_siswa_id => [$this->pembangunan->id => 99_000_000]],
         ])
     );
 

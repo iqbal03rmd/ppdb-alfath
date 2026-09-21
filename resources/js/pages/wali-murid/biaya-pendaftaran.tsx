@@ -12,7 +12,8 @@ type Status = 'belum_bayar' | 'menunggu_verifikasi' | 'ditolak' | 'siap_digunaka
 
 interface Props {
     status: Status;
-    biaya: number;
+    biaya: number | null;
+    gelombang: { nama: string } | null;
     bisaMengirim: boolean;
     informasiPembayaran: {
         nama_bank: string;
@@ -26,6 +27,7 @@ interface Props {
         nominal_transfer: number;
         tanggal_transfer: string;
         status: 'menunggu_verifikasi' | 'terverifikasi' | 'ditolak';
+        gelombang: string;
         catatan_verifikasi: string | null;
         digunakan_untuk: { nama: string; nomor: string } | null;
     }[];
@@ -66,10 +68,16 @@ function rupiah(nominal: number) {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(nominal);
 }
 
-export default function BiayaPendaftaran({ status, biaya, bisaMengirim, informasiPembayaran, catatanPenolakan, riwayat }: Props) {
-    const info = statusInfo[status];
+export default function BiayaPendaftaran({ status, biaya, gelombang, bisaMengirim, informasiPembayaran, catatanPenolakan, riwayat }: Props) {
+    const info = gelombang
+        ? statusInfo[status]
+        : {
+              judul: 'Pendaftaran sedang ditutup',
+              isi: 'Pembayaran biaya pendaftaran dapat dilakukan setelah gelombang berikutnya dibuka.',
+              gaya: 'border-gray-200 bg-gray-50 text-gray-700',
+          };
     const form = useForm<{ nominal_transfer: string; tanggal_transfer: string; bukti_transfer: File | null }>({
-        nominal_transfer: String(biaya),
+        nominal_transfer: biaya === null ? '' : String(biaya),
         tanggal_transfer: new Date().toISOString().slice(0, 10),
         bukti_transfer: null,
     });
@@ -84,7 +92,7 @@ export default function BiayaPendaftaran({ status, biaya, bisaMengirim, informas
             <Head title="Biaya Pendaftaran" />
             <PageHeader
                 title="Pembayaran Sebelum Mendaftarkan Anak"
-                subtitle="Selesaikan satu pembayaran untuk membuka satu formulir pendaftaran anak"
+                subtitle={gelombang ? `${gelombang.nama} · Satu pembayaran membuka satu formulir anak` : 'Menunggu gelombang pendaftaran dibuka'}
                 wide
             />
 
@@ -108,7 +116,7 @@ export default function BiayaPendaftaran({ status, biaya, bisaMengirim, informas
                                 <div className="space-y-3 text-sm">
                                     <div>
                                         <p className="text-gray-500">Biaya per anak</p>
-                                        <p className="text-xl font-bold text-[#0A3981]">{rupiah(biaya)}</p>
+                                        <p className="text-xl font-bold text-[#0A3981]">{biaya === null ? '-' : rupiah(biaya)}</p>
                                     </div>
                                     <div>
                                         <p className="text-gray-500">Bank</p>
@@ -143,7 +151,7 @@ export default function BiayaPendaftaran({ status, biaya, bisaMengirim, informas
                                                 <div>
                                                     <p className="font-medium text-gray-900">{rupiah(item.nominal_transfer)}</p>
                                                     <p className="text-xs text-gray-500">
-                                                        {item.tanggal_transfer}
+                                                        {item.gelombang} · {item.tanggal_transfer}
                                                         {item.digunakan_untuk ? ` · Digunakan untuk ${item.digunakan_untuk.nama}` : ''}
                                                     </p>
                                                 </div>

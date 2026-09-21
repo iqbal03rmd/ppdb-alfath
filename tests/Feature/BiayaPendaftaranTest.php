@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AsalPaud;
+use App\Models\GelombangPpdb;
 use App\Models\KategoriSiswa;
 use App\Models\PembayaranPendaftaranAwal;
 use App\Models\PendaftaranPpdb;
@@ -17,8 +18,9 @@ beforeEach(function () {
         'nama_bank' => 'BSI',
         'nomor_rekening' => '1234567890',
         'nama_pemilik_rekening' => 'Yayasan Al-Fath',
-        'biaya_pendaftaran_awal' => 125000,
     ]);
+
+    $this->gelombang = GelombangPpdb::menerimaPendaftar()->firstOrFail();
 
     $this->wali = User::factory()->create([
         'role' => 'wali_murid',
@@ -93,6 +95,7 @@ test('wali dapat mengirim satu bukti yang menunggu verifikasi', function () {
 test('satu pembayaran yang disahkan hanya dapat membuat satu pendaftaran anak', function () {
     $pembayaran = PembayaranPendaftaranAwal::create([
         'user_id' => $this->wali->id,
+        'gelombang_ppdb_id' => $this->gelombang->id,
         'nominal_tagihan' => 125000,
         'nominal_transfer' => 125000,
         'tanggal_transfer' => today(),
@@ -150,6 +153,7 @@ test('pengesahan yang sudah dipakai tidak dapat dibatalkan', function () {
     $pendaftaran->update(['user_id' => $this->wali->id]);
     $pembayaran = PembayaranPendaftaranAwal::create([
         'user_id' => $this->wali->id,
+        'gelombang_ppdb_id' => $pendaftaran->gelombang_ppdb_id,
         'pendaftaran_ppdb_id' => $pendaftaran->id,
         'nominal_tagihan' => 125000,
         'nominal_transfer' => 125000,
@@ -169,6 +173,7 @@ test('pengesahan yang sudah dipakai tidak dapat dibatalkan', function () {
 test('staf melihat antrian dan tidak dapat mengesahkan pembayaran yang kurang', function () {
     $pembayaran = PembayaranPendaftaranAwal::create([
         'user_id' => $this->wali->id,
+        'gelombang_ppdb_id' => $this->gelombang->id,
         'nominal_tagihan' => 125000,
         'nominal_transfer' => 100000,
         'tanggal_transfer' => today(),
@@ -192,4 +197,59 @@ test('staf melihat antrian dan tidak dapat mengesahkan pembayaran yang kurang', 
         ->assertStatus(422);
 
     expect($pembayaran->refresh()->status)->toBe('menunggu_verifikasi');
+});
+
+test('biaya dan tiket pendaftaran hanya berlaku untuk gelombangnya', function () {
+    PembayaranPendaftaranAwal::create([
+        'user_id' => $this->wali->id,
+        'gelombang_ppdb_id' => $this->gelombang->id,
+        'nominal_tagihan' => 125000,
+        'nominal_transfer' => 125000,
+        'tanggal_transfer' => today(),
+        'bukti_transfer' => 'bukti/gelombang-lama.jpg',
+        'status' => 'terverifikasi',
+        'diverifikasi_pada' => now(),
+    ]);
+
+    $gelombangBaru = GelombangPpdb::create([
+        'tahun_ajaran_id' => $this->gelombang->tahun_ajaran_id,
+        'nama' => 'Gelombang 2',
+        'tanggal_mulai' => today()->toDateString(),
+        'tanggal_selesai' => today()->addMonth()->toDateString(),
+        'batas_waktu_pembayaran' => today()->addMonths(2)->toDateString(),
+        'biaya_pendaftaran' => 175000,
+        'status_buka' => false,
+    ]);
+    $gelombangBaru->buka();
+
+    expect($gelombangBaru->refresh()->sedangMenerimaPendaftar())->toBeTrue()
+        ->and(GelombangPpdb::menerimaPendaftar()->pluck('nama')->all())->toBe(['Gelombang 2']);
+
+    $this->actingAs($this->wali)
+        ->get(route('wali-murid.dashboard'))
+        ->assertInertia(fn ($page) => $page
+            ->where('gelombangDibuka.nama', 'Gelombang 2')
+            ->where('tiketPendaftaran.status', 'belum_bayar')
+            ->etc());
+
+    $this->actingAs($this->wali)
+        ->get(route('wali-murid.biaya-pendaftaran.show'))
+        ->assertInertia(fn ($page) => $page
+            ->where('gelombang.nama', 'Gelombang 2')
+            ->where('biaya', 175000)
+            ->etc());
+
+    $this->actingAs($this->wali)
+        ->post(route('wali-murid.biaya-pendaftaran.store'), [
+            'nominal_transfer' => 175000,
+            'tanggal_transfer' => today()->format('Y-m-d'),
+            'bukti_transfer' => UploadedFile::fake()->image('gelombang-baru.jpg'),
+        ])
+        ->assertRedirect(route('wali-murid.biaya-pendaftaran.show'));
+
+    $baru = PembayaranPendaftaranAwal::where('user_id', $this->wali->id)
+        ->where('gelombang_ppdb_id', $gelombangBaru->id)
+        ->firstOrFail();
+
+    expect($baru->nominal_tagihan)->toBe(175000);
 });

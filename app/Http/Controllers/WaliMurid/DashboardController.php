@@ -27,7 +27,7 @@ class DashboardController extends Controller
             'nomor_pendaftaran' => $p->nomor_pendaftaran,
             'nama_pendaftar' => $p->nama_pendaftar,
             'kategori' => $p->kategoriSiswa->nama,
-            'status' => $p->status,
+            'status' => $p->draftKedaluwarsa() ? 'draft_kedaluwarsa' : $p->status,
             'catatan_verifikasi' => $p->catatan_verifikasi,
             'sisa_tagihan' => $p->bolehLihatTagihan() ? $p->sisaTagihan() : null,
             'status_pembayaran' => $p->bolehLihatTagihan() ? $p->statusPelunasan() : null,
@@ -44,7 +44,7 @@ class DashboardController extends Controller
         // PendaftaranController::gelombangDibuka(). Kalau beda, Beranda
         // menawarkan gelombang yang formulirnya justru menolak.
         $gelombang = GelombangPpdb::menerimaPendaftar()->latest()->first();
-        $statusTiket = $this->statusTiket($request->user());
+        $statusTiket = $this->statusTiket($request->user(), $gelombang);
 
         return Inertia::render('wali-murid/dashboard', [
             'daftarPendaftaran' => $daftar->sortByDesc('perlu_tindakan')->values(),
@@ -65,13 +65,20 @@ class DashboardController extends Controller
         ]);
     }
 
-    private function statusTiket(User $user): string
+    private function statusTiket(User $user, ?GelombangPpdb $gelombang): string
     {
-        if ($user->tiketPendaftaranTersedia()->exists()) {
+        if ($gelombang === null) {
+            return 'belum_bayar';
+        }
+
+        if ($user->tiketPendaftaranTersedia($gelombang->id)->exists()) {
             return 'siap_digunakan';
         }
 
-        return match ($user->pembayaranPendaftaranAwalTerakhir()->value('status')) {
+        return match ($user->pembayaranPendaftaranAwal()
+            ->where('gelombang_ppdb_id', $gelombang->id)
+            ->latest()
+            ->value('status')) {
             'menunggu_verifikasi' => 'menunggu_verifikasi',
             'ditolak' => 'ditolak',
             default => 'belum_bayar',
@@ -126,6 +133,15 @@ class DashboardController extends Controller
         $berkasKurang = count($pendaftaran->dokumenKurang());
 
         if ($pendaftaran->status === 'draft') {
+            if ($pendaftaran->draftKedaluwarsa()) {
+                return [
+                    'tindakan' => 'Gelombang pendaftaran sudah ditutup. Daftar kembali pada gelombang berikutnya',
+                    'tombol' => null,
+                    'rute' => null,
+                    'perlu_tindakan' => false,
+                ];
+            }
+
             return $berkasKurang > 0
                 ? [
                     'tindakan' => "Lengkapi {$berkasKurang} berkas lagi, lalu kirim untuk diverifikasi",

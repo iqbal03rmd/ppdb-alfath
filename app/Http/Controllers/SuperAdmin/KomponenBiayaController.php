@@ -103,7 +103,7 @@ class KomponenBiayaController extends Controller
             // Mematikan semuanya sah - artinya sekolah tidak menagih apa pun.
             'status_aktif' => ['boolean'],
         ], [
-            'nama.required' => 'Nama komponen wajib diisi, misalnya Pembangunan.',
+            'nama.required' => 'Nama komponen wajib diisi, misalnya Uang Pembangunan.',
             'nama.unique' => 'Komponen dengan nama ini sudah ada.',
             'urutan.required' => 'Urutan wajib diisi - itu yang menentukan letaknya di rincian tagihan.',
         ]);

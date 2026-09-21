@@ -18,7 +18,6 @@ interface Pengaturan {
     nomor_rekening: string | null;
     nama_pemilik_rekening: string | null;
     instruksi_pembayaran: string | null;
-    biaya_pendaftaran_awal: number;
     judul_landing: string;
     deskripsi_landing: string;
     pengumuman_landing: string | null;
@@ -43,7 +42,6 @@ export default function PengaturanSistem({ pengaturan }: { pengaturan: Pengatura
         nomor_rekening: pengaturan.nomor_rekening ?? '',
         nama_pemilik_rekening: pengaturan.nama_pemilik_rekening ?? '',
         instruksi_pembayaran: pengaturan.instruksi_pembayaran ?? '',
-        biaya_pendaftaran_awal: String(pengaturan.biaya_pendaftaran_awal),
         judul_landing: pengaturan.judul_landing,
         deskripsi_landing: pengaturan.deskripsi_landing,
         pengumuman_landing: pengaturan.pengumuman_landing ?? '',
@@ -188,20 +186,6 @@ export default function PengaturanSistem({ pengaturan }: { pengaturan: Pengatura
 
                         <Kartu judul="Informasi Pembayaran">
                             <div className="space-y-5">
-                                <div>
-                                    <Label required htmlFor="biaya_pendaftaran_awal">
-                                        Biaya Pendaftaran per Anak
-                                    </Label>
-                                    <Input
-                                        id="biaya_pendaftaran_awal"
-                                        value={data.biaya_pendaftaran_awal}
-                                        onChange={(value) => setData('biaya_pendaftaran_awal', value.replace(/\D/g, ''))}
-                                        placeholder="125000"
-                                    />
-                                    <p className="mt-1 text-xs text-gray-500">Dibayar sebelum wali mengisi formulir untuk setiap anak.</p>
-                                    <FieldError message={errors.biaya_pendaftaran_awal} />
-                                </div>
-
                                 <div>
                                     <Label htmlFor="nama_bank">Nama Bank</Label>
                                     <Input

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\WaliMurid;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\WaliMurid\StorePembayaranPendaftaranAwalRequest;
+use App\Models\GelombangPpdb;
 use App\Models\PembayaranPendaftaranAwal;
 use App\Models\PengaturanSistem;
 use App\Models\User;
@@ -20,12 +21,18 @@ class BiayaPendaftaranController extends Controller
     {
         $user = $request->user();
         $pengaturan = PengaturanSistem::saatIni();
-        $tiket = $user->tiketPendaftaranTersedia()->oldest()->first();
+        $gelombang = GelombangPpdb::menerimaPendaftar()->latest()->first();
+        $pembayaranGelombang = $user->pembayaranPendaftaranAwal()
+            ->when($gelombang, fn ($query) => $query->where('gelombang_ppdb_id', $gelombang->id))
+            ->when(! $gelombang, fn ($query) => $query->whereRaw('1 = 0'));
+        $tiket = $gelombang ? $user->tiketPendaftaranTersedia($gelombang->id)->oldest()->first() : null;
         $pending = $user->pembayaranPendaftaranAwal()
+            ->when($gelombang, fn ($query) => $query->where('gelombang_ppdb_id', $gelombang->id))
+            ->when(! $gelombang, fn ($query) => $query->whereRaw('1 = 0'))
             ->where('status', 'menunggu_verifikasi')
             ->latest()
             ->first();
-        $terakhir = $user->pembayaranPendaftaranAwal()->latest()->first();
+        $terakhir = $pembayaranGelombang->latest()->first();
 
         $status = match (true) {
             $tiket !== null => 'siap_digunakan',
@@ -36,8 +43,10 @@ class BiayaPendaftaranController extends Controller
 
         return Inertia::render('wali-murid/biaya-pendaftaran', [
             'status' => $status,
-            'biaya' => (int) $pengaturan->biaya_pendaftaran_awal,
-            'bisaMengirim' => $tiket === null
+            'biaya' => $gelombang ? (int) $gelombang->biaya_pendaftaran : null,
+            'gelombang' => $gelombang ? ['nama' => $gelombang->nama] : null,
+            'bisaMengirim' => $gelombang !== null
+                && $tiket === null
                 && $pending === null
                 && $pengaturan->informasiRekeningLengkap(),
             'informasiPembayaran' => $pengaturan->informasiRekeningLengkap() ? [
@@ -48,7 +57,7 @@ class BiayaPendaftaranController extends Controller
             ] : null,
             'catatanPenolakan' => $status === 'ditolak' ? $terakhir?->catatan_verifikasi : null,
             'riwayat' => $user->pembayaranPendaftaranAwal()
-                ->with('pendaftaran:id,nama_pendaftar,nomor_pendaftaran')
+                ->with(['gelombang:id,nama', 'pendaftaran:id,nama_pendaftar,nomor_pendaftaran'])
                 ->latest()
                 ->get()
                 ->map(fn (PembayaranPendaftaranAwal $p) => [
@@ -56,6 +65,7 @@ class BiayaPendaftaranController extends Controller
                     'nominal_transfer' => $p->nominal_transfer,
                     'tanggal_transfer' => $p->tanggal_transfer->locale('id')->translatedFormat('d F Y'),
                     'status' => $p->status,
+                    'gelombang' => $p->gelombang->nama,
                     'catatan_verifikasi' => $p->catatan_verifikasi,
                     'digunakan_untuk' => $p->pendaftaran ? [
                         'nama' => $p->pendaftaran->nama_pendaftar,
@@ -68,6 +78,9 @@ class BiayaPendaftaranController extends Controller
     public function store(StorePembayaranPendaftaranAwalRequest $request): RedirectResponse
     {
         $pengaturan = PengaturanSistem::saatIni();
+        $gelombang = GelombangPpdb::menerimaPendaftar()->latest()->first();
+
+        abort_unless($gelombang, 422, 'Tidak ada gelombang PPDB yang sedang dibuka saat ini.');
 
         abort_unless(
             $pengaturan->informasiRekeningLengkap(),
@@ -78,23 +91,34 @@ class BiayaPendaftaranController extends Controller
         $path = $request->file('bukti_transfer')->store('bukti-biaya-pendaftaran', 'public');
 
         try {
-            DB::transaction(function () use ($request, $pengaturan, $path): void {
+            DB::transaction(function () use ($request, $gelombang, $path): void {
                 $user = User::query()->lockForUpdate()->findOrFail($request->user()->id);
+                $gelombangAktif = GelombangPpdb::query()->lockForUpdate()->findOrFail($gelombang->id);
+
+                abort_unless(
+                    $gelombangAktif->sedangMenerimaPendaftar(),
+                    422,
+                    'Gelombang pendaftaran sudah ditutup. Tunggu gelombang berikutnya untuk melakukan pembayaran.'
+                );
 
                 abort_if(
-                    $user->tiketPendaftaranTersedia()->exists(),
+                    $user->tiketPendaftaranTersedia($gelombangAktif->id)->exists(),
                     403,
                     'Anda sudah memiliki pembayaran yang disetujui dan belum digunakan untuk mendaftarkan anak.'
                 );
 
                 abort_if(
-                    $user->pembayaranPendaftaranAwal()->where('status', 'menunggu_verifikasi')->exists(),
+                    $user->pembayaranPendaftaranAwal()
+                        ->where('gelombang_ppdb_id', $gelombangAktif->id)
+                        ->where('status', 'menunggu_verifikasi')
+                        ->exists(),
                     403,
                     'Masih ada bukti pembayaran yang menunggu diperiksa Staf PPDB.'
                 );
 
                 $user->pembayaranPendaftaranAwal()->create([
-                    'nominal_tagihan' => (int) $pengaturan->biaya_pendaftaran_awal,
+                    'gelombang_ppdb_id' => $gelombangAktif->id,
+                    'nominal_tagihan' => (int) $gelombangAktif->biaya_pendaftaran,
                     'nominal_transfer' => $request->integer('nominal_transfer'),
                     'tanggal_transfer' => $request->date('tanggal_transfer'),
                     'bukti_transfer' => $path,

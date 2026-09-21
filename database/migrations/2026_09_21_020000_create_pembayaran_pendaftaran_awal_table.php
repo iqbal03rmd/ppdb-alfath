@@ -11,6 +11,7 @@ return new class extends Migration
         Schema::create('pembayaran_pendaftaran_awal', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('gelombang_ppdb_id')->constrained('gelombang_ppdb')->cascadeOnDelete();
             $table->foreignId('pendaftaran_ppdb_id')->nullable()->unique()->constrained('pendaftaran_ppdb')->nullOnDelete();
             $table->foreignId('diverifikasi_oleh')->nullable()->constrained('users')->nullOnDelete();
 
@@ -27,7 +28,7 @@ return new class extends Migration
             $table->timestamp('digunakan_pada')->nullable();
             $table->timestamps();
 
-            $table->index(['user_id', 'status']);
+            $table->index(['user_id', 'gelombang_ppdb_id', 'status']);
             $table->index(['user_id', 'digunakan_pada']);
         });
     }

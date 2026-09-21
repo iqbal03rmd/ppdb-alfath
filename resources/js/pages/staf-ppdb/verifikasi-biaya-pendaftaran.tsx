@@ -10,6 +10,7 @@ interface Item {
     id: number;
     nama_wali: string;
     email: string;
+    gelombang: string;
     nominal_transfer: number;
     tanggal_transfer: string;
     menunggu_sejak: string;
@@ -30,6 +31,7 @@ const columns: ColumnDef<Item>[] = [
             </div>
         ),
     },
+    { accessorKey: 'gelombang', header: 'Gelombang' },
     {
         accessorKey: 'nominal_transfer',
         header: 'Nominal',

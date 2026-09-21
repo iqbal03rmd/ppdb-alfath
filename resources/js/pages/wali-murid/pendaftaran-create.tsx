@@ -186,10 +186,9 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPa
                     wide
                 />
                 <PageContainer wide>
-                    {/* Stepper tetap tampil waktu mengedit. Formulir cuma bisa diedit
-                        saat status draft atau perlu_perbaikan - dua-duanya masih di
-                        dalam alur pendaftaran, jadi wali justru butuh orientasi di
-                        situ. Halaman Unggah Berkas juga menampilkannya tanpa syarat. */}
+                    {/* Stepper tetap tampil waktu mengedit. Draft hanya sampai
+                        gelombang asal tutup, sedangkan perlu_perbaikan tetap dapat
+                        dilanjutkan karena staf memang meminta koreksi. */}
                     <AlurStepper aktif="Formulir" />
 
                     {/* Pendaftaran baru ditutup: formulirnya nggak ditampilkan sama

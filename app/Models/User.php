@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -81,20 +80,19 @@ class User extends Authenticatable
         return $this->hasMany(PembayaranPendaftaranAwal::class, 'diverifikasi_oleh');
     }
 
-    public function pembayaranPendaftaranAwalTerakhir(): HasOne
-    {
-        return $this->hasOne(PembayaranPendaftaranAwal::class)->latestOfMany();
-    }
-
     /**
      * Satu bukti yang sudah disahkan tetapi belum dipakai = satu tiket untuk
      * membuat tepat satu pendaftaran anak.
      */
-    public function tiketPendaftaranTersedia(): HasMany
+    public function tiketPendaftaranTersedia(?int $gelombangId = null): HasMany
     {
-        return $this->pembayaranPendaftaranAwal()
+        $query = $this->pembayaranPendaftaranAwal()
             ->terverifikasi()
             ->belumDigunakan();
+
+        return $gelombangId === null
+            ? $query
+            : $query->where('gelombang_ppdb_id', $gelombangId);
     }
 
     public function isWaliMurid(): bool

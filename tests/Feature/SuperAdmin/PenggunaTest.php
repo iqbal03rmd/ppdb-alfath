@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\GelombangPpdb;
 use App\Models\PembayaranPendaftaranAwal;
 use App\Models\PembayaranPpdb;
 use App\Models\User;
@@ -331,6 +332,7 @@ test('akun yang memiliki pembayaran pendaftaran awal tidak bisa dihapus atau dip
     $waliBaru = User::factory()->create(['role' => 'wali_murid']);
     PembayaranPendaftaranAwal::create([
         'user_id' => $waliBaru->id,
+        'gelombang_ppdb_id' => GelombangPpdb::firstOrFail()->id,
         'nominal_tagihan' => 125000,
         'nominal_transfer' => 125000,
         'tanggal_transfer' => today(),

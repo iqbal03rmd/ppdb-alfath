@@ -100,6 +100,12 @@ class DokumenController extends Controller
 
     private function authorizeEditable(PendaftaranPpdb $pendaftaran): void
     {
+        abort_if(
+            $pendaftaran->draftKedaluwarsa(),
+            403,
+            'Draft tidak dapat dilanjutkan karena gelombang pendaftarannya sudah ditutup. Daftar kembali pada gelombang berikutnya.'
+        );
+
         abort_unless(
             $pendaftaran->bisaDiedit(),
             403,

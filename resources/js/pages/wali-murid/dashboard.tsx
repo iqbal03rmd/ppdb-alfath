@@ -55,6 +55,7 @@ interface DashboardProps {
 
 const statusBadge: Record<string, { label: string; className: string }> = {
     draft: { label: 'Draft', className: 'bg-gray-100 text-gray-600' },
+    draft_kedaluwarsa: { label: 'Draft Berakhir', className: 'bg-gray-200 text-gray-700' },
     diajukan: { label: 'Diajukan', className: 'bg-blue-100 text-blue-700' },
     pembayaran: { label: 'Pembayaran Sekolah', className: 'bg-teal-100 text-teal-700' },
     perlu_perbaikan: { label: 'Perlu Perbaikan', className: 'bg-amber-100 text-amber-700' },

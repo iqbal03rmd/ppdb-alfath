@@ -13,15 +13,18 @@ class GelombangPpdb extends Model
 {
     protected $table = 'gelombang_ppdb';
 
+    protected $attributes = ['biaya_pendaftaran' => 125000];
+
     protected $fillable = [
         'tahun_ajaran_id', 'nama', 'tanggal_mulai', 'tanggal_selesai',
-        'batas_waktu_pembayaran',
+        'biaya_pendaftaran', 'batas_waktu_pembayaran',
         'status_buka',
     ];
 
     protected $casts = [
         'tanggal_mulai' => 'date',
         'tanggal_selesai' => 'date',
+        'biaya_pendaftaran' => 'integer',
         'batas_waktu_pembayaran' => 'date',
         'status_buka' => 'boolean',
     ];
@@ -100,10 +103,10 @@ class GelombangPpdb extends Model
      * layar yang menerangkan kenapa. Jadi "buka" di sini berarti buka yang ini
      * SAJA: keadaan di database dibuat sama dengan yang sebenarnya berlaku.
      *
-     * Menutup gelombang TIDAK menyentuh pendaftaran yang sudah ada di dalamnya.
-     * Tenggat mereka tetap milik gelombangnya sendiri (jatuhTempoMinimal()),
-     * jadi wali Gelombang 1 tetap memegang tanggal Gelombang 1 walau
-     * gelombangnya sudah lama ditutup.
+     * Menutup gelombang TIDAK mengubah atau menghapus pendaftaran di dalamnya.
+     * Yang sudah diajukan tetap memegang kursi dan tenggat milik gelombangnya;
+     * draft tetap tersimpan, tetapi tidak dapat dilanjutkan selama gelombang
+     * asalnya tidak menerima pendaftar.
      */
     public function buka(): void
     {
@@ -306,8 +309,8 @@ class GelombangPpdb extends Model
         $hariIni = Carbon::today()->toDateString();
 
         return $query->where('status_buka', true)
-            ->where('tanggal_mulai', '<=', $hariIni)
-            ->where('tanggal_selesai', '>=', $hariIni);
+            ->whereDate('tanggal_mulai', '<=', $hariIni)
+            ->whereDate('tanggal_selesai', '>=', $hariIni);
     }
 
     private function tanggalPanjang(Carbon $tanggal): string
