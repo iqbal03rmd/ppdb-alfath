@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\PembayaranPendaftaranAwal;
 use App\Models\PembayaranPpdb;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
@@ -324,4 +325,34 @@ test('akun yang pernah memverifikasi pembayaran tidak bisa dihapus', function ()
         ->assertSessionHasErrors('pengguna');
 
     $this->assertDatabaseHas('users', ['id' => $pemeriksa->id]);
+});
+
+test('akun yang memiliki pembayaran pendaftaran awal tidak bisa dihapus atau dipindah peran', function () {
+    $waliBaru = User::factory()->create(['role' => 'wali_murid']);
+    PembayaranPendaftaranAwal::create([
+        'user_id' => $waliBaru->id,
+        'nominal_tagihan' => 125000,
+        'nominal_transfer' => 125000,
+        'tanggal_transfer' => today(),
+        'bukti_transfer' => 'uji/bukti.jpg',
+        'status' => 'menunggu_verifikasi',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->put(route('super-admin.pengguna.update', $waliBaru), [
+            'name' => $waliBaru->name,
+            'email' => $waliBaru->email,
+            'telepon' => $waliBaru->telepon,
+            'role' => 'staf_ppdb',
+            'password' => '',
+            'password_confirmation' => '',
+        ])
+        ->assertForbidden();
+
+    $this->actingAs($this->admin)
+        ->delete(route('super-admin.pengguna.destroy', $waliBaru))
+        ->assertSessionHasErrors('pengguna');
+
+    $this->assertDatabaseHas('users', ['id' => $waliBaru->id]);
+    $this->assertDatabaseHas('pembayaran_pendaftaran_awal', ['user_id' => $waliBaru->id]);
 });

@@ -99,7 +99,7 @@ export default function VerifikasiPembayaranShow({ pembayaran, pendaftaran, ring
 
     return (
         <AppLayout>
-            <Head title={`Periksa Transfer — ${pendaftaran.nama_pendaftar}`} />
+            <Head title={`Periksa Pembayaran Sekolah — ${pendaftaran.nama_pendaftar}`} />
             <PageHeader title={pendaftaran.nama_pendaftar} subtitle={`${pendaftaran.nomor_pendaftaran} · ${pendaftaran.kategori}`} wide />
 
             <PageContainer wide>

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\StafPpdb\DashboardController;
 use App\Http\Controllers\StafPpdb\PendaftaranController;
+use App\Http\Controllers\StafPpdb\VerifikasiBiayaPendaftaranController;
 use App\Http\Controllers\StafPpdb\VerifikasiPembayaranController;
 use App\Http\Controllers\StafPpdb\VerifikasiPendaftaranController;
 use Illuminate\Support\Facades\Route;
@@ -11,6 +12,15 @@ Route::middleware(['auth', 'role:staf_ppdb'])
     ->name('staf-ppdb.')
     ->group(function () {
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
+        Route::get('/verifikasi-biaya-pendaftaran', [VerifikasiBiayaPendaftaranController::class, 'index'])
+            ->name('verifikasi-biaya-pendaftaran.index');
+        Route::get('/verifikasi-biaya-pendaftaran/{pembayaran}', [VerifikasiBiayaPendaftaranController::class, 'show'])
+            ->name('verifikasi-biaya-pendaftaran.show');
+        Route::post('/verifikasi-biaya-pendaftaran/{pembayaran}/sahkan', [VerifikasiBiayaPendaftaranController::class, 'sahkan'])
+            ->name('verifikasi-biaya-pendaftaran.sahkan');
+        Route::post('/verifikasi-biaya-pendaftaran/{pembayaran}/tolak', [VerifikasiBiayaPendaftaranController::class, 'tolak'])
+            ->name('verifikasi-biaya-pendaftaran.tolak');
 
         // Arsip lengkap semua pendaftaran, segala status. Tidak ada aksi yang
         // mengubah status di sini - itu tetap di halaman verifikasi.

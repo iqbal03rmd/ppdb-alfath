@@ -59,7 +59,7 @@ interface IndexProps {
 const statusBadge: Record<string, { label: string; className: string }> = {
     draft: { label: 'Draft', className: 'bg-gray-100 text-gray-600' },
     diajukan: { label: 'Diajukan', className: 'bg-blue-100 text-blue-700' },
-    pembayaran: { label: 'Pembayaran', className: 'bg-teal-100 text-teal-700' },
+    pembayaran: { label: 'Pembayaran Sekolah', className: 'bg-teal-100 text-teal-700' },
     perlu_perbaikan: { label: 'Perlu Perbaikan', className: 'bg-amber-100 text-amber-700' },
     diterima: { label: 'Diterima', className: 'bg-green-100 text-green-700' },
     ditolak: { label: 'Ditolak', className: 'bg-red-100 text-red-700' },
@@ -96,17 +96,7 @@ export default function PendaftaranIndex({ pendaftaranList, expandId, gelombangD
                         onChange={(e) => setSearch(e.target.value)}
                         className="max-w-sm border-gray-200 bg-white shadow-sm"
                     />
-                    {/* Tombol cuma muncul kalau server memang menerima pendaftaran
-                        baru - gerbangnya sama persis dengan yang dipakai store().
-                        Menampilkan tombol yang pasti ditolak berarti membiarkan
-                        wali mengisi 16 kolom cuma untuk kena error di akhir. */}
-                    {gelombangDibuka ? (
-                        <Button asChild className="shrink-0 rounded-xl px-5 py-2.5 text-sm font-bold">
-                            <Link href={route('wali-murid.pendaftaran.create')}>+ Tambah Pendaftaran</Link>
-                        </Button>
-                    ) : (
-                        <p className="shrink-0 text-sm text-gray-500">Pendaftaran sedang ditutup</p>
-                    )}
+                    {!gelombangDibuka ? <p className="shrink-0 text-sm text-gray-500">Pendaftaran sedang ditutup</p> : null}
                 </div>
 
                 {filtered.length === 0 ? (

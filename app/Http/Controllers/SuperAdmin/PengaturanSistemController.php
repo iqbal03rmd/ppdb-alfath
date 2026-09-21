@@ -34,6 +34,7 @@ class PengaturanSistemController extends Controller
             'nomor_rekening' => ['nullable', 'required_with:nama_bank,nama_pemilik_rekening', 'string', 'max:100'],
             'nama_pemilik_rekening' => ['nullable', 'required_with:nama_bank,nomor_rekening', 'string', 'max:150'],
             'instruksi_pembayaran' => ['nullable', 'string', 'max:2000'],
+            'biaya_pendaftaran_awal' => ['required', 'integer', 'min:1'],
 
             'judul_landing' => ['required', 'string', 'max:200'],
             'deskripsi_landing' => ['required', 'string', 'max:2000'],
@@ -44,6 +45,8 @@ class PengaturanSistemController extends Controller
             'nama_bank.required_with' => 'Nama bank wajib dilengkapi bersama informasi rekening.',
             'nomor_rekening.required_with' => 'Nomor rekening wajib dilengkapi bersama informasi rekening.',
             'nama_pemilik_rekening.required_with' => 'Nama pemilik rekening wajib dilengkapi bersama informasi rekening.',
+            'biaya_pendaftaran_awal.required' => 'Biaya pendaftaran awal wajib diisi.',
+            'biaya_pendaftaran_awal.min' => 'Biaya pendaftaran awal harus lebih dari nol.',
             'judul_landing.required' => 'Judul utama landing page wajib diisi.',
             'deskripsi_landing.required' => 'Deskripsi landing page wajib diisi.',
         ]);

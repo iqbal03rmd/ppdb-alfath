@@ -77,8 +77,8 @@ const columns: ColumnDef<AntrianItem>[] = [
 export default function VerifikasiPembayaran({ antrian }: VerifikasiPembayaranProps) {
     return (
         <AppLayout>
-            <Head title="Verifikasi Pembayaran" />
-            <PageHeader title="Verifikasi Pembayaran" subtitle="Bukti transfer yang menunggu diperiksa" wide />
+            <Head title="Pembayaran Sekolah" />
+            <PageHeader title="Pembayaran Sekolah" subtitle="Bukti pembayaran tagihan sekolah yang menunggu diperiksa" wide />
 
             <PageContainer wide>
                 {antrian.length === 0 ? (

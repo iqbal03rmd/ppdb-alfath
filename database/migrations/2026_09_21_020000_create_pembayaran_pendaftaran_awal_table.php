@@ -1,0 +1,39 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('pembayaran_pendaftaran_awal', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('pendaftaran_ppdb_id')->nullable()->unique()->constrained('pendaftaran_ppdb')->nullOnDelete();
+            $table->foreignId('diverifikasi_oleh')->nullable()->constrained('users')->nullOnDelete();
+
+            // nominal_tagihan adalah snapshot kebijakan saat bukti dikirim;
+            // nominal_transfer adalah pengakuan wali atas jumlah yang ditransfer.
+            $table->unsignedBigInteger('nominal_tagihan');
+            $table->unsignedBigInteger('nominal_transfer');
+            $table->date('tanggal_transfer');
+            $table->string('bukti_transfer');
+            $table->enum('status', ['menunggu_verifikasi', 'terverifikasi', 'ditolak'])
+                ->default('menunggu_verifikasi');
+            $table->text('catatan_verifikasi')->nullable();
+            $table->timestamp('diverifikasi_pada')->nullable();
+            $table->timestamp('digunakan_pada')->nullable();
+            $table->timestamps();
+
+            $table->index(['user_id', 'status']);
+            $table->index(['user_id', 'digunakan_pada']);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('pembayaran_pendaftaran_awal');
+    }
+};

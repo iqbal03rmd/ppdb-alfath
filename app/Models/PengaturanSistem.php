@@ -24,13 +24,14 @@ class PengaturanSistem extends Model
         'nomor_rekening',
         'nama_pemilik_rekening',
         'instruksi_pembayaran',
+        'biaya_pendaftaran_awal',
         'judul_landing',
         'deskripsi_landing',
         'pengumuman_landing',
         'whatsapp_kontak',
     ];
 
-    /** @return array<string, string|null> */
+    /** @return array<string, int|string|null> */
     public static function bawaan(): array
     {
         return [
@@ -43,6 +44,7 @@ class PengaturanSistem extends Model
             'nomor_rekening' => null,
             'nama_pemilik_rekening' => null,
             'instruksi_pembayaran' => null,
+            'biaya_pendaftaran_awal' => 125000,
             'judul_landing' => 'Penerimaan Peserta Didik Baru',
             'deskripsi_landing' => 'Daftarkan putra-putri Anda secara daring dan pantau seluruh proses PPDB dalam satu tempat.',
             'pengumuman_landing' => null,

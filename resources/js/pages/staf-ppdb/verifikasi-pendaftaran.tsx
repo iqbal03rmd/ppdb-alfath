@@ -80,8 +80,8 @@ const columns: ColumnDef<AntrianItem>[] = [
 export default function VerifikasiPendaftaran({ antrian }: VerifikasiPendaftaranProps) {
     return (
         <AppLayout>
-            <Head title="Verifikasi Pendaftaran" />
-            <PageHeader title="Verifikasi Pendaftaran" subtitle="Formulir dan berkas yang menunggu diperiksa" wide />
+            <Head title="Formulir & Berkas" />
+            <PageHeader title="Formulir & Berkas" subtitle="Formulir dan berkas pendaftaran yang menunggu diperiksa" wide />
 
             <PageContainer wide>
                 {antrian.length === 0 ? (

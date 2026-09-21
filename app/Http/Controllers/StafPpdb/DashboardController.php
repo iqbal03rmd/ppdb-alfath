@@ -5,6 +5,7 @@ namespace App\Http\Controllers\StafPpdb;
 use App\Http\Controllers\Controller;
 use App\Models\GelombangPpdb;
 use App\Models\KebijakanKategori;
+use App\Models\PembayaranPendaftaranAwal;
 use App\Models\PembayaranPpdb;
 use App\Models\PendaftaranPpdb;
 use App\Models\TahunAjaran;
@@ -38,6 +39,9 @@ class DashboardController extends Controller
     private function antrian(): array
     {
         return [
+            'biaya_pendaftaran' => [
+                'jumlah' => PembayaranPendaftaranAwal::where('status', 'menunggu_verifikasi')->count(),
+            ],
             'pendaftaran' => [
                 'jumlah' => PendaftaranPpdb::where('status', 'diajukan')->count(),
             ],

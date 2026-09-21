@@ -47,14 +47,22 @@ const Icon = {
 const menuByRole: Record<string, MenuItem[]> = {
     wali_murid: [
         { label: 'Beranda', href: '/wali-murid/dashboard', icon: Icon.home },
-        { label: 'Pendaftaran', href: '/wali-murid/pendaftaran', icon: Icon.file },
-        { label: 'Riwayat Pembayaran', href: '/wali-murid/pembayaran', icon: Icon.wallet },
+        { label: 'Pendaftaran Anak', href: '/wali-murid/pendaftaran', icon: Icon.file },
+        { label: 'Pembayaran Sekolah', href: '/wali-murid/pembayaran', icon: Icon.wallet },
     ],
     staf_ppdb: [
         { label: 'Beranda', href: '/staf-ppdb/dashboard', icon: Icon.home },
         { label: 'Semua Pendaftaran', href: '/staf-ppdb/pendaftaran', icon: Icon.users },
-        { label: 'Verifikasi Pendaftaran', href: '/staf-ppdb/verifikasi-pendaftaran', icon: Icon.clipboardCheck },
-        { label: 'Verifikasi Pembayaran', href: '/staf-ppdb/verifikasi-pembayaran', icon: Icon.wallet },
+        {
+            label: 'Verifikasi PPDB',
+            href: '/staf-ppdb/verifikasi',
+            icon: Icon.clipboardCheck,
+            anak: [
+                { label: 'Biaya Pendaftaran', href: '/staf-ppdb/verifikasi-biaya-pendaftaran' },
+                { label: 'Formulir & Berkas', href: '/staf-ppdb/verifikasi-pendaftaran' },
+                { label: 'Pembayaran Sekolah', href: '/staf-ppdb/verifikasi-pembayaran' },
+            ],
+        },
     ],
     kepala_sekolah: [
         { label: 'Beranda', href: '/kepala-sekolah/dashboard', icon: Icon.home },

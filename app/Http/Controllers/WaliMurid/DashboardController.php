@@ -5,6 +5,7 @@ namespace App\Http\Controllers\WaliMurid;
 use App\Http\Controllers\Controller;
 use App\Models\GelombangPpdb;
 use App\Models\PendaftaranPpdb;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -31,7 +32,7 @@ class DashboardController extends Controller
             'sisa_tagihan' => $p->bolehLihatTagihan() ? $p->sisaTagihan() : null,
             'status_pembayaran' => $p->bolehLihatTagihan() ? $p->statusPelunasan() : null,
             'tahap' => $this->tahapKe($p),
-            'tahap_total' => 4,
+            'tahap_total' => 5,
             'jatuh_tempo' => $p->jatuhTempoMinimal()?->locale('id')->translatedFormat('d F Y'),
             'jatuh_tempo_lewat' => $p->jatuhTempoMinimal()?->isPast() ?? false,
             'tanggal_cicilan' => $p->tanggalPelunasanCicilan()?->locale('id')->translatedFormat('d F Y'),
@@ -43,6 +44,7 @@ class DashboardController extends Controller
         // PendaftaranController::gelombangDibuka(). Kalau beda, Beranda
         // menawarkan gelombang yang formulirnya justru menolak.
         $gelombang = GelombangPpdb::menerimaPendaftar()->latest()->first();
+        $statusTiket = $this->statusTiket($request->user());
 
         return Inertia::render('wali-murid/dashboard', [
             'daftarPendaftaran' => $daftar->sortByDesc('perlu_tindakan')->values(),
@@ -56,7 +58,24 @@ class DashboardController extends Controller
                 'nama' => $gelombang->nama,
                 'tanggal_selesai' => $gelombang->tanggal_selesai->locale('id')->translatedFormat('d F Y'),
             ] : null,
+            'tiketPendaftaran' => [
+                'status' => $statusTiket,
+                'boleh_mendaftar' => $statusTiket === 'siap_digunakan',
+            ],
         ]);
+    }
+
+    private function statusTiket(User $user): string
+    {
+        if ($user->tiketPendaftaranTersedia()->exists()) {
+            return 'siap_digunakan';
+        }
+
+        return match ($user->pembayaranPendaftaranAwalTerakhir()->value('status')) {
+            'menunggu_verifikasi' => 'menunggu_verifikasi',
+            'ditolak' => 'ditolak',
+            default => 'belum_bayar',
+        };
     }
 
     private function tenggatTerdekat($pendaftaran): array
@@ -96,9 +115,9 @@ class DashboardController extends Controller
     private function tahapKe(PendaftaranPpdb $pendaftaran): int
     {
         return match ($pendaftaran->status) {
-            'draft', 'perlu_perbaikan' => 2,
-            'diterima' => 4,
-            default => 3, // diajukan, pembayaran, ditolak
+            'draft', 'perlu_perbaikan' => 3,
+            'diterima' => 5,
+            default => 4, // diajukan, pembayaran, ditolak
         };
     }
 

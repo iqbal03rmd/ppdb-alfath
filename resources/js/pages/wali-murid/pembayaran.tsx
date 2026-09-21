@@ -109,11 +109,11 @@ export default function Pembayaran({
 
     return (
         <AppLayout>
-            <Head title="Pembayaran" />
-            <PageHeader title="Pembayaran" subtitle={`${pendaftaran.nomor_pendaftaran} — ${pendaftaran.nama_pendaftar}`} wide />
+            <Head title="Pembayaran Sekolah" />
+            <PageHeader title="Pembayaran Sekolah" subtitle={`${pendaftaran.nomor_pendaftaran} — ${pendaftaran.nama_pendaftar}`} wide />
 
             <PageContainer wide>
-                <AlurStepper aktif="Pembayaran" />
+                <AlurStepper aktif="Pembayaran Sekolah" />
 
                 {tagihanTersedia &&
                     !pendaftaranDitolak &&

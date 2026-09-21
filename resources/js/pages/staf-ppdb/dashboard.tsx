@@ -21,6 +21,7 @@ interface KuotaItem {
 
 interface DashboardProps {
     antrian: {
+        biaya_pendaftaran: AntrianItem;
         pendaftaran: AntrianItem;
         transfer: AntrianItem;
         tahap_pembayaran: AntrianItem;
@@ -55,7 +56,7 @@ const WARNA_STATUS: Record<string, string> = {
 const LABEL_STATUS: Record<string, string> = {
     draft: 'Draft',
     diajukan: 'Menunggu diperiksa',
-    pembayaran: 'Pembayaran',
+    pembayaran: 'Pembayaran Sekolah',
     perlu_perbaikan: 'Perlu perbaikan',
     diterima: 'Diterima',
     ditolak: 'Ditolak',
@@ -147,6 +148,7 @@ export default function Dashboard({ antrian, statistik, kuota }: DashboardProps)
     // beda, dan tidak ada satu kata yang benar untuk mewakili keduanya - "berkas"
     // di aplikasi ini sudah punya arti tetap, yaitu dokumen persyaratan.
     const menunggu = [
+        antrian.biaya_pendaftaran.jumlah > 0 ? `${antrian.biaya_pendaftaran.jumlah} biaya pendaftaran` : null,
         antrian.pendaftaran.jumlah > 0 ? `${antrian.pendaftaran.jumlah} pendaftaran` : null,
         antrian.transfer.jumlah > 0 ? `${antrian.transfer.jumlah} bukti transfer` : null,
     ].filter(Boolean);
@@ -185,29 +187,39 @@ export default function Dashboard({ antrian, statistik, kuota }: DashboardProps)
 
             <PageContainer wide>
                 <div className="space-y-6 pt-6">
-                    <div className="grid gap-6 md:grid-cols-3">
+                    <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
                         <KartuAntrian
-                            judul="Pendaftaran Menunggu Diperiksa"
+                            judul="Biaya Pendaftaran Menunggu Diperiksa"
+                            ikon={<Wallet size={18} strokeWidth={2} />}
+                            jumlah={antrian.biaya_pendaftaran.jumlah}
+                            satuan="pembayaran"
+                            kalimatKosong="Tidak ada biaya pendaftaran awal yang menunggu diperiksa."
+                            tautan={route('staf-ppdb.verifikasi-biaya-pendaftaran.index')}
+                            labelTautan="Periksa Biaya Pendaftaran"
+                        />
+
+                        <KartuAntrian
+                            judul="Formulir & Berkas Menunggu Diperiksa"
                             ikon={<ClipboardCheck size={18} strokeWidth={2} />}
                             jumlah={antrian.pendaftaran.jumlah}
                             satuan="pendaftaran"
                             kalimatKosong="Tidak ada pendaftaran yang menunggu diperiksa. Antrian ini terisi lagi begitu ada wali yang mengirim berkas."
                             tautan={route('staf-ppdb.verifikasi-pendaftaran.index')}
-                            labelTautan="Buka Antrian Pendaftaran"
+                            labelTautan="Periksa Formulir & Berkas"
                         />
 
                         <KartuAntrian
-                            judul="Bukti Transfer Menunggu Diperiksa"
+                            judul="Pembayaran Sekolah Menunggu Diperiksa"
                             ikon={<Wallet size={18} strokeWidth={2} />}
                             jumlah={antrian.transfer.jumlah}
                             satuan="transfer"
                             kalimatKosong="Tidak ada bukti transfer yang menunggu diperiksa."
                             tautan={route('staf-ppdb.verifikasi-pembayaran.index')}
-                            labelTautan="Buka Antrian Pembayaran"
+                            labelTautan="Periksa Pembayaran Sekolah"
                         />
 
                         <KartuAntrian
-                            judul="Dalam Tahap Pembayaran"
+                            judul="Dalam Tahap Pembayaran Sekolah"
                             ikon={<CreditCard size={18} strokeWidth={2} />}
                             jumlah={antrian.tahap_pembayaran.jumlah}
                             satuan="pendaftaran"
@@ -226,7 +238,7 @@ export default function Dashboard({ antrian, statistik, kuota }: DashboardProps)
                             <Donut irisan={irisanPendaftaran} kalimatKosong="Belum ada pendaftaran sama sekali." />
                         </Kartu>
 
-                        <Kartu judul="Status Pembayaran">
+                        <Kartu judul="Status Pembayaran Sekolah">
                             <Donut irisan={irisanPembayaran} kalimatKosong="Belum ada pendaftaran yang sampai tahap pembayaran." />
                         </Kartu>
                     </div>

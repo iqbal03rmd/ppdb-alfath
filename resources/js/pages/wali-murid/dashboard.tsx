@@ -47,12 +47,16 @@ interface DashboardProps {
     // TIDAK diturunkan dari sini, karena gelombang yang sedang dibuka belum tentu
     // gelombang milik pendaftaran wali. Tenggat tiap anak ada di item-nya sendiri.
     gelombangDibuka: { nama: string; tanggal_selesai: string } | null;
+    tiketPendaftaran: {
+        status: 'belum_bayar' | 'menunggu_verifikasi' | 'ditolak' | 'siap_digunakan';
+        boleh_mendaftar: boolean;
+    };
 }
 
 const statusBadge: Record<string, { label: string; className: string }> = {
     draft: { label: 'Draft', className: 'bg-gray-100 text-gray-600' },
     diajukan: { label: 'Diajukan', className: 'bg-blue-100 text-blue-700' },
-    pembayaran: { label: 'Pembayaran', className: 'bg-teal-100 text-teal-700' },
+    pembayaran: { label: 'Pembayaran Sekolah', className: 'bg-teal-100 text-teal-700' },
     perlu_perbaikan: { label: 'Perlu Perbaikan', className: 'bg-amber-100 text-amber-700' },
     diterima: { label: 'Diterima', className: 'bg-green-100 text-green-700' },
     ditolak: { label: 'Ditolak', className: 'bg-red-100 text-red-700' },
@@ -66,7 +70,7 @@ const pembayaranBadge: Record<string, { label: string; className: string }> = {
     belum_bayar: { label: 'Belum Bayar', className: 'bg-gray-100 text-gray-600' },
 };
 
-const NAMA_TAHAP = ['Registrasi', 'Formulir', 'Unggah Berkas', 'Pembayaran'];
+const NAMA_TAHAP = ['Registrasi', 'Biaya Pendaftaran', 'Formulir', 'Unggah Berkas', 'Pembayaran Sekolah'];
 
 function formatRupiah(nominal: number) {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(nominal);
@@ -79,7 +83,7 @@ function tautan(item: RingkasanPendaftaran) {
     return route('wali-murid.pendaftaran.index', { expand: item.id });
 }
 
-export default function Dashboard({ daftarPendaftaran, ringkasan, gelombangDibuka }: DashboardProps) {
+export default function Dashboard({ daftarPendaftaran, ringkasan, gelombangDibuka, tiketPendaftaran }: DashboardProps) {
     const { auth } = usePage<SharedData>().props;
     const namaDepan = String(auth.user?.name ?? '').split(' ')[0];
     const adaPendaftaran = daftarPendaftaran.length > 0;
@@ -94,6 +98,10 @@ export default function Dashboard({ daftarPendaftaran, ringkasan, gelombangDibuk
             : 'Semua pendaftaran sedang diproses sekolah — tidak ada yang perlu kamu lakukan.';
 
     const tanggalHariIni = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const hrefAnakBaru = route('wali-murid.biaya-pendaftaran.show');
+    const sedangMengurusUangPendaftaran = tiketPendaftaran.status !== 'belum_bayar';
+    const labelAnakBaru = sedangMengurusUangPendaftaran ? 'Status Uang Pendaftaran' : '+ Daftarkan Anak';
+    const adaStatusUangBaru = tiketPendaftaran.status === 'ditolak' || tiketPendaftaran.status === 'siap_digunakan';
 
     return (
         <AppLayout>
@@ -127,7 +135,18 @@ export default function Dashboard({ daftarPendaftaran, ringkasan, gelombangDibuk
                                     variant="outline"
                                     className="h-8 rounded-xl border-[#1F509A]/40 bg-white font-bold text-[#1F509A] hover:bg-white hover:text-[#0A3981]"
                                 >
-                                    <Link href={route('wali-murid.pendaftaran.create')}>+ Daftarkan Anak Lagi</Link>
+                                    <Link href={hrefAnakBaru} className="relative overflow-visible">
+                                        {labelAnakBaru}
+                                        {adaStatusUangBaru && (
+                                            <>
+                                                <span
+                                                    aria-hidden="true"
+                                                    className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white"
+                                                />
+                                                <span className="sr-only">Ada perubahan status uang pendaftaran</span>
+                                            </>
+                                        )}
+                                    </Link>
                                 </Button>
                             )}
                         </div>
@@ -182,12 +201,22 @@ export default function Dashboard({ daftarPendaftaran, ringkasan, gelombangDibuk
                                     {gelombangDibuka ? (
                                         <>
                                             <p className="mx-auto mt-1.5 max-w-sm text-sm text-gray-500">
-                                                Mulai pendaftaran dan ikuti empat tahap yang tersedia.
+                                                Mulai pendaftaran anak. Jika pembayaran pendaftaran belum diselesaikan, kamu akan diarahkan ke tahap
+                                                pembayaran terlebih dahulu.
                                             </p>
                                             <Button asChild className="mt-5 rounded-xl bg-[#E38E49] px-6 font-bold text-white hover:bg-[#D97D37]">
-                                                <Link href={route('wali-murid.pendaftaran.create')}>
+                                                <Link href={hrefAnakBaru} className="relative overflow-visible">
                                                     <UserPlus size={17} strokeWidth={2} />
-                                                    Daftarkan Anak
+                                                    {labelAnakBaru}
+                                                    {adaStatusUangBaru && (
+                                                        <>
+                                                            <span
+                                                                aria-hidden="true"
+                                                                className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white"
+                                                            />
+                                                            <span className="sr-only">Ada perubahan status uang pendaftaran</span>
+                                                        </>
+                                                    )}
                                                 </Link>
                                             </Button>
                                         </>
@@ -310,7 +339,7 @@ export default function Dashboard({ daftarPendaftaran, ringkasan, gelombangDibuk
                         <aside className="lg:col-span-1">
                             <div className="rounded-2xl bg-white p-5 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
                                 <h2 className="text-[15px] font-semibold text-gray-900">Alur Pendaftaran</h2>
-                                <p className="mb-4 text-sm text-gray-500">Empat tahap yang dilalui setiap pendaftaran.</p>
+                                <p className="mb-4 text-sm text-gray-500">Lima tahap yang dilalui setiap pendaftaran anak.</p>
                                 {/* Jarak antar langkah sengaja rapat: keempatnya harus kebaca
                                     tanpa scroll begitu wali sampai di Beranda, termasuk di
                                     laptop tinggi 768px. */}
@@ -323,19 +352,25 @@ export default function Dashboard({ daftarPendaftaran, ringkasan, gelombangDibuk
                                     />
                                     <Tahap
                                         no={2}
+                                        judul="Biaya Pendaftaran"
+                                        isi="Membayar biaya pendaftaran dan menunggu verifikasi Staf PPDB."
+                                        icon={<Wallet size={16} strokeWidth={1.8} />}
+                                    />
+                                    <Tahap
+                                        no={3}
                                         judul="Formulir"
                                         isi="Mengisi data calon peserta didik dan data orang tua/wali."
                                         icon={<FileText size={16} strokeWidth={1.8} />}
                                     />
                                     <Tahap
-                                        no={3}
+                                        no={4}
                                         judul="Unggah Berkas"
                                         isi="Mengunggah KK, akta, KTP, dan pas foto untuk diperiksa Staf PPDB."
                                         icon={<UploadCloud size={16} strokeWidth={1.8} />}
                                     />
                                     <Tahap
-                                        no={4}
-                                        judul="Pembayaran"
+                                        no={5}
+                                        judul="Pembayaran Sekolah"
                                         isi="Membayar biaya PPDB setelah berkas dinyatakan lengkap."
                                         icon={<Wallet size={16} strokeWidth={1.8} />}
                                     />

@@ -18,6 +18,7 @@ interface Pengaturan {
     nomor_rekening: string | null;
     nama_pemilik_rekening: string | null;
     instruksi_pembayaran: string | null;
+    biaya_pendaftaran_awal: number;
     judul_landing: string;
     deskripsi_landing: string;
     pengumuman_landing: string | null;
@@ -27,17 +28,7 @@ interface Pengaturan {
 const gayaTeksArea =
     'min-h-28 w-full resize-y rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none';
 
-function TeksArea({
-    id,
-    value,
-    onChange,
-    placeholder,
-}: {
-    id: string;
-    value: string;
-    onChange: (value: string) => void;
-    placeholder?: string;
-}) {
+function TeksArea({ id, value, onChange, placeholder }: { id: string; value: string; onChange: (value: string) => void; placeholder?: string }) {
     return <textarea id={id} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={gayaTeksArea} />;
 }
 
@@ -52,6 +43,7 @@ export default function PengaturanSistem({ pengaturan }: { pengaturan: Pengatura
         nomor_rekening: pengaturan.nomor_rekening ?? '',
         nama_pemilik_rekening: pengaturan.nama_pemilik_rekening ?? '',
         instruksi_pembayaran: pengaturan.instruksi_pembayaran ?? '',
+        biaya_pendaftaran_awal: String(pengaturan.biaya_pendaftaran_awal),
         judul_landing: pengaturan.judul_landing,
         deskripsi_landing: pengaturan.deskripsi_landing,
         pengumuman_landing: pengaturan.pengumuman_landing ?? '',
@@ -171,7 +163,12 @@ export default function PengaturanSistem({ pengaturan }: { pengaturan: Pengatura
                                 <div className="grid gap-5 sm:grid-cols-2">
                                     <div>
                                         <Label htmlFor="telepon">Telepon Sekolah</Label>
-                                        <Input id="telepon" value={data.telepon} onChange={(value) => setData('telepon', value)} placeholder="0761..." />
+                                        <Input
+                                            id="telepon"
+                                            value={data.telepon}
+                                            onChange={(value) => setData('telepon', value)}
+                                            placeholder="0761..."
+                                        />
                                         <FieldError message={errors.telepon} />
                                     </div>
                                     <div>
@@ -192,8 +189,27 @@ export default function PengaturanSistem({ pengaturan }: { pengaturan: Pengatura
                         <Kartu judul="Informasi Pembayaran">
                             <div className="space-y-5">
                                 <div>
+                                    <Label required htmlFor="biaya_pendaftaran_awal">
+                                        Biaya Pendaftaran per Anak
+                                    </Label>
+                                    <Input
+                                        id="biaya_pendaftaran_awal"
+                                        value={data.biaya_pendaftaran_awal}
+                                        onChange={(value) => setData('biaya_pendaftaran_awal', value.replace(/\D/g, ''))}
+                                        placeholder="125000"
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500">Dibayar sebelum wali mengisi formulir untuk setiap anak.</p>
+                                    <FieldError message={errors.biaya_pendaftaran_awal} />
+                                </div>
+
+                                <div>
                                     <Label htmlFor="nama_bank">Nama Bank</Label>
-                                    <Input id="nama_bank" value={data.nama_bank} onChange={(value) => setData('nama_bank', value)} placeholder="Contoh: Bank Syariah Indonesia" />
+                                    <Input
+                                        id="nama_bank"
+                                        value={data.nama_bank}
+                                        onChange={(value) => setData('nama_bank', value)}
+                                        placeholder="Contoh: Bank Syariah Indonesia"
+                                    />
                                     <FieldError message={errors.nama_bank} />
                                 </div>
 

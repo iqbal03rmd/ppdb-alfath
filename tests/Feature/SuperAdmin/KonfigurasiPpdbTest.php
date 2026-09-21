@@ -7,6 +7,7 @@ use App\Models\GelombangPpdb;
 use App\Models\KategoriSiswa;
 use App\Models\KebijakanKategori;
 use App\Models\KomponenBiaya;
+use App\Models\PembayaranPendaftaranAwal;
 use App\Models\PendaftaranPpdb;
 use App\Models\TahunAjaran;
 use App\Models\TarifKategori;
@@ -25,6 +26,17 @@ beforeEach(function () {
     $this->reguler = KategoriSiswa::where('nama', 'Reguler')->firstOrFail();
     $this->yatim = KategoriSiswa::where('nama', 'Anak Yatim')->firstOrFail();
     $this->seragam = KomponenBiaya::where('nama', 'Seragam')->firstOrFail();
+
+    $wali = User::where('role', 'wali_murid')->firstOrFail();
+    PembayaranPendaftaranAwal::create([
+        'user_id' => $wali->id,
+        'nominal_tagihan' => 125000,
+        'nominal_transfer' => 125000,
+        'tanggal_transfer' => today(),
+        'bukti_transfer' => 'uji/bukti.jpg',
+        'status' => 'terverifikasi',
+        'diverifikasi_pada' => now(),
+    ]);
 });
 
 /**

@@ -1,20 +1,23 @@
-const LANGKAH = ['Registrasi Akun', 'Formulir', 'Unggah Berkas', 'Pembayaran'] as const;
+const LANGKAH = ['Registrasi Akun', 'Biaya Pendaftaran', 'Formulir', 'Unggah Berkas', 'Pembayaran Sekolah'] as const;
 
 export type LangkahAlur = (typeof LANGKAH)[number];
 
 /**
  * Penanda kemajuan alur pendaftaran PPDB - SATU-SATUNYA definisi urutan langkah.
- * Dipakai di Formulir, Unggah Berkas, dan Pembayaran. Langkah sebelum yang aktif
+ * Dipakai sejak Biaya Pendaftaran sampai Pembayaran Sekolah. Langkah sebelum yang aktif
  * otomatis ditandai selesai, jadi pemanggil cukup menyebut posisinya sekarang.
  *
  * Pada layar kecil label teks disembunyikan dan hanya lingkarannya yang tampil,
- * supaya empat langkah tetap muat tanpa membuat halaman menggeser ke samping.
+ * supaya lima langkah tetap muat tanpa membuat halaman menggeser ke samping.
  */
 export default function AlurStepper({ aktif }: { aktif: LangkahAlur }) {
     const indeksAktif = LANGKAH.indexOf(aktif);
 
     return (
-        <div className="mb-8 flex items-center justify-center lg:justify-start" aria-label={`Langkah ${indeksAktif + 1} dari ${LANGKAH.length}: ${aktif}`}>
+        <div
+            className="mb-8 flex items-center justify-center lg:justify-start"
+            aria-label={`Langkah ${indeksAktif + 1} dari ${LANGKAH.length}: ${aktif}`}
+        >
             {LANGKAH.map((label, i) => {
                 const state = i < indeksAktif ? 'done' : i === indeksAktif ? 'active' : 'pending';
 
@@ -25,12 +28,7 @@ export default function AlurStepper({ aktif }: { aktif: LangkahAlur }) {
                           ? 'border-[#0A3981] bg-[#0A3981] text-white shadow-[0_0_0_4px_rgba(10,57,129,0.12)]'
                           : 'border-gray-200 bg-white text-gray-400';
 
-                const teks =
-                    state === 'active'
-                        ? 'font-semibold text-[#0A3981]'
-                        : state === 'done'
-                          ? 'text-gray-500'
-                          : 'text-gray-400';
+                const teks = state === 'active' ? 'font-semibold text-[#0A3981]' : state === 'done' ? 'text-gray-500' : 'text-gray-400';
 
                 return (
                     <div key={label} className="flex items-center">

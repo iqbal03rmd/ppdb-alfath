@@ -47,7 +47,13 @@ class PenggunaController extends Controller
             // Dipakai buat dua hal di layar: menerangkan kenapa peran sebuah
             // akun terkunci, dan menyebut apa yang ikut terdampak kalau akunnya
             // dinonaktifkan. Lewat withCount, bukan memuat seluruh relasinya.
-            ->withCount(['pendaftaran', 'pendaftaranDiverifikasi', 'pembayaranDiverifikasi'])
+            ->withCount([
+                'pendaftaran',
+                'pendaftaranDiverifikasi',
+                'pembayaranDiverifikasi',
+                'pembayaranPendaftaranAwal',
+                'pembayaranPendaftaranAwalDiverifikasi',
+            ])
             ->orderBy('name')
             ->get()
             ->map(fn (User $u) => [
@@ -65,7 +71,7 @@ class PenggunaController extends Controller
                 'alasan_peran_terkunci' => $this->alasanPeranTerkunci(
                     $request,
                     $u,
-                    $u->pendaftaran_count > 0
+                    $u->pendaftaran_count > 0 || $u->pembayaran_pendaftaran_awal_count > 0
                 ),
                 'bisa_dihapus' => $this->bisaDihapus(
                     $request,
@@ -73,6 +79,8 @@ class PenggunaController extends Controller
                     $u->pendaftaran_count > 0
                         || $u->pendaftaran_diverifikasi_count > 0
                         || $u->pembayaran_diverifikasi_count > 0
+                        || $u->pembayaran_pendaftaran_awal_count > 0
+                        || $u->pembayaran_pendaftaran_awal_diverifikasi_count > 0
                 ),
             ])
             ->all();
@@ -257,8 +265,10 @@ class PenggunaController extends Controller
             return 'Anda tidak bisa mengubah peran akun Anda sendiri.';
         }
 
-        if ($pengguna->role === 'wali_murid' && ($punyaPendaftaran ?? $pengguna->pendaftaran()->exists())) {
-            return 'Peran akun ini terkunci karena sudah melakukan pendaftaran PPDB.';
+        if ($pengguna->role === 'wali_murid' && ($punyaPendaftaran ?? (
+            $pengguna->pendaftaran()->exists() || $pengguna->pembayaranPendaftaranAwal()->exists()
+        ))) {
+            return 'Peran akun ini terkunci karena sudah memiliki aktivitas PPDB.';
         }
 
         return null;
@@ -273,6 +283,9 @@ class PenggunaController extends Controller
         $punyaJejak ??= $pengguna->pendaftaran()->exists()
             || $pengguna->pendaftaranDiverifikasi()->exists()
             || $pengguna->pembayaranDiverifikasi()->exists();
+        $punyaJejak = $punyaJejak
+            || $pengguna->pembayaranPendaftaranAwal()->exists()
+            || $pengguna->pembayaranPendaftaranAwalDiverifikasi()->exists();
 
         return ! $punyaJejak;
     }

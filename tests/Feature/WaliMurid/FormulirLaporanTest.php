@@ -2,6 +2,7 @@
 
 use App\Models\AsalPaud;
 use App\Models\KategoriSiswa;
+use App\Models\PembayaranPendaftaranAwal;
 use App\Models\PendaftaranPpdb;
 use App\Models\User;
 
@@ -25,6 +26,15 @@ beforeEach(function () {
 
     $this->wali = User::where('email', 'wali@ppdbalfath.test')->firstOrFail();
     $this->paud = AsalPaud::firstOrFail();
+    PembayaranPendaftaranAwal::create([
+        'user_id' => $this->wali->id,
+        'nominal_tagihan' => 125000,
+        'nominal_transfer' => 125000,
+        'tanggal_transfer' => today(),
+        'bukti_transfer' => 'uji/bukti.jpg',
+        'status' => 'terverifikasi',
+        'diverifikasi_pada' => now(),
+    ]);
 });
 
 function formulirDasar(array $tambahan = []): array

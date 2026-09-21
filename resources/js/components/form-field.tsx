@@ -11,9 +11,9 @@
  * jadi memindahkannya pekerjaan tersendiri - bukan tempelan di pekerjaan lain.
  */
 
-export function Kartu({ judul, children }: { judul: string; children: React.ReactNode }) {
+export function Kartu({ judul, children, className = '' }: { judul: string; children: React.ReactNode; className?: string }) {
     return (
-        <div className="rounded-2xl bg-white p-6 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
+        <div className={`rounded-2xl bg-white p-6 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)] ${className}`}>
             <h2 className="mb-5 text-[15px] font-semibold text-gray-900">{judul}</h2>
             {children}
         </div>

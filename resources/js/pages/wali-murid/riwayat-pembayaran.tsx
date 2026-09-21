@@ -79,8 +79,8 @@ const columns: ColumnDef<RiwayatItem>[] = [
 export default function RiwayatPembayaran({ riwayat }: RiwayatPembayaranProps) {
     return (
         <AppLayout>
-            <Head title="Riwayat Pembayaran" />
-            <PageHeader title="Riwayat Pembayaran" subtitle="Daftar seluruh transfer yang pernah kamu ajukan" wide />
+            <Head title="Pembayaran Sekolah" />
+            <PageHeader title="Pembayaran Sekolah" subtitle="Riwayat pembayaran tagihan sekolah untuk anak yang didaftarkan" wide />
 
             <PageContainer wide>
                 <DataTable columns={columns} data={riwayat} searchPlaceholder="Cari nama atau nomor pendaftaran..." />

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\WaliMurid\BiayaPendaftaranController;
 use App\Http\Controllers\WaliMurid\DashboardController;
 use App\Http\Controllers\WaliMurid\DokumenController;
 use App\Http\Controllers\WaliMurid\PembayaranController;
@@ -13,10 +14,19 @@ Route::middleware(['auth', 'role:wali_murid'])
 
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
+        Route::get('/biaya-pendaftaran', [BiayaPendaftaranController::class, 'show'])
+            ->name('biaya-pendaftaran.show');
+        Route::post('/biaya-pendaftaran', [BiayaPendaftaranController::class, 'store'])
+            ->name('biaya-pendaftaran.store');
+
         Route::prefix('pendaftaran')->name('pendaftaran.')->group(function () {
             Route::get('/', [PendaftaranController::class, 'index'])->name('index');
-            Route::get('/create', [PendaftaranController::class, 'create'])->name('create');
-            Route::post('/', [PendaftaranController::class, 'store'])->name('store');
+            Route::get('/create', [PendaftaranController::class, 'create'])
+                ->middleware('tiket-pendaftaran')
+                ->name('create');
+            Route::post('/', [PendaftaranController::class, 'store'])
+                ->middleware('tiket-pendaftaran')
+                ->name('store');
             Route::get('/{pendaftaran}', [PendaftaranController::class, 'show'])->name('show');
             Route::get('/{pendaftaran}/edit', [PendaftaranController::class, 'edit'])->name('edit');
             Route::put('/{pendaftaran}', [PendaftaranController::class, 'update'])->name('update');

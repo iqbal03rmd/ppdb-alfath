@@ -3,6 +3,7 @@
 use App\Models\AsalPaud;
 use App\Models\GelombangPpdb;
 use App\Models\KategoriSiswa;
+use App\Models\PembayaranPendaftaranAwal;
 use App\Models\PendaftaranPpdb;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia;
@@ -30,6 +31,15 @@ beforeEach(function () {
     $this->staf = User::where('email', 'staf@ppdbalfath.test')->firstOrFail();
     $this->kepsek = User::where('email', 'kepsek@ppdbalfath.test')->firstOrFail();
     $this->gelombang = GelombangPpdb::where('status_buka', true)->firstOrFail();
+    PembayaranPendaftaranAwal::create([
+        'user_id' => $this->wali->id,
+        'nominal_tagihan' => 125000,
+        'nominal_transfer' => 125000,
+        'tanggal_transfer' => today(),
+        'bukti_transfer' => 'uji/bukti.jpg',
+        'status' => 'terverifikasi',
+        'diverifikasi_pada' => now(),
+    ]);
 });
 
 /** Saklarnya TIDAK disentuh - cuma tanggalnya yang digeser. */
@@ -131,6 +141,16 @@ test('pendaftaran baru ditolak sesudah jendelanya lewat', function () {
         ->assertSessionHasNoErrors();
 
     PendaftaranPpdb::where('nik', '1471010101200099')->delete();
+
+    PembayaranPendaftaranAwal::create([
+        'user_id' => $this->wali->id,
+        'nominal_tagihan' => 125000,
+        'nominal_transfer' => 125000,
+        'tanggal_transfer' => today(),
+        'bukti_transfer' => 'uji/bukti-kedua.jpg',
+        'status' => 'terverifikasi',
+        'diverifikasi_pada' => now(),
+    ]);
 
     jendelaLewat($this->gelombang);
 

@@ -8,9 +8,11 @@ use App\Models\AsalPaud;
 use App\Models\GelombangPpdb;
 use App\Models\KategoriSiswa;
 use App\Models\KebijakanKategori;
+use App\Models\PembayaranPendaftaranAwal;
 use App\Models\PendaftaranPpdb;
-use Illuminate\Http\Request;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -19,7 +21,6 @@ use Inertia\Response;
 
 class PendaftaranController extends Controller
 {
-
     public function index(Request $request): Response
     {
         $pendaftaranList = PendaftaranPpdb::with([
@@ -200,6 +201,22 @@ class PendaftaranController extends Controller
         $pertanyaan = $this->pertanyaanJalur((int) $request->kategori_siswa_id);
 
         $pendaftaran = DB::transaction(function () use ($request, $gelombang, $pertanyaan) {
+            User::query()->lockForUpdate()->findOrFail($request->user()->id);
+
+            $tiket = PembayaranPendaftaranAwal::query()
+                ->where('user_id', $request->user()->id)
+                ->terverifikasi()
+                ->belumDigunakan()
+                ->oldest()
+                ->lockForUpdate()
+                ->first();
+
+            abort_unless(
+                $tiket,
+                403,
+                'Pembayaran biaya pendaftaran anak belum disetujui atau tiket pendaftaran sudah digunakan.'
+            );
+
             KebijakanKategori::where('gelombang_ppdb_id', $gelombang->id)
                 ->where('kategori_siswa_id', $request->kategori_siswa_id)
                 ->lockForUpdate()
@@ -231,6 +248,11 @@ class PendaftaranController extends Controller
             foreach ($request->wali_murid as $waliMuridData) {
                 $pendaftaran->waliMurid()->create($waliMuridData);
             }
+
+            $tiket->update([
+                'pendaftaran_ppdb_id' => $pendaftaran->id,
+                'digunakan_pada' => now(),
+            ]);
 
             return $pendaftaran;
         });
