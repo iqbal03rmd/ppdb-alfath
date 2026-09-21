@@ -34,7 +34,7 @@ class PengaturanSistem extends Model
     public static function bawaan(): array
     {
         return [
-            'nama_sekolah' => 'SDIT Al-Fath',
+            'nama_sekolah' => 'SD IT AL FATH',
             'tagline' => 'Mendidik Generasi Berilmu, Beriman, dan Berakhlak',
             'alamat' => null,
             'telepon' => null,

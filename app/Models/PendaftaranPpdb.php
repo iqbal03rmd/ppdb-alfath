@@ -63,7 +63,7 @@ class PendaftaranPpdb extends Model
      */
     public const SUMBER_INFORMASI = [
         'keluarga_teman' => 'Keluarga, teman, atau tetangga',
-        'alumni_wali' => 'Alumni atau wali murid Al-Fath',
+        'alumni_wali' => 'Alumni atau wali murid SD IT AL FATH',
         'media_sosial' => 'Media sosial',
         'brosur_spanduk' => 'Brosur atau spanduk',
         'guru_paud' => 'Guru TK/RA',

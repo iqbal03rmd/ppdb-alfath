@@ -36,7 +36,7 @@ return new class extends Migration
         // Baris singleton langsung tersedia sesudah deploy. Informasi yang
         // belum diketahui sengaja null dan dapat dilengkapi Super Admin.
         DB::table('pengaturan_sistem')->insert([
-            'nama_sekolah' => 'SDIT Al-Fath',
+            'nama_sekolah' => 'SD IT AL FATH',
             'tagline' => 'Mendidik Generasi Berilmu, Beriman, dan Berakhlak',
             'judul_landing' => 'Penerimaan Peserta Didik Baru',
             'deskripsi_landing' => 'Daftarkan putra-putri Anda secara daring dan pantau seluruh proses PPDB dalam satu tempat.',

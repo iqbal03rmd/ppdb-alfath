@@ -16,7 +16,7 @@ test('super admin bisa membuka pengaturan sistem', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('super-admin/pengaturan-sistem')
-            ->where('pengaturan.nama_sekolah', 'SDIT Al-Fath')
+            ->where('pengaturan.nama_sekolah', 'SD IT AL FATH')
         );
 });
 
@@ -60,7 +60,7 @@ test('landing page membaca konten dinamis dan gelombang yang sedang dibuka', fun
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('welcome')
-            ->where('pengaturan.nama_sekolah', 'SDIT Al-Fath Pekanbaru')
+            ->where('pengaturan.nama_sekolah', 'SD IT AL FATH Pekanbaru')
             ->where('pengaturan.judul_landing', 'PPDB Tahun Ajaran Baru')
             ->where('pengaturan.whatsapp_url', 'https://wa.me/6281234567890')
             ->where('gelombang.nama', 'Gelombang 1')
@@ -87,7 +87,7 @@ test('halaman pembayaran wali membaca rekening dari pengaturan sistem', function
 function pengaturanSistemPayload(): array
 {
     return [
-        'nama_sekolah' => 'SDIT Al-Fath Pekanbaru',
+        'nama_sekolah' => 'SD IT AL FATH Pekanbaru',
         'tagline' => 'Berilmu, Beriman, dan Berakhlak',
         'alamat' => 'Jl. Contoh No. 1, Pekanbaru',
         'telepon' => '0761123456',
