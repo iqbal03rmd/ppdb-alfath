@@ -28,8 +28,10 @@ return new class extends Migration
             $table->timestamp('digunakan_pada')->nullable();
             $table->timestamps();
 
-            $table->index(['user_id', 'gelombang_ppdb_id', 'status']);
-            $table->index(['user_id', 'digunakan_pada']);
+            // Nama eksplisit dijaga pendek karena MySQL membatasi identifier
+            // (termasuk nama index) maksimal 64 karakter.
+            $table->index(['user_id', 'gelombang_ppdb_id', 'status'], 'ppa_user_gelombang_status_idx');
+            $table->index(['user_id', 'digunakan_pada'], 'ppa_user_digunakan_idx');
         });
     }
 
