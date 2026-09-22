@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -277,7 +278,11 @@ class PendaftaranController extends Controller
         $gelombang = $pendaftaran->gelombang;
 
         return Inertia::render('wali-murid/pendaftaran-create', [
-            'kategoriSiswa' => $this->kategoriDenganKuota($gelombang, $pendaftaran->kategori_siswa_id),
+            'kategoriSiswa' => $this->kategoriDenganKuota(
+                $gelombang,
+                $pendaftaran->kategori_siswa_id,
+                $pendaftaran->status === 'perlu_perbaikan' ? $pendaftaran->kategori_siswa_id : null
+            ),
             'gelombang' => $gelombang ? [
                 'id' => $gelombang->id,
                 'nama' => $gelombang->nama,
@@ -321,7 +326,7 @@ class PendaftaranController extends Controller
         $this->authorizeAccess($pendaftaran);
         $this->authorizeEditable($pendaftaran);
 
-        if ((int) $request->kategori_siswa_id !== $pendaftaran->kategori_siswa_id) {
+        if ($pendaftaran->status === 'draft' || (int) $request->kategori_siswa_id !== $pendaftaran->kategori_siswa_id) {
             $this->abortJikaKuotaPenuh($pendaftaran->gelombang, (int) $request->kategori_siswa_id);
         }
 
@@ -378,17 +383,20 @@ class PendaftaranController extends Controller
         return KategoriSiswa::whereKey($kategoriSiswaId)->value('pertanyaan_khusus');
     }
 
-    private function kategoriDenganKuota(?GelombangPpdb $gelombang, ?int $kecualikanKategoriId = null): Collection
-    {
+    private function kategoriDenganKuota(
+        ?GelombangPpdb $gelombang,
+        ?int $sertakanKategoriId = null,
+        ?int $kecualikanDariPenuhId = null
+    ): Collection {
         // Jalur yang sudah dimatikan tidak ditawarkan lagi - KECUALI kalau itu
         // jalur yang sedang dipakai pendaftaran ini. Tanpa pengecualian itu,
         // wali yang membuka Ubah pada pendaftaran lamanya menemukan pilihannya
         // hilang dari daftar, dan menyimpan formulir jadi mustahil.
         return KategoriSiswa::select('id', 'nama', 'deskripsi', 'pertanyaan_khusus', 'status_aktif', 'urutan')
-            ->where(fn ($q) => $q->where('status_aktif', true)->orWhere('id', $kecualikanKategoriId))
+            ->where(fn ($q) => $q->where('status_aktif', true)->orWhere('id', $sertakanKategoriId))
             ->terurut()
             ->get()
-            ->map(function (KategoriSiswa $k) use ($gelombang, $kecualikanKategoriId) {
+            ->map(function (KategoriSiswa $k) use ($gelombang, $kecualikanDariPenuhId) {
                 $kuota = $gelombang ? KebijakanKategori::untuk($gelombang->id, $k->id) : null;
 
                 return [
@@ -401,18 +409,21 @@ class PendaftaranController extends Controller
                     'pertanyaan_khusus' => $k->pertanyaan_khusus,
                     'kuota' => $kuota?->kuota,
                     'sisa_kuota' => $kuota?->sisa(),
-                    'penuh' => $kuota && $kuota->penuh() && $k->id !== $kecualikanKategoriId,
+                    // perlu_perbaikan sudah memegang kursi sendiri, jadi jalur
+                    // asalnya tidak boleh tampak penuh karena menghitung dirinya.
+                    // Draft belum memegang kursi dan tidak mendapat pengecualian.
+                    'penuh' => $kuota && $kuota->penuh() && $k->id !== $kecualikanDariPenuhId,
                 ];
             });
     }
 
     private function abortJikaKuotaPenuh(GelombangPpdb $gelombang, int $kategoriSiswaId): void
     {
-        abort_if(
-            KebijakanKategori::penuhUntuk($gelombang->id, $kategoriSiswaId),
-            422,
-            'Kuota untuk kategori yang dipilih sudah penuh pada gelombang ini. Silakan pilih kategori lain atau tunggu gelombang berikutnya.'
-        );
+        if (KebijakanKategori::penuhUntuk($gelombang->id, $kategoriSiswaId)) {
+            throw ValidationException::withMessages([
+                'kategori_siswa_id' => 'Kuota jalur yang dipilih sudah penuh. Silakan pilih jalur lain atau tunggu gelombang berikutnya.',
+            ]);
+        }
     }
 
     private function authorizeEditable(PendaftaranPpdb $pendaftaran): void

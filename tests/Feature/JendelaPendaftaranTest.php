@@ -3,6 +3,7 @@
 use App\Models\AsalPaud;
 use App\Models\GelombangPpdb;
 use App\Models\KategoriSiswa;
+use App\Models\KebijakanKategori;
 use App\Models\PembayaranPendaftaranAwal;
 use App\Models\PendaftaranPpdb;
 use App\Models\User;
@@ -204,6 +205,44 @@ test('draft tidak dapat diedit atau dikirim setelah gelombang ditutup', function
                 $draft = collect($daftar)->firstWhere('id', $pendaftaran->id);
 
                 return $draft['status'] === 'draft_kedaluwarsa' && $draft['tombol'] === null;
+            })
+            ->etc());
+});
+
+test('kuota yang habis saat wali mengisi draft diarahkan mengganti jalur tanpa layar error 422', function () {
+    $this->actingAs($this->wali)
+        ->post(route('wali-murid.pendaftaran.store'), muatanPendaftaranJendela())
+        ->assertSessionHasNoErrors();
+
+    $pendaftaran = PendaftaranPpdb::where('nik', '1471010101200099')->firstOrFail();
+    $pendaftaran->load('gelombang.dokumenWajib');
+
+    foreach ($pendaftaran->dokumenWajib() as $jenis) {
+        $pendaftaran->dokumen()->create([
+            'jenis_dokumen' => $jenis,
+            'berkas' => "uji/{$jenis}.jpg",
+        ]);
+    }
+
+    // Draft belum memegang kursi. Samakan kuota dengan jumlah yang sudah
+    // terpakai untuk mensimulasikan peserta lain mengambil kursi terakhir.
+    $kebijakan = KebijakanKategori::untuk($pendaftaran->gelombang_ppdb_id, $pendaftaran->kategori_siswa_id);
+    $kebijakan->update(['kuota' => $kebijakan->terpakai()]);
+
+    $this->actingAs($this->wali)
+        ->post(route('wali-murid.pendaftaran.unggah-berkas.submit', $pendaftaran))
+        ->assertRedirect(route('wali-murid.pendaftaran.edit', $pendaftaran))
+        ->assertSessionHas('error', fn (string $pesan) => str_contains($pesan, 'peserta lain lebih dahulu'));
+
+    expect($pendaftaran->refresh()->status)->toBe('draft');
+
+    $this->actingAs($this->wali)
+        ->get(route('wali-murid.pendaftaran.edit', $pendaftaran))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('kategoriSiswa', function ($daftar) use ($pendaftaran) {
+                $jalur = collect($daftar)->firstWhere('id', $pendaftaran->kategori_siswa_id);
+
+                return $jalur !== null && $jalur['penuh'] === true;
             })
             ->etc());
 });

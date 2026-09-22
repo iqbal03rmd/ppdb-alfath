@@ -80,20 +80,27 @@ class DokumenController extends Controller
 
         abort_if(! $pendaftaran->berkasLengkap(), 422, 'Masih ada dokumen wajib yang belum diunggah.');
 
-        DB::transaction(function () use ($pendaftaran) {
+        $berhasilDiajukan = DB::transaction(function () use ($pendaftaran): bool {
             KebijakanKategori::where('gelombang_ppdb_id', $pendaftaran->gelombang_ppdb_id)
                 ->where('kategori_siswa_id', $pendaftaran->kategori_siswa_id)
                 ->lockForUpdate()
                 ->first();
 
-            abort_if(
-                KebijakanKategori::penuhUntuk($pendaftaran->gelombang_ppdb_id, $pendaftaran->kategori_siswa_id),
-                422,
-                'Kuota untuk kategori pendaftaran ini sudah penuh. Silakan ubah kategori di formulir atau tunggu gelombang berikutnya.'
-            );
+            if (KebijakanKategori::penuhUntuk($pendaftaran->gelombang_ppdb_id, $pendaftaran->kategori_siswa_id)) {
+                return false;
+            }
 
             $pendaftaran->update(['status' => 'diajukan']);
+
+            return true;
         });
+
+        if (! $berhasilDiajukan) {
+            return to_route('wali-murid.pendaftaran.edit', $pendaftaran)->with(
+                'error',
+                'Kuota jalur ini baru saja penuh karena peserta lain lebih dahulu mengirim berkas. Silakan pilih jalur lain yang masih tersedia.'
+            );
+        }
 
         return to_route('wali-murid.pendaftaran.index', ['expand' => $pendaftaran->id]);
     }
