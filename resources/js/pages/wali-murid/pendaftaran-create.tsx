@@ -199,7 +199,7 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPa
                         harus tetap bisa mengirim perbaikannya walau gelombangnya
                         sudah ditutup. */}
                     {!isEdit && !gelombang ? (
-                        <div className="rounded-2xl bg-white p-10 text-center shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
+                        <div className="rounded-2xl bg-white p-6 text-center shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)] sm:p-10">
                             <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#D4EBF8]/60 text-[#1F509A]">
                                 <CalendarClock size={22} strokeWidth={1.8} />
                             </span>
@@ -217,8 +217,8 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPa
                             </Button>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
-                            <form onSubmit={submit} className="lg:col-span-3">
+                        <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 lg:gap-8">
+                            <form onSubmit={submit} className="min-w-0 lg:col-span-3">
                                 {/* Data calon peserta didik */}
                                 <Section title="Data Calon Peserta Didik">
                                     <div className="mb-5">
@@ -243,7 +243,7 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPa
                                         <FieldError message={errors.kategori_siswa_id} />
                                     </div>
 
-                                    <div className="mb-5 grid grid-cols-2 gap-5">
+                                    <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
                                         <div>
                                             <Label required htmlFor="nama_pendaftar">
                                                 Nama Lengkap
@@ -296,38 +296,40 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPa
                                         </div>
                                     </div>
 
-                                    <div className="mb-5 grid grid-cols-2 gap-5">
-                                        <div>
-                                            <Label required id="label_jenis_kelamin">
-                                                Jenis Kelamin
-                                            </Label>
-                                            {/* Kelompok radio, bukan satu kolom - jadi labelnya yang
-                                                ditunjuk balik lewat aria-labelledby. Dua pilihan di
-                                                dalamnya sudah dibungkus <label> masing-masing. */}
-                                            <div role="radiogroup" aria-labelledby="label_jenis_kelamin" className="flex h-[42px] items-center gap-6">
-                                                <label className="flex items-center gap-2 text-sm text-gray-700">
-                                                    <input
-                                                        type="radio"
-                                                        name="jenis_kelamin"
-                                                        checked={data.jenis_kelamin === 'laki-laki'}
-                                                        onChange={() => setData('jenis_kelamin', 'laki-laki')}
-                                                        className="h-4 w-4 accent-[#1F509A]"
-                                                    />
-                                                    Laki-laki
-                                                </label>
-                                                <label className="flex items-center gap-2 text-sm text-gray-700">
-                                                    <input
-                                                        type="radio"
-                                                        name="jenis_kelamin"
-                                                        checked={data.jenis_kelamin === 'perempuan'}
-                                                        onChange={() => setData('jenis_kelamin', 'perempuan')}
-                                                        className="h-4 w-4 accent-[#1F509A]"
-                                                    />
-                                                    Perempuan
-                                                </label>
-                                            </div>
-                                            <FieldError message={errors.jenis_kelamin} />
+                                    <div className="mb-5">
+                                        <Label required id="label_jenis_kelamin">
+                                            Jenis Kelamin
+                                        </Label>
+                                        {/* Kelompok radio, bukan satu kolom - jadi labelnya yang
+                                            ditunjuk balik lewat aria-labelledby. Dua pilihan di
+                                            dalamnya sudah dibungkus <label> masing-masing. */}
+                                        <div
+                                            role="radiogroup"
+                                            aria-labelledby="label_jenis_kelamin"
+                                            className="flex min-h-[42px] flex-wrap items-center gap-x-6 gap-y-2"
+                                        >
+                                            <label className="flex items-center gap-2 text-sm text-gray-700">
+                                                <input
+                                                    type="radio"
+                                                    name="jenis_kelamin"
+                                                    checked={data.jenis_kelamin === 'laki-laki'}
+                                                    onChange={() => setData('jenis_kelamin', 'laki-laki')}
+                                                    className="h-4 w-4 accent-[#1F509A]"
+                                                />
+                                                Laki-laki
+                                            </label>
+                                            <label className="flex items-center gap-2 text-sm text-gray-700">
+                                                <input
+                                                    type="radio"
+                                                    name="jenis_kelamin"
+                                                    checked={data.jenis_kelamin === 'perempuan'}
+                                                    onChange={() => setData('jenis_kelamin', 'perempuan')}
+                                                    className="h-4 w-4 accent-[#1F509A]"
+                                                />
+                                                Perempuan
+                                            </label>
                                         </div>
+                                        <FieldError message={errors.jenis_kelamin} />
                                     </div>
 
                                     <Pemisah />
@@ -356,7 +358,7 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPa
                                         {/* RT dan RW berdampingan dalam satu baris: dua-duanya
                                             cuma beberapa angka, dan orang memang menyebutnya
                                             sepasang ("RT 03 / RW 05"). */}
-                                        <div className="grid grid-cols-2 gap-5">
+                                        <div className="grid grid-cols-2 gap-3 sm:gap-5">
                                             <div>
                                                 <Label htmlFor="rt">
                                                     RT <span className="text-gray-500">(opsional)</span>
@@ -516,7 +518,7 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPa
                                 {/* Data wali - repeatable */}
                                 <Section title="Data Orang Tua / Wali">
                                     {data.wali_murid.map((w, index) => (
-                                        <div key={index} className="mb-5 rounded-xl border border-[#D4EBF8] bg-[#F5F9FD]/50 p-5">
+                                        <div key={index} className="mb-5 rounded-xl border border-[#D4EBF8] bg-[#F5F9FD]/50 p-4 sm:p-5">
                                             <div className="mb-3 flex items-center justify-between">
                                                 <span className="text-xs font-bold tracking-wide text-[#1F509A] uppercase">Wali {index + 1}</span>
                                                 {data.wali_murid.length > 1 && (
@@ -529,7 +531,7 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPa
                                                     </button>
                                                 )}
                                             </div>
-                                            <div className="grid grid-cols-2 gap-5">
+                                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
                                                 <div>
                                                     <Label required htmlFor={`wali_${index}_nama`}>
                                                         Nama
@@ -578,9 +580,13 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPa
                                                     </Label>
                                                     <Input
                                                         id={`wali_${index}_telepon`}
+                                                        type="tel"
+                                                        inputMode="tel"
+                                                        autoComplete="tel"
                                                         value={w.telepon}
                                                         onChange={(v) => updateWaliMurid(index, 'telepon', v)}
                                                         placeholder="08xxxxxxxxxx"
+                                                        maxLength={20}
                                                     />
                                                     <FieldError message={errors[`wali_murid.${index}.telepon`]} />
                                                 </div>
@@ -604,7 +610,7 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPa
                             </form>
 
                             {/* Panel kanan - info bantu, sekaligus ngisi ruang kosong */}
-                            <aside className="lg:col-span-1">
+                            <aside className="hidden lg:col-span-1 lg:block">
                                 <div className="sticky top-8 flex flex-col gap-5">
                                     {kategoriTerpilih && (
                                         <div className="rounded-2xl bg-[#0A3981] p-6 text-white shadow-[0_8px_24px_-8px_rgba(10,57,129,0.35)]">
@@ -649,13 +655,13 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPa
  * pergantian pokok bahasan, dan itu memang yang terjadi di sini.
  */
 function Pemisah() {
-    return <hr className="my-8 border-t border-gray-100" />;
+    return <hr className="my-6 border-t border-gray-100 sm:my-8" />;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
     return (
-        <div className="mb-6 rounded-2xl bg-white p-8 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
-            <h2 className="mb-6 flex items-center gap-2.5 text-[15px] font-semibold text-[#0A3981]">
+        <div className="mb-5 rounded-2xl bg-white p-5 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)] sm:mb-6 sm:p-6 lg:p-8">
+            <h2 className="mb-5 flex items-center gap-2.5 text-[15px] font-semibold text-[#0A3981] sm:mb-6">
                 <span className="h-5 w-1 rounded-full bg-[#E38E49]" />
                 {title}
             </h2>
@@ -687,12 +693,18 @@ function Label({ children, required, htmlFor, id }: { children: React.ReactNode;
 // akan lupa lagi - sekarang TypeScript yang mengingatkan, bukan manusia.
 function Input({
     id,
+    type = 'text',
+    inputMode,
+    autoComplete,
     value,
     onChange,
     placeholder,
     maxLength,
 }: {
     id: string;
+    type?: 'text' | 'tel';
+    inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
+    autoComplete?: string;
     value: string;
     onChange: (value: string) => void;
     placeholder?: string;
@@ -701,7 +713,9 @@ function Input({
     return (
         <input
             id={id}
-            type="text"
+            type={type}
+            inputMode={inputMode}
+            autoComplete={autoComplete}
             className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none"
             value={value}
             onChange={(e) => onChange(e.target.value)}

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 
 interface WaliMuridItem {
     nama: string;
@@ -60,7 +60,7 @@ const statusBadge: Record<string, { label: string; className: string }> = {
     draft: { label: 'Draft', className: 'bg-gray-100 text-gray-600' },
     draft_kedaluwarsa: { label: 'Draft Berakhir', className: 'bg-gray-200 text-gray-700' },
     diajukan: { label: 'Diajukan', className: 'bg-blue-100 text-blue-700' },
-    pembayaran: { label: 'Pembayaran Sekolah', className: 'bg-teal-100 text-teal-700' },
+    pembayaran: { label: 'Pembayaran', className: 'bg-teal-100 text-teal-700' },
     perlu_perbaikan: { label: 'Perlu Perbaikan', className: 'bg-amber-100 text-amber-700' },
     diterima: { label: 'Diterima', className: 'bg-green-100 text-green-700' },
     ditolak: { label: 'Ditolak', className: 'bg-red-100 text-red-700' },
@@ -74,6 +74,12 @@ const pembayaranBadge: Record<string, { label: string; className: string }> = {
     lunas: { label: 'Lunas', className: 'bg-green-100 text-green-700' },
     ditolak: { label: 'Ditolak', className: 'bg-red-100 text-red-700' },
 };
+
+function ringkasNamaMobile(nama: string) {
+    const batasKarakter = 18;
+
+    return nama.length > batasKarakter ? `${nama.slice(0, batasKarakter).trimEnd()}…` : nama;
+}
 
 export default function PendaftaranIndex({ pendaftaranList, expandId, gelombangDibuka }: IndexProps) {
     const [search, setSearch] = useState('');
@@ -90,7 +96,7 @@ export default function PendaftaranIndex({ pendaftaranList, expandId, gelombangD
             <PageHeader title="Pendaftaran" subtitle="Daftar seluruh pendaftaran PPDB yang kamu ajukan" wide />
 
             <PageContainer wide>
-                <div className="mb-5 flex items-center justify-between gap-4">
+                <div className="mb-5 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                     <Input
                         placeholder="Cari nama atau nomor pendaftaran..."
                         value={search}
@@ -130,8 +136,45 @@ export default function PendaftaranIndex({ pendaftaranList, expandId, gelombangD
                                         value={String(item.pendaftaran.id)}
                                         className={i !== filtered.length - 1 ? 'border-b border-gray-100' : 'border-b-0'}
                                     >
-                                        <AccordionTrigger className="px-6 py-4 hover:bg-[#F5F9FD]/50 hover:no-underline">
-                                            <div className="grid flex-1 grid-cols-1 gap-1 text-left text-sm font-normal lg:grid-cols-6 lg:items-center lg:gap-4">
+                                        <AccordionTrigger className="items-start gap-2 px-4 py-4 hover:bg-[#F5F9FD]/50 hover:no-underline sm:px-6 lg:items-center">
+                                            {/* Mobile: identitas dipadatkan jadi hierarki dua baris.
+                                                Desktop tetap memakai enam kolom tabel di bawahnya. */}
+                                            <div className="min-w-0 flex-1 text-left font-normal lg:hidden">
+                                                <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                                                    <div className="min-w-0">
+                                                        <p
+                                                            className="truncate text-[15px] font-semibold text-gray-900"
+                                                            title={item.pendaftaran.nama_pendaftar}
+                                                        >
+                                                            {ringkasNamaMobile(item.pendaftaran.nama_pendaftar)}
+                                                        </p>
+                                                        <p className="mt-0.5 truncate text-xs text-gray-500">
+                                                            {item.pendaftaran.nomor_pendaftaran} · {item.pendaftaran.kategori}
+                                                        </p>
+                                                    </div>
+                                                    <span className="flex shrink-0 flex-col items-end gap-1">
+                                                        <span
+                                                            className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap ${badge.className}`}
+                                                        >
+                                                            {badge.label}
+                                                        </span>
+                                                        {item.pendaftaran.status === 'diterima' && item.statusPembayaran && (
+                                                            <span
+                                                                className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${pembayaranBadge[item.statusPembayaran].className}`}
+                                                            >
+                                                                {pembayaranBadge[item.statusPembayaran].label}
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                </div>
+                                                <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
+                                                    <span>{item.pendaftaran.gelombang}</span>
+                                                    <span aria-hidden="true" className="h-1 w-1 rounded-full bg-gray-300" />
+                                                    <span>{item.pendaftaran.tanggal_daftar}</span>
+                                                </p>
+                                            </div>
+
+                                            <div className="hidden flex-1 grid-cols-6 items-center gap-4 text-left text-sm font-normal lg:grid">
                                                 <span className="font-medium text-gray-700">{item.pendaftaran.nomor_pendaftaran}</span>
                                                 <span className="text-gray-900">{item.pendaftaran.nama_pendaftar}</span>
                                                 <span className="text-gray-600">{item.pendaftaran.kategori}</span>
@@ -151,7 +194,7 @@ export default function PendaftaranIndex({ pendaftaranList, expandId, gelombangD
                                                 </span>
                                             </div>
                                         </AccordionTrigger>
-                                        <AccordionContent className="bg-[#F5F9FD]/30 px-6 pt-5 pb-6">
+                                        <AccordionContent className="bg-[#F5F9FD]/30 px-4 pt-4 pb-5 sm:px-6 sm:pt-5 sm:pb-6">
                                             <PendaftaranDetailPanel item={item} />
                                         </AccordionContent>
                                     </AccordionItem>
@@ -213,13 +256,22 @@ function PendaftaranDetailPanel({ item }: { item: PendaftaranItem }) {
 
             {/* Checklist progres per-tahap, masing-masing dengan tombol aksinya sendiri */}
             <div className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-100">
-                <div className="flex items-center justify-between gap-4 bg-[#F5F9FD] p-4">
-                    <ProgresBadge label="Data Formulir (Calon Peserta + Wali)" selesai={formulirLengkap} />
+                <div className="flex flex-col items-stretch gap-3 bg-[#F5F9FD] p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                    <ProgresBadge
+                        label={
+                            <>
+                                <span className="sm:hidden">Formulir</span>
+                                <span className="hidden sm:inline">Data Formulir (Calon Peserta + Wali)</span>
+                            </>
+                        }
+                        keterangan="Data calon peserta dan wali"
+                        selesai={formulirLengkap}
+                    />
                     <Button
                         asChild
                         variant="outline"
                         size="sm"
-                        className="shrink-0 rounded-xl border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
+                        className="w-full shrink-0 rounded-xl border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981] sm:w-auto"
                     >
                         <Link
                             href={
@@ -233,14 +285,25 @@ function PendaftaranDetailPanel({ item }: { item: PendaftaranItem }) {
                     </Button>
                 </div>
                 <div className="bg-[#F5F9FD] p-4">
-                    <div className="flex items-center justify-between gap-4">
-                        <ProgresBadge label={`Berkas Persyaratan (${progres.berkasTerunggah}/${progres.berkasWajib})`} selesai={berkasLengkap} />
+                    <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                        <ProgresBadge
+                            label={
+                                <>
+                                    <span className="sm:hidden">Berkas Persyaratan</span>
+                                    <span className="hidden sm:inline">
+                                        Berkas Persyaratan ({progres.berkasTerunggah}/{progres.berkasWajib})
+                                    </span>
+                                </>
+                            }
+                            keterangan={`${progres.berkasTerunggah}/${progres.berkasWajib} berkas terunggah`}
+                            selesai={berkasLengkap}
+                        />
                         {bisaEditBerkas && (
                             <Button
                                 asChild
                                 variant="outline"
                                 size="sm"
-                                className="shrink-0 rounded-xl border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
+                                className="w-full shrink-0 rounded-xl border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981] sm:w-auto"
                             >
                                 <Link href={route('wali-murid.pendaftaran.unggah-berkas', pendaftaran.id)}>{labelBerkas}</Link>
                             </Button>
@@ -248,27 +311,40 @@ function PendaftaranDetailPanel({ item }: { item: PendaftaranItem }) {
                     </div>
                     {/* Terkunci: file langsung diklik di sini, nggak perlu pindah halaman cuma buat lihat */}
                     {!bisaEditBerkas && item.dokumenList.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-2">
+                        <div className="mt-3 grid gap-2 sm:flex sm:flex-wrap">
                             {item.dokumenList.map((d, i) => (
                                 <a
                                     key={i}
                                     href={d.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="rounded-full bg-white px-3 py-1 text-xs font-medium text-[#1F509A] underline hover:bg-[#D4EBF8]/40"
+                                    className="flex min-w-0 items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 text-xs font-medium text-[#1F509A] underline hover:bg-[#D4EBF8]/40 sm:w-auto sm:justify-start sm:rounded-full sm:py-1"
                                 >
-                                    {d.label}
+                                    <span className="truncate">{d.label}</span>
+                                    <span aria-hidden="true" className="shrink-0 no-underline">
+                                        ↗
+                                    </span>
                                 </a>
                             ))}
                         </div>
                     )}
                 </div>
 
-                <div className="flex items-center justify-between gap-4 bg-[#F5F9FD] p-4">
-                    <div className="flex items-center gap-2">
-                        <ProgresBadge label="Pembayaran" selesai={item.statusPembayaran === 'lunas'} />
+                <div className="flex flex-col items-stretch gap-3 bg-[#F5F9FD] p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                    <div className="min-w-0">
+                        <ProgresBadge
+                            label="Pembayaran"
+                            keterangan={
+                                !sudahBolehBayar && !['ditolak', 'draft_kedaluwarsa'].includes(pendaftaran.status)
+                                    ? 'Menunggu berkas diverifikasi'
+                                    : undefined
+                            }
+                            selesai={item.statusPembayaran === 'lunas'}
+                        />
                         {item.statusPembayaran && (
-                            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${pembayaranBadge[item.statusPembayaran].className}`}>
+                            <span
+                                className={`mt-2 ml-7 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${pembayaranBadge[item.statusPembayaran].className}`}
+                            >
                                 {pembayaranBadge[item.statusPembayaran].label}
                             </span>
                         )}
@@ -278,12 +354,14 @@ function PendaftaranDetailPanel({ item }: { item: PendaftaranItem }) {
                             asChild
                             variant="outline"
                             size="sm"
-                            className="shrink-0 rounded-xl border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
+                            className="w-full shrink-0 rounded-xl border-[#1F509A]/40 bg-white text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981] sm:w-auto"
                         >
                             <Link href={route('wali-murid.pembayaran.show', pendaftaran.id)}>{labelTombolPembayaran}</Link>
                         </Button>
                     ) : !['ditolak', 'draft_kedaluwarsa'].includes(pendaftaran.status) ? (
-                        <span className="shrink-0 text-xs text-gray-500">Menunggu berkas diverifikasi</span>
+                        <span className="hidden text-xs leading-relaxed text-gray-500 sm:block sm:shrink-0 sm:text-right">
+                            Menunggu berkas diverifikasi
+                        </span>
                     ) : null}
                 </div>
             </div>
@@ -308,18 +386,21 @@ function PendaftaranDetailPanel({ item }: { item: PendaftaranItem }) {
     );
 }
 
-function ProgresBadge({ label, selesai }: { label: string; selesai: boolean }) {
+function ProgresBadge({ label, keterangan, selesai }: { label: ReactNode; keterangan?: string; selesai: boolean }) {
     return (
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex min-w-0 items-start gap-2 text-sm">
             <span
                 className={
-                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ' +
+                    'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ' +
                     (selesai ? 'bg-green-500 text-white' : 'border border-gray-300 text-gray-300')
                 }
             >
                 {selesai ? '✓' : ''}
             </span>
-            <span className={selesai ? 'font-medium text-gray-700' : 'text-gray-500'}>{label}</span>
+            <span className="min-w-0">
+                <span className={`block ${selesai ? 'font-medium text-gray-700' : 'text-gray-500'}`}>{label}</span>
+                {keterangan && <span className="mt-0.5 block text-xs leading-relaxed font-normal text-gray-500 sm:hidden">{keterangan}</span>}
+            </span>
         </div>
     );
 }

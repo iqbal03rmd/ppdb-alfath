@@ -56,7 +56,7 @@ const WARNA_STATUS: Record<string, string> = {
 const LABEL_STATUS: Record<string, string> = {
     draft: 'Draft',
     diajukan: 'Menunggu diperiksa',
-    pembayaran: 'Pembayaran Sekolah',
+    pembayaran: 'Pembayaran',
     perlu_perbaikan: 'Perlu perbaikan',
     diterima: 'Diterima',
     ditolak: 'Ditolak',

@@ -63,7 +63,7 @@ export default function UnggahBerkas({ pendaftaran, dokumenList, bisaEdit }: Ung
                 <AlurStepper aktif="Unggah Berkas" />
 
                 {!bisaEdit && (
-                    <div className="mb-6 rounded-2xl border border-gray-200 bg-gray-100 p-5 text-sm text-gray-600">
+                    <div className="mb-6 rounded-2xl border border-gray-200 bg-gray-100 p-4 text-sm leading-relaxed text-gray-600 sm:p-5">
                         Berkas pendaftaran ini sudah tidak bisa diubah lagi karena statusnya sudah lanjut ke tahap berikutnya. Daftar di bawah cuma
                         bisa dilihat, bukan diedit.
                     </div>
@@ -74,12 +74,13 @@ export default function UnggahBerkas({ pendaftaran, dokumenList, bisaEdit }: Ung
                         <div
                             key={doc.jenis}
                             className={
-                                'flex items-center justify-between gap-6 p-6' + (index !== dokumenList.length - 1 ? ' border-b border-gray-100' : '')
+                                'flex flex-col items-stretch gap-4 p-5 sm:p-6 md:flex-row md:items-center md:justify-between md:gap-6' +
+                                (index !== dokumenList.length - 1 ? ' border-b border-gray-100' : '')
                             }
                         >
                             <div className="min-w-0 flex-1">
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <h3 className="text-[15px] font-semibold text-gray-900">{doc.label}</h3>
+                                <h3 className="text-[15px] leading-snug font-semibold text-gray-900">{doc.label}</h3>
+                                <div className="mt-2 flex flex-wrap items-center gap-2">
                                     {bisaEdit && (
                                         <span className="rounded-md bg-[#FFF4E8] px-2 py-0.5 text-[11px] font-semibold text-[#B86522]">
                                             PDF/JPG/PNG · Maks. 2 MB
@@ -101,14 +102,14 @@ export default function UnggahBerkas({ pendaftaran, dokumenList, bisaEdit }: Ung
                                 </div>
                             </div>
 
-                            <div className="w-64 shrink-0">
+                            <div className="w-full min-w-0 md:w-64 md:shrink-0">
                                 {doc.terunggah ? (
-                                    <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+                                    <div className="flex min-w-0 items-center justify-between rounded-lg border border-green-200 bg-green-50 px-4 py-3">
                                         <a
                                             href={doc.url ?? '#'}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="truncate text-sm font-medium text-green-800 underline hover:text-green-900"
+                                            className="min-w-0 flex-1 truncate text-sm font-medium text-green-800 underline hover:text-green-900"
                                         >
                                             {doc.nama_file}
                                         </a>
@@ -124,7 +125,7 @@ export default function UnggahBerkas({ pendaftaran, dokumenList, bisaEdit }: Ung
                                 ) : bisaEdit ? (
                                     <label
                                         htmlFor={`file-${doc.jenis}`}
-                                        className="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-[#1F509A]/40 bg-[#F5F9FD] px-4 py-4 text-center transition-colors hover:bg-[#D4EBF8]/30"
+                                        className="flex min-h-24 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-[#1F509A]/40 bg-[#F5F9FD] px-4 py-4 text-center transition-colors hover:bg-[#D4EBF8]/30 md:min-h-0"
                                     >
                                         <svg
                                             width="20"
@@ -143,7 +144,7 @@ export default function UnggahBerkas({ pendaftaran, dokumenList, bisaEdit }: Ung
                                         </span>
                                     </label>
                                 ) : (
-                                    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-center">
+                                    <div className="flex min-h-24 flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-center md:min-h-0">
                                         <span className="text-xs font-medium text-gray-500">Tidak diunggah</span>
                                     </div>
                                 )}

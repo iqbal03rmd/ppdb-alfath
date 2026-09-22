@@ -1,6 +1,16 @@
+import { Check, FileText, ReceiptText, UploadCloud, UserPlus, WalletCards, type LucideIcon } from 'lucide-react';
+
 const LANGKAH = ['Registrasi Akun', 'Biaya Pendaftaran', 'Formulir', 'Unggah Berkas', 'Pembayaran Sekolah'] as const;
 
 export type LangkahAlur = (typeof LANGKAH)[number];
+
+const IKON_LANGKAH: Record<LangkahAlur, LucideIcon> = {
+    'Registrasi Akun': UserPlus,
+    'Biaya Pendaftaran': ReceiptText,
+    Formulir: FileText,
+    'Unggah Berkas': UploadCloud,
+    'Pembayaran Sekolah': WalletCards,
+};
 
 /**
  * Penanda kemajuan alur pendaftaran PPDB - SATU-SATUNYA definisi urutan langkah.
@@ -20,6 +30,7 @@ export default function AlurStepper({ aktif }: { aktif: LangkahAlur }) {
         >
             {LANGKAH.map((label, i) => {
                 const state = i < indeksAktif ? 'done' : i === indeksAktif ? 'active' : 'pending';
+                const Ikon = IKON_LANGKAH[label];
 
                 const lingkaran =
                     state === 'done'
@@ -32,12 +43,17 @@ export default function AlurStepper({ aktif }: { aktif: LangkahAlur }) {
 
                 return (
                     <div key={label} className="flex items-center">
-                        {i > 0 && <div className="mx-2 h-0.5 w-6 bg-[#D4EBF8] sm:w-10 lg:mx-3 lg:w-14" />}
+                        {i > 0 && <div className="mx-1 h-0.5 w-4 bg-[#D4EBF8] sm:mx-2 sm:w-10 lg:mx-3 lg:w-14" />}
                         <div className="flex items-center">
                             <div
-                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold transition-all ${lingkaran}`}
+                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 transition-all ${lingkaran}`}
+                                aria-label={`${label}: ${state === 'done' ? 'selesai' : state === 'active' ? 'sedang berlangsung' : 'belum dimulai'}`}
                             >
-                                {state === 'done' ? '✓' : label[0]}
+                                {state === 'done' ? (
+                                    <Check className="h-4.5 w-4.5" strokeWidth={3} aria-hidden="true" />
+                                ) : (
+                                    <Ikon className="h-4 w-4" aria-hidden="true" />
+                                )}
                             </div>
                             <span className={`ml-2 hidden text-[13px] lg:inline ${teks}`}>{label}</span>
                         </div>

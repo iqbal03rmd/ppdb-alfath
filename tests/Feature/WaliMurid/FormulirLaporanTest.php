@@ -69,6 +69,17 @@ test('asal PAUD wajib dijawab salah satu dari tiga cara', function () {
         ->assertSessionHasErrors('asal_paud_id');
 });
 
+test('nomor whatsapp wali harus berupa nomor seluler indonesia', function (string $telepon) {
+    $this->actingAs($this->wali)
+        ->post(route('wali-murid.pendaftaran.store'), formulirDasar([
+            'asal_paud_id' => $this->paud->id,
+            'wali_murid' => [
+                ['nama' => 'Wali Uji', 'nik' => '1471010101800001', 'hubungan' => 'Ayah', 'telepon' => $telepon],
+            ],
+        ]))
+        ->assertSessionHasErrors('wali_murid.0.telepon');
+})->with(['bukan nomor', '0812abc345678', '12345', '+60 12 345 6789']);
+
 test('sekolah asal boleh diketik sendiri kalau belum ada di daftar', function () {
     $this->actingAs($this->wali)
         ->post(route('wali-murid.pendaftaran.store'), formulirDasar([
@@ -206,6 +217,38 @@ test('bagian alamat tersimpan apa adanya', function () {
         ->and($baru->provinsi)->toBe('Riau')
         ->and($baru->rt)->toBe('003')
         ->and($baru->rw)->toBe('005');
+});
+
+test('halaman detail formulir menampilkan seluruh data yang pernah diisi wali', function () {
+    $this->actingAs($this->wali)
+        ->post(route('wali-murid.pendaftaran.store'), formulirDasar([
+            'asal_paud_id' => $this->paud->id,
+            'tahu_dari' => 'media_sosial',
+        ]))
+        ->assertSessionHasNoErrors();
+
+    $pendaftaran = PendaftaranPpdb::where('nama_pendaftar', 'Uji Coba Anak')->firstOrFail();
+    $pendaftaran->update([
+        'pertanyaan_khusus' => 'Nama saudara yang bersekolah di SD IT AL FATH',
+        'jawaban_khusus' => 'Kakak Uji',
+    ]);
+
+    $this->actingAs($this->wali)
+        ->get(route('wali-murid.pendaftaran.show', $pendaftaran))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('wali-murid/pendaftaran-show')
+            ->where('pendaftaran.rt', '003')
+            ->where('pendaftaran.rw', '005')
+            ->where('pendaftaran.kelurahan', 'Sidomulyo Timur')
+            ->where('pendaftaran.kecamatan', 'Marpoyan Damai')
+            ->where('pendaftaran.kota_kabupaten', 'Kota Pekanbaru')
+            ->where('pendaftaran.provinsi', 'Riau')
+            ->where('pendaftaran.asal_paud', $this->paud->namaLengkap())
+            ->where('pendaftaran.tahu_dari', 'Media sosial')
+            ->where('pendaftaran.pertanyaan_khusus', 'Nama saudara yang bersekolah di SD IT AL FATH')
+            ->where('pendaftaran.jawaban_khusus', 'Kakak Uji')
+            ->etc());
 });
 
 test('kelurahan sampai provinsi wajib diisi', function (string $kolom) {

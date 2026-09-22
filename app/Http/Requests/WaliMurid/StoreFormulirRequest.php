@@ -4,6 +4,7 @@ namespace App\Http\Requests\WaliMurid;
 
 use App\Models\KategoriSiswa;
 use App\Models\PendaftaranPpdb;
+use App\Rules\NomorWhatsApp;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -90,7 +91,7 @@ class StoreFormulirRequest extends FormRequest
             'wali_murid.*.nama' => ['required', 'string', 'max:255'],
             'wali_murid.*.nik' => ['required', 'digits:16'],
             'wali_murid.*.hubungan' => ['required', 'string', 'max:50'],
-            'wali_murid.*.telepon' => ['required', 'string', 'max:20'],
+            'wali_murid.*.telepon' => ['required', 'string', 'max:20', new NomorWhatsApp],
         ];
     }
 

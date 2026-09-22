@@ -46,10 +46,25 @@ class PendaftaranController extends Controller
 
         $pendaftaran->load([
             'kategoriSiswa', 'dokumen', 'waliMurid', 'pembayaranTerakhir', 'gelombang.dokumenWajib',
-            'pembayaran', 'tagihanItem',
+            'pembayaran', 'tagihanItem', 'asalPaud',
         ]);
 
-        return Inertia::render('wali-murid/pendaftaran-show', $this->mapDetail($pendaftaran));
+        $detail = $this->mapDetail($pendaftaran);
+        $detail['pendaftaran'] = [
+            ...$detail['pendaftaran'],
+            'rt' => $pendaftaran->rt,
+            'rw' => $pendaftaran->rw,
+            'kelurahan' => $pendaftaran->kelurahan,
+            'kecamatan' => $pendaftaran->kecamatan,
+            'kota_kabupaten' => $pendaftaran->kota_kabupaten,
+            'provinsi' => $pendaftaran->provinsi,
+            'asal_paud' => $pendaftaran->labelAsalPaud(),
+            'tahu_dari' => $pendaftaran->labelSumberInformasi(),
+            'pertanyaan_khusus' => $pendaftaran->pertanyaan_khusus,
+            'jawaban_khusus' => $pendaftaran->jawaban_khusus,
+        ];
+
+        return Inertia::render('wali-murid/pendaftaran-show', $detail);
     }
 
     private function mapDetail(PendaftaranPpdb $pendaftaran): array

@@ -34,6 +34,16 @@ interface DataTableProps<TData, TValue> {
      * memenuhi baris sampai mepet ke tombolnya.
      */
     searchWidth?: string;
+    /** Tampilan ringkas alternatif untuk layar kecil. Tetap memakai hasil
+     *  pencarian, pengurutan, dan pagination dari tabel yang sama. */
+    mobileHeader?: React.ReactNode;
+    renderMobileRow?: (
+        item: TData,
+        controls: {
+            expanded: boolean;
+            toggle: () => void;
+        },
+    ) => React.ReactNode;
 }
 
 export function DataTable<TData, TValue>({
@@ -43,9 +53,12 @@ export function DataTable<TData, TValue>({
     toolbar,
     emptyMessage = 'Tidak ada data.',
     searchWidth = 'max-w-sm',
+    mobileHeader,
+    renderMobileRow,
 }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = useState<SortingState>([]);
     const [globalFilter, setGlobalFilter] = useState('');
+    const [expandedMobileRow, setExpandedMobileRow] = useState<string | null>(null);
 
     const table = useReactTable({
         data,
@@ -72,7 +85,29 @@ export function DataTable<TData, TValue>({
                 {toolbar}
             </div>
 
-            <div className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
+            {renderMobileRow && (
+                <div className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)] md:hidden">
+                    {mobileHeader}
+                    <div className="divide-y divide-gray-100">
+                        {table.getRowModel().rows.length ? (
+                            table.getRowModel().rows.map((row) => (
+                                <div key={row.id}>
+                                    {renderMobileRow(row.original, {
+                                        expanded: expandedMobileRow === row.id,
+                                        toggle: () => setExpandedMobileRow((current) => (current === row.id ? null : row.id)),
+                                    })}
+                                </div>
+                            ))
+                        ) : (
+                            <p className="px-5 py-10 text-center text-sm text-gray-500">{emptyMessage}</p>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            <div
+                className={`overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)] ${renderMobileRow ? 'hidden md:block' : ''}`}
+            >
                 <Table>
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
@@ -123,11 +158,11 @@ export function DataTable<TData, TValue>({
                 </Table>
             </div>
 
-            <div className="mt-4 flex items-center justify-between">
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs text-gray-500">
                     Halaman {table.getState().pagination.pageIndex + 1} dari {table.getPageCount() || 1}
                 </p>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:flex">
                     <Button
                         variant="outline"
                         size="sm"

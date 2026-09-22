@@ -23,6 +23,15 @@ class NomorWhatsApp implements ValidationRule
             return null;
         }
 
+        $nomor = trim($nomor);
+
+        // Spasi, tanda hubung, dan kurung masih lazim dipakai saat menulis
+        // nomor. Huruf atau simbol lain tidak boleh diam-diam dibuang karena
+        // ketikan seperti "WA 0812..." seharusnya gagal validasi, bukan lolos.
+        if (preg_match('/^\+?[0-9\s().-]+$/', $nomor) !== 1) {
+            return null;
+        }
+
         $angka = preg_replace('/\D+/', '', $nomor);
 
         if ($angka === null || $angka === '') {

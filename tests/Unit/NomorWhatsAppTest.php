@@ -17,4 +17,6 @@ test('menolak nomor kosong atau bukan seluler indonesia', function (?string $nom
     '',
     '12345',
     '+60 12 345 6789',
+    'WA 0812-3456-7890',
+    '0812abc345678',
 ]);
