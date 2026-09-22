@@ -1,11 +1,12 @@
+import { DataTable } from '@/components/data-table';
 import PageContainer from '@/components/page-container';
 import PageHeader from '@/components/page-header';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router } from '@inertiajs/react';
-import { type ReactNode, useState } from 'react';
+import { type ColumnDef } from '@tanstack/react-table';
+import { Minus, Plus } from 'lucide-react';
+import { type ReactNode } from 'react';
 
 interface WaliMuridItem {
     nama: string;
@@ -81,128 +82,126 @@ function ringkasNamaMobile(nama: string) {
     return nama.length > batasKarakter ? `${nama.slice(0, batasKarakter).trimEnd()}…` : nama;
 }
 
-export default function PendaftaranIndex({ pendaftaranList, expandId, gelombangDibuka }: IndexProps) {
-    const [search, setSearch] = useState('');
+function StatusPendaftaran({ item, mobile = false }: { item: PendaftaranItem; mobile?: boolean }) {
+    const badge = statusBadge[item.pendaftaran.status] ?? statusBadge.draft;
 
-    const filtered = pendaftaranList.filter(
-        (item) =>
-            item.pendaftaran.nama_pendaftar.toLowerCase().includes(search.toLowerCase()) ||
-            item.pendaftaran.nomor_pendaftaran.toLowerCase().includes(search.toLowerCase()),
+    return (
+        <span className={mobile ? 'flex shrink-0 flex-col items-end gap-1' : 'flex flex-wrap items-center gap-1.5'}>
+            <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${mobile ? 'whitespace-nowrap' : ''} ${badge.className}`}>
+                {badge.label}
+            </span>
+            {item.pendaftaran.status === 'diterima' && item.statusPembayaran && (
+                <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${pembayaranBadge[item.statusPembayaran].className}`}>
+                    {pembayaranBadge[item.statusPembayaran].label}
+                </span>
+            )}
+        </span>
     );
+}
 
+const columns: ColumnDef<PendaftaranItem>[] = [
+    {
+        id: 'nomor_pendaftaran',
+        accessorFn: (item) => item.pendaftaran.nomor_pendaftaran,
+        header: 'Nomor Pendaftaran',
+        cell: ({ row }) => <span className="font-medium text-gray-700">{row.original.pendaftaran.nomor_pendaftaran}</span>,
+    },
+    {
+        id: 'nama_pendaftar',
+        accessorFn: (item) => item.pendaftaran.nama_pendaftar,
+        header: 'Nama Anak',
+        cell: ({ row }) => <span className="text-gray-900">{row.original.pendaftaran.nama_pendaftar}</span>,
+    },
+    {
+        id: 'kategori',
+        accessorFn: (item) => item.pendaftaran.kategori,
+        header: 'Kategori',
+        cell: ({ row }) => <span className="text-gray-600">{row.original.pendaftaran.kategori}</span>,
+    },
+    {
+        id: 'gelombang',
+        accessorFn: (item) => item.pendaftaran.gelombang,
+        header: 'Gelombang',
+        cell: ({ row }) => <span className="text-gray-600">{row.original.pendaftaran.gelombang}</span>,
+    },
+    {
+        id: 'tanggal_daftar',
+        accessorFn: (item) => item.pendaftaran.tanggal_daftar,
+        header: 'Tanggal Daftar',
+        cell: ({ row }) => <span className="text-gray-600">{row.original.pendaftaran.tanggal_daftar}</span>,
+    },
+    {
+        id: 'status',
+        accessorFn: (item) => `${statusBadge[item.pendaftaran.status]?.label ?? 'Draft'} ${item.statusPembayaran ?? ''}`,
+        header: 'Status',
+        cell: ({ row }) => <StatusPendaftaran item={row.original} />,
+    },
+];
+
+export default function PendaftaranIndex({ pendaftaranList, expandId, gelombangDibuka }: IndexProps) {
     return (
         <AppLayout>
             <Head title="Pendaftaran" />
             <PageHeader title="Pendaftaran" subtitle="Daftar seluruh pendaftaran PPDB yang kamu ajukan" wide />
 
             <PageContainer wide>
-                <div className="mb-5 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                    <Input
-                        placeholder="Cari nama atau nomor pendaftaran..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="max-w-sm border-gray-200 bg-white shadow-sm"
-                    />
-                    {!gelombangDibuka ? <p className="shrink-0 text-sm text-gray-500">Pendaftaran sedang ditutup</p> : null}
-                </div>
-
-                {filtered.length === 0 ? (
-                    <div className="rounded-2xl bg-white p-10 text-center text-sm text-gray-500 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
-                        {pendaftaranList.length === 0 ? 'Belum ada pendaftaran.' : 'Tidak ada hasil yang cocok.'}
-                    </div>
-                ) : (
-                    <>
-                        {/* Header label kolom - visual doang, bukan bagian dari Accordion */}
-                        <div className="hidden h-12 grid-cols-6 items-center gap-4 rounded-t-2xl bg-[#0A3981] px-6 pr-10 text-xs font-bold tracking-wide text-white uppercase lg:grid">
-                            <span>Nomor Pendaftaran</span>
-                            <span>Nama Anak</span>
-                            <span>Kategori</span>
-                            <span>Gelombang</span>
-                            <span>Tanggal Daftar</span>
-                            <span>Status</span>
+                <DataTable
+                    columns={columns}
+                    data={pendaftaranList}
+                    rowId={(item) => String(item.pendaftaran.id)}
+                    initialExpandedRowId={expandId ? String(expandId) : null}
+                    desktopBreakpoint="lg"
+                    searchPlaceholder="Cari nama atau nomor pendaftaran..."
+                    emptyMessage={pendaftaranList.length === 0 ? 'Belum ada pendaftaran.' : 'Tidak ada hasil yang cocok.'}
+                    toolbar={!gelombangDibuka ? <p className="ml-auto shrink-0 text-sm text-gray-500">Pendaftaran sedang ditutup</p> : undefined}
+                    mobileHeader={
+                        <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] gap-3 bg-[#0A3981] px-4 py-3 text-[11px] font-bold tracking-wide text-white uppercase">
+                            <span aria-hidden />
+                            <span>Pendaftaran</span>
+                            <span className="text-right">Status</span>
                         </div>
+                    }
+                    renderMobileRow={(item, { expanded, toggle }) => (
+                        <div className={expanded ? 'bg-[#F8FBFE]' : 'bg-white'}>
+                            <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-4">
+                                <button
+                                    type="button"
+                                    onClick={toggle}
+                                    aria-expanded={expanded}
+                                    aria-label={`${expanded ? 'Tutup' : 'Buka'} detail pendaftaran ${item.pendaftaran.nama_pendaftar}`}
+                                    className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+                                        expanded ? 'bg-[#0A3981] text-white' : 'bg-[#E8EEF7] text-[#1F509A] hover:bg-[#D4EBF8]'
+                                    }`}
+                                >
+                                    {expanded ? <Minus className="h-4 w-4" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}
+                                </button>
 
-                        <Accordion
-                            type="single"
-                            collapsible
-                            defaultValue={expandId ? String(expandId) : undefined}
-                            className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)] lg:rounded-t-none"
-                        >
-                            {filtered.map((item, i) => {
-                                const badge = statusBadge[item.pendaftaran.status] ?? statusBadge.draft;
-                                return (
-                                    <AccordionItem
-                                        key={item.pendaftaran.id}
-                                        value={String(item.pendaftaran.id)}
-                                        className={i !== filtered.length - 1 ? 'border-b border-gray-100' : 'border-b-0'}
-                                    >
-                                        <AccordionTrigger className="items-start gap-2 px-4 py-4 hover:bg-[#F5F9FD]/50 hover:no-underline sm:px-6 lg:items-center">
-                                            {/* Mobile: identitas dipadatkan jadi hierarki dua baris.
-                                                Desktop tetap memakai enam kolom tabel di bawahnya. */}
-                                            <div className="min-w-0 flex-1 text-left font-normal lg:hidden">
-                                                <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-                                                    <div className="min-w-0">
-                                                        <p
-                                                            className="truncate text-[15px] font-semibold text-gray-900"
-                                                            title={item.pendaftaran.nama_pendaftar}
-                                                        >
-                                                            {ringkasNamaMobile(item.pendaftaran.nama_pendaftar)}
-                                                        </p>
-                                                        <p className="mt-0.5 truncate text-xs text-gray-500">
-                                                            {item.pendaftaran.nomor_pendaftaran} · {item.pendaftaran.kategori}
-                                                        </p>
-                                                    </div>
-                                                    <span className="flex shrink-0 flex-col items-end gap-1">
-                                                        <span
-                                                            className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap ${badge.className}`}
-                                                        >
-                                                            {badge.label}
-                                                        </span>
-                                                        {item.pendaftaran.status === 'diterima' && item.statusPembayaran && (
-                                                            <span
-                                                                className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${pembayaranBadge[item.statusPembayaran].className}`}
-                                                            >
-                                                                {pembayaranBadge[item.statusPembayaran].label}
-                                                            </span>
-                                                        )}
-                                                    </span>
-                                                </div>
-                                                <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
-                                                    <span>{item.pendaftaran.gelombang}</span>
-                                                    <span aria-hidden="true" className="h-1 w-1 rounded-full bg-gray-300" />
-                                                    <span>{item.pendaftaran.tanggal_daftar}</span>
-                                                </p>
-                                            </div>
+                                <div className="min-w-0">
+                                    <p className="truncate text-sm font-semibold text-gray-900" title={item.pendaftaran.nama_pendaftar}>
+                                        {ringkasNamaMobile(item.pendaftaran.nama_pendaftar)}
+                                    </p>
+                                    <p className="mt-0.5 truncate text-[11px] text-gray-500">
+                                        {item.pendaftaran.nomor_pendaftaran} · {item.pendaftaran.kategori}
+                                    </p>
+                                    <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-500">
+                                        <span>{item.pendaftaran.gelombang}</span>
+                                        <span aria-hidden="true" className="h-1 w-1 rounded-full bg-gray-300" />
+                                        <span>{item.pendaftaran.tanggal_daftar}</span>
+                                    </p>
+                                </div>
 
-                                            <div className="hidden flex-1 grid-cols-6 items-center gap-4 text-left text-sm font-normal lg:grid">
-                                                <span className="font-medium text-gray-700">{item.pendaftaran.nomor_pendaftaran}</span>
-                                                <span className="text-gray-900">{item.pendaftaran.nama_pendaftar}</span>
-                                                <span className="text-gray-600">{item.pendaftaran.kategori}</span>
-                                                <span className="text-gray-600">{item.pendaftaran.gelombang}</span>
-                                                <span className="text-gray-600">{item.pendaftaran.tanggal_daftar}</span>
-                                                <span className="flex flex-wrap items-center gap-1.5">
-                                                    <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${badge.className}`}>
-                                                        {badge.label}
-                                                    </span>
-                                                    {item.pendaftaran.status === 'diterima' && item.statusPembayaran && (
-                                                        <span
-                                                            className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${pembayaranBadge[item.statusPembayaran].className}`}
-                                                        >
-                                                            {pembayaranBadge[item.statusPembayaran].label}
-                                                        </span>
-                                                    )}
-                                                </span>
-                                            </div>
-                                        </AccordionTrigger>
-                                        <AccordionContent className="bg-[#F5F9FD]/30 px-4 pt-4 pb-5 sm:px-6 sm:pt-5 sm:pb-6">
-                                            <PendaftaranDetailPanel item={item} />
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                );
-                            })}
-                        </Accordion>
-                    </>
-                )}
+                                <StatusPendaftaran item={item} mobile />
+                            </div>
+
+                            {expanded && (
+                                <div className="border-t border-dashed border-[#D4EBF8] px-4 py-4">
+                                    <PendaftaranDetailPanel item={item} />
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    renderExpandedRow={(item) => <PendaftaranDetailPanel item={item} />}
+                />
             </PageContainer>
         </AppLayout>
     );

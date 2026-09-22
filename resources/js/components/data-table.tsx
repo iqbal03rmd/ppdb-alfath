@@ -8,11 +8,33 @@ import {
     getFilteredRowModel,
     getPaginationRowModel,
     getSortedRowModel,
+    type RowData,
     type SortingState,
     useReactTable,
 } from '@tanstack/react-table';
-import { ChevronDown, ChevronsUpDown, ChevronUp } from 'lucide-react';
-import { useState } from 'react';
+import { ChevronDown, ChevronsUpDown, ChevronUp, Minus, Plus } from 'lucide-react';
+import { Fragment, useState } from 'react';
+
+declare module '@tanstack/react-table' {
+    // Parameter generik harus sama persis dengan deklarasi TanStack meski tidak
+    // dipakai langsung oleh properti alignment tambahan ini.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    interface ColumnMeta<TData extends RowData, TValue> {
+        align?: 'left' | 'center' | 'right';
+    }
+}
+
+const alignmentClass = {
+    left: 'text-left',
+    center: 'text-center',
+    right: 'text-right',
+} as const;
+
+const headerAlignmentClass = {
+    left: '',
+    center: 'w-full justify-center',
+    right: 'w-full justify-end',
+} as const;
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[];
@@ -34,6 +56,12 @@ interface DataTableProps<TData, TValue> {
      * memenuhi baris sampai mepet ke tombolnya.
      */
     searchWidth?: string;
+    /** Gunakan breakpoint lebih lebar untuk tabel dengan banyak kolom. */
+    desktopBreakpoint?: 'md' | 'lg';
+    /** Identitas stabil baris, dibutuhkan bila baris dapat dibuka. */
+    rowId?: (item: TData) => string;
+    /** Baris yang langsung dibuka, misalnya setelah kembali dari halaman aksi. */
+    initialExpandedRowId?: string | null;
     /** Tampilan ringkas alternatif untuk layar kecil. Tetap memakai hasil
      *  pencarian, pengurutan, dan pagination dari tabel yang sama. */
     mobileHeader?: React.ReactNode;
@@ -44,7 +72,20 @@ interface DataTableProps<TData, TValue> {
             toggle: () => void;
         },
     ) => React.ReactNode;
+    /** Detail yang muncul sebagai satu baris penuh di bawah baris desktop. */
+    renderExpandedRow?: (
+        item: TData,
+        controls: {
+            expanded: boolean;
+            toggle: () => void;
+        },
+    ) => React.ReactNode;
 }
+
+const responsiveVisibility = {
+    md: { mobile: 'md:hidden', desktop: 'hidden md:block' },
+    lg: { mobile: 'lg:hidden', desktop: 'hidden lg:block' },
+} as const;
 
 export function DataTable<TData, TValue>({
     columns,
@@ -53,12 +94,20 @@ export function DataTable<TData, TValue>({
     toolbar,
     emptyMessage = 'Tidak ada data.',
     searchWidth = 'max-w-sm',
+    desktopBreakpoint = 'md',
+    rowId,
+    initialExpandedRowId = null,
     mobileHeader,
     renderMobileRow,
+    renderExpandedRow,
 }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = useState<SortingState>([]);
     const [globalFilter, setGlobalFilter] = useState('');
-    const [expandedMobileRow, setExpandedMobileRow] = useState<string | null>(null);
+    const [expandedRowId, setExpandedRowId] = useState<string | null>(initialExpandedRowId);
+    const pageSize = 10;
+    const expandedRowIndex = initialExpandedRowId && rowId ? data.findIndex((item) => rowId(item) === initialExpandedRowId) : -1;
+    const initialPageIndex = expandedRowIndex >= 0 ? Math.floor(expandedRowIndex / pageSize) : 0;
+    const visibility = responsiveVisibility[desktopBreakpoint];
 
     const table = useReactTable({
         data,
@@ -70,7 +119,8 @@ export function DataTable<TData, TValue>({
         getSortedRowModel: getSortedRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
-        initialState: { pagination: { pageSize: 10 } },
+        getRowId: rowId,
+        initialState: { pagination: { pageIndex: initialPageIndex, pageSize } },
     });
 
     return (
@@ -79,22 +129,27 @@ export function DataTable<TData, TValue>({
                 <Input
                     placeholder={searchPlaceholder}
                     value={globalFilter}
-                    onChange={(e) => setGlobalFilter(e.target.value)}
+                    onChange={(e) => {
+                        setGlobalFilter(e.target.value);
+                        setExpandedRowId(null);
+                    }}
                     className={`${searchWidth} border-gray-200 bg-white shadow-sm`}
                 />
                 {toolbar}
             </div>
 
             {renderMobileRow && (
-                <div className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)] md:hidden">
+                <div
+                    className={`overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)] ${visibility.mobile}`}
+                >
                     {mobileHeader}
                     <div className="divide-y divide-gray-100">
                         {table.getRowModel().rows.length ? (
                             table.getRowModel().rows.map((row) => (
                                 <div key={row.id}>
                                     {renderMobileRow(row.original, {
-                                        expanded: expandedMobileRow === row.id,
-                                        toggle: () => setExpandedMobileRow((current) => (current === row.id ? null : row.id)),
+                                        expanded: expandedRowId === row.id,
+                                        toggle: () => setExpandedRowId((current) => (current === row.id ? null : row.id)),
                                     })}
                                 </div>
                             ))
@@ -106,17 +161,18 @@ export function DataTable<TData, TValue>({
             )}
 
             <div
-                className={`overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)] ${renderMobileRow ? 'hidden md:block' : ''}`}
+                className={`overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)] ${renderMobileRow ? visibility.desktop : ''}`}
             >
                 <Table>
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
                             <TableRow key={headerGroup.id} className="bg-[#0A3981] hover:bg-[#0A3981]">
+                                {renderExpandedRow && <TableHead className="w-12" />}
                                 {headerGroup.headers.map((header) => (
-                                    <TableHead key={header.id}>
+                                    <TableHead key={header.id} className={alignmentClass[header.column.columnDef.meta?.align ?? 'left']}>
                                         {header.isPlaceholder ? null : header.column.getCanSort() ? (
                                             <button
-                                                className="flex items-center gap-1 text-xs font-bold tracking-wide text-white uppercase hover:text-[#D4EBF8]"
+                                                className={`flex items-center gap-1 text-xs font-bold tracking-wide text-white uppercase hover:text-[#D4EBF8] ${headerAlignmentClass[header.column.columnDef.meta?.align ?? 'left']}`}
                                                 onClick={header.column.getToggleSortingHandler()}
                                             >
                                                 {flexRender(header.column.columnDef.header, header.getContext())}
@@ -129,7 +185,9 @@ export function DataTable<TData, TValue>({
                                                 )}
                                             </button>
                                         ) : (
-                                            <span className="text-xs font-bold tracking-wide text-white uppercase">
+                                            <span
+                                                className={`block text-xs font-bold tracking-wide text-white uppercase ${alignmentClass[header.column.columnDef.meta?.align ?? 'left']}`}
+                                            >
                                                 {flexRender(header.column.columnDef.header, header.getContext())}
                                             </span>
                                         )}
@@ -140,16 +198,51 @@ export function DataTable<TData, TValue>({
                     </TableHeader>
                     <TableBody>
                         {table.getRowModel().rows.length ? (
-                            table.getRowModel().rows.map((row) => (
-                                <TableRow key={row.id} className="hover:bg-[#F5F9FD]/50">
-                                    {row.getVisibleCells().map((cell) => (
-                                        <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                                    ))}
-                                </TableRow>
-                            ))
+                            table.getRowModel().rows.map((row) => {
+                                const expanded = expandedRowId === row.id;
+                                const toggle = () => setExpandedRowId((current) => (current === row.id ? null : row.id));
+
+                                return (
+                                    <Fragment key={row.id}>
+                                        <TableRow className={expanded ? 'bg-[#F8FBFE]' : 'hover:bg-[#F5F9FD]/50'}>
+                                            {renderExpandedRow && (
+                                                <TableCell className="w-12 pr-0">
+                                                    <button
+                                                        type="button"
+                                                        onClick={toggle}
+                                                        aria-expanded={expanded}
+                                                        aria-label={`${expanded ? 'Tutup' : 'Buka'} detail baris`}
+                                                        className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+                                                            expanded ? 'bg-[#0A3981] text-white' : 'bg-[#E8EEF7] text-[#1F509A] hover:bg-[#D4EBF8]'
+                                                        }`}
+                                                    >
+                                                        {expanded ? (
+                                                            <Minus className="h-4 w-4" aria-hidden="true" />
+                                                        ) : (
+                                                            <Plus className="h-4 w-4" aria-hidden="true" />
+                                                        )}
+                                                    </button>
+                                                </TableCell>
+                                            )}
+                                            {row.getVisibleCells().map((cell) => (
+                                                <TableCell key={cell.id} className={alignmentClass[cell.column.columnDef.meta?.align ?? 'left']}>
+                                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                                </TableCell>
+                                            ))}
+                                        </TableRow>
+                                        {renderExpandedRow && expanded && (
+                                            <TableRow className="hover:bg-transparent">
+                                                <TableCell colSpan={columns.length + 1} className="bg-[#F5F9FD]/30 p-5">
+                                                    {renderExpandedRow(row.original, { expanded, toggle })}
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </Fragment>
+                                );
+                            })
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={columns.length} className="h-24 text-center text-sm text-gray-500">
+                                <TableCell colSpan={columns.length + (renderExpandedRow ? 1 : 0)} className="h-24 text-center text-sm text-gray-500">
                                     {emptyMessage}
                                 </TableCell>
                             </TableRow>

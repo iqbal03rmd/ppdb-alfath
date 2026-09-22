@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, GraduationCap, Users } from 'lucide-react';
 
 interface WaliMuridItem {
     nama: string;
@@ -141,90 +141,96 @@ export default function PendaftaranShow({ pendaftaran, waliMurid }: ShowProps) {
                 )}
 
                 <div>
-                    <Tabs
-                        defaultValue="calon"
-                        className="rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)] sm:p-6 lg:p-7"
-                    >
-                        <TabsList className="mb-6 grid h-auto w-full grid-cols-2 bg-[#F5F9FD] p-1">
+                    <Tabs defaultValue="calon">
+                        <TabsList className="mb-5 grid h-auto w-full grid-cols-2 rounded-2xl bg-white p-1.5 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
                             <TabsTrigger
                                 value="calon"
-                                className="min-w-0 px-2 py-2 text-xs whitespace-normal text-gray-600 data-[state=active]:bg-[#0A3981] data-[state=active]:text-white sm:text-sm"
+                                className="min-w-0 gap-1.5 rounded-xl px-2 py-2.5 text-[11px] whitespace-normal text-gray-600 data-[state=active]:bg-[#0A3981] data-[state=active]:text-white sm:text-sm"
                             >
+                                <GraduationCap className="h-4 w-4 shrink-0" aria-hidden="true" />
                                 <span className="sm:hidden">Calon Peserta</span>
                                 <span className="hidden sm:inline">Data Calon Peserta Didik</span>
                             </TabsTrigger>
                             <TabsTrigger
                                 value="wali"
-                                className="min-w-0 px-2 py-2 text-xs whitespace-normal text-gray-600 data-[state=active]:bg-[#0A3981] data-[state=active]:text-white sm:text-sm"
+                                className="min-w-0 gap-1.5 rounded-xl px-2 py-2.5 text-[11px] whitespace-normal text-gray-600 data-[state=active]:bg-[#0A3981] data-[state=active]:text-white sm:text-sm"
                             >
+                                <Users className="h-4 w-4 shrink-0" aria-hidden="true" />
                                 <span className="sm:hidden">Orang Tua / Wali</span>
                                 <span className="hidden sm:inline">Data Orang Tua / Wali</span>
                             </TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="calon">
-                            <div className="space-y-7">
-                                <section>
-                                    <SectionTitle>Identitas Calon Peserta Didik</SectionTitle>
-                                    <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-                                        <InfoItem label="Nama Lengkap" value={pendaftaran.nama_pendaftar} />
-                                        <InfoItem label="NIK" value={pendaftaran.nik} />
-                                        <InfoItem label="Tempat, Tanggal Lahir" value={`${pendaftaran.tempat_lahir}, ${pendaftaran.tanggal_lahir}`} />
-                                        <InfoItem
-                                            label="Jenis Kelamin"
-                                            value={pendaftaran.jenis_kelamin === 'laki-laki' ? 'Laki-laki' : 'Perempuan'}
-                                        />
-                                        <InfoItem label="Jalur Pendaftaran" value={pendaftaran.kategori} />
-                                        <InfoItem label="Gelombang" value={pendaftaran.gelombang} />
-                                    </div>
-                                </section>
+                        <div className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
+                            <div className="p-5 sm:p-6 lg:p-8">
+                                <TabsContent value="calon" className="mt-0">
+                                    <div className="space-y-7">
+                                        <section>
+                                            <SectionTitle>Identitas Calon Peserta Didik</SectionTitle>
+                                            <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+                                                <InfoItem label="Nama Lengkap" value={pendaftaran.nama_pendaftar} />
+                                                <InfoItem label="NIK" value={pendaftaran.nik} />
+                                                <InfoItem
+                                                    label="Tempat, Tanggal Lahir"
+                                                    value={`${pendaftaran.tempat_lahir}, ${pendaftaran.tanggal_lahir}`}
+                                                />
+                                                <InfoItem
+                                                    label="Jenis Kelamin"
+                                                    value={pendaftaran.jenis_kelamin === 'laki-laki' ? 'Laki-laki' : 'Perempuan'}
+                                                />
+                                                <InfoItem label="Jalur Pendaftaran" value={pendaftaran.kategori} />
+                                                <InfoItem label="Gelombang" value={pendaftaran.gelombang} />
+                                            </div>
+                                        </section>
 
-                                <section>
-                                    <SectionTitle>Alamat Domisili</SectionTitle>
-                                    <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
-                                        <InfoItem label="Alamat" value={pendaftaran.alamat} className="sm:col-span-2 lg:col-span-4" />
-                                        <InfoItem label="RT" value={pendaftaran.rt} />
-                                        <InfoItem label="RW" value={pendaftaran.rw} />
-                                        <InfoItem label="Kelurahan/Desa" value={pendaftaran.kelurahan} />
-                                        <InfoItem label="Kecamatan" value={pendaftaran.kecamatan} />
-                                        <InfoItem label="Kota/Kabupaten" value={pendaftaran.kota_kabupaten} />
-                                        <InfoItem label="Provinsi" value={pendaftaran.provinsi} />
-                                    </div>
-                                </section>
+                                        <section>
+                                            <SectionTitle>Alamat Domisili</SectionTitle>
+                                            <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+                                                <InfoItem label="Alamat" value={pendaftaran.alamat} className="sm:col-span-2 lg:col-span-4" />
+                                                <InfoItem label="RT" value={pendaftaran.rt} />
+                                                <InfoItem label="RW" value={pendaftaran.rw} />
+                                                <InfoItem label="Kelurahan/Desa" value={pendaftaran.kelurahan} />
+                                                <InfoItem label="Kecamatan" value={pendaftaran.kecamatan} />
+                                                <InfoItem label="Kota/Kabupaten" value={pendaftaran.kota_kabupaten} />
+                                                <InfoItem label="Provinsi" value={pendaftaran.provinsi} />
+                                            </div>
+                                        </section>
 
-                                <section>
-                                    <SectionTitle>Informasi Tambahan</SectionTitle>
-                                    <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
-                                        <InfoItem label="Asal TK/RA/PAUD" value={pendaftaran.asal_paud} />
-                                        <InfoItem label="Mengetahui PPDB dari" value={pendaftaran.tahu_dari} />
-                                    </div>
-                                </section>
+                                        <section>
+                                            <SectionTitle>Informasi Tambahan</SectionTitle>
+                                            <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
+                                                <InfoItem label="Asal TK/RA/PAUD" value={pendaftaran.asal_paud} />
+                                                <InfoItem label="Mengetahui PPDB dari" value={pendaftaran.tahu_dari} />
+                                            </div>
+                                        </section>
 
-                                {pendaftaran.pertanyaan_khusus && (
-                                    <section>
-                                        <SectionTitle>Data Pendukung Jalur {pendaftaran.kategori}</SectionTitle>
-                                        <InfoItem label={pendaftaran.pertanyaan_khusus} value={pendaftaran.jawaban_khusus} />
-                                    </section>
-                                )}
+                                        {pendaftaran.pertanyaan_khusus && (
+                                            <section>
+                                                <SectionTitle>Data Pendukung Jalur {pendaftaran.kategori}</SectionTitle>
+                                                <InfoItem label={pendaftaran.pertanyaan_khusus} value={pendaftaran.jawaban_khusus} />
+                                            </section>
+                                        )}
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="wali" className="mt-0">
+                                    <div className="space-y-4">
+                                        {waliMurid.map((w, i) => (
+                                            <div key={i} className="rounded-xl border border-[#D4EBF8] bg-[#F5F9FD] p-4 sm:p-5">
+                                                <div className="mb-3 text-xs font-bold tracking-wide text-[#1F509A] uppercase">
+                                                    Wali {i + 1} · {w.hubungan}
+                                                </div>
+                                                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                                    <InfoItem label="Nama" value={w.nama} />
+                                                    <InfoItem label="NIK" value={w.nik} />
+                                                    <InfoItem label="No. WhatsApp" value={w.telepon} />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </TabsContent>
                             </div>
-                        </TabsContent>
-
-                        <TabsContent value="wali">
-                            <div className="space-y-4">
-                                {waliMurid.map((w, i) => (
-                                    <div key={i} className="rounded-xl border border-[#D4EBF8] bg-[#F5F9FD] p-4 sm:p-5">
-                                        <div className="mb-3 text-xs font-bold tracking-wide text-[#1F509A] uppercase">
-                                            Wali {i + 1} · {w.hubungan}
-                                        </div>
-                                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                            <InfoItem label="Nama" value={w.nama} />
-                                            <InfoItem label="NIK" value={w.nik} />
-                                            <InfoItem label="No. WhatsApp" value={w.telepon} />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </TabsContent>
+                        </div>
                     </Tabs>
                 </div>
             </PageContainer>

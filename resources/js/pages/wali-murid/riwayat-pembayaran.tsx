@@ -54,10 +54,19 @@ const columns: ColumnDef<RiwayatItem>[] = [
     },
     {
         accessorKey: 'status',
-        header: 'Status Verifikasi',
+        header: 'Status',
+        meta: { align: 'center' },
         cell: ({ row }) => {
             const badge = statusBadge[row.original.status];
-            return <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${badge.className}`}>{badge.label}</span>;
+            return (
+                <div className="flex justify-center">
+                    <span
+                        className={`inline-flex max-w-full items-center justify-center rounded-full px-2.5 py-1 text-center text-xs leading-snug font-semibold ${badge.className}`}
+                    >
+                        {badge.label}
+                    </span>
+                </div>
+            );
         },
     },
     {
@@ -140,7 +149,7 @@ export default function RiwayatPembayaran({ riwayat }: RiwayatPembayaranProps) {
                                                 <dd className="mt-0.5 font-medium text-gray-900">{item.tanggal_transfer}</dd>
                                             </div>
                                             <div>
-                                                <dt className="text-xs text-gray-500">Status Verifikasi</dt>
+                                                <dt className="text-xs text-gray-500">Status</dt>
                                                 <dd className="mt-0.5 font-medium text-gray-900">{badge.label}</dd>
                                             </div>
                                         </dl>

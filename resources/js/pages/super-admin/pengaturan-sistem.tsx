@@ -1,11 +1,13 @@
 import ConfirmationDialog from '@/components/confirmation-dialog';
-import { FieldError, Input, Kartu, Label } from '@/components/form-field';
+import { FieldError, Input, Label } from '@/components/form-field';
 import PageContainer from '@/components/page-container';
 import PageHeader from '@/components/page-header';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import type { PendingVisit, VisitOptions } from '@inertiajs/core';
 import { Head, router, useForm } from '@inertiajs/react';
+import { Building2, CreditCard, PanelsTopLeft } from 'lucide-react';
 import { FormEventHandler, useEffect, useRef, useState } from 'react';
 
 interface Pengaturan {
@@ -32,6 +34,11 @@ function TeksArea({ id, value, onChange, placeholder }: { id: string; value: str
     return <textarea id={id} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={gayaTeksArea} />;
 }
 
+type TabPengaturan = 'identitas' | 'pembayaran' | 'landing';
+
+const kolomPembayaran = new Set(['nama_bank', 'nomor_rekening', 'nama_pemilik_rekening', 'instruksi_pembayaran', 'hari_pengingat_jatuh_tempo']);
+const kolomLanding = new Set(['judul_landing', 'deskripsi_landing', 'pengumuman_landing', 'whatsapp_kontak']);
+
 export default function PengaturanSistem({ pengaturan }: { pengaturan: Pengaturan }) {
     const { data, setData, put, processing, errors, isDirty, setDefaults } = useForm({
         nama_sekolah: pengaturan.nama_sekolah,
@@ -43,13 +50,14 @@ export default function PengaturanSistem({ pengaturan }: { pengaturan: Pengatura
         nomor_rekening: pengaturan.nomor_rekening ?? '',
         nama_pemilik_rekening: pengaturan.nama_pemilik_rekening ?? '',
         instruksi_pembayaran: pengaturan.instruksi_pembayaran ?? '',
-        hari_pengingat_jatuh_tempo: String(pengaturan.hari_pengingat_jatuh_tempo),
+        hari_pengingat_jatuh_tempo: String(pengaturan.hari_pengingat_jatuh_tempo ?? 7),
         judul_landing: pengaturan.judul_landing,
         deskripsi_landing: pengaturan.deskripsi_landing,
         pengumuman_landing: pengaturan.pengumuman_landing ?? '',
         whatsapp_kontak: pengaturan.whatsapp_kontak ?? '',
     });
     const [kunjunganTertunda, setKunjunganTertunda] = useState<PendingVisit | null>(null);
+    const [tabAktif, setTabAktif] = useState<TabPengaturan>('identitas');
     const sedangMenyimpan = useRef(false);
     const lewatiPengamanSekali = useRef(false);
 
@@ -91,6 +99,17 @@ export default function PengaturanSistem({ pengaturan }: { pengaturan: Pengatura
         put(route('super-admin.pengaturan-sistem.update'), {
             preserveScroll: true,
             onSuccess: () => setDefaults(data),
+            onError: (errorValidasi) => {
+                const kolomError = Object.keys(errorValidasi);
+
+                if (kolomError.some((kolom) => kolomPembayaran.has(kolom))) {
+                    setTabAktif('pembayaran');
+                } else if (kolomError.some((kolom) => kolomLanding.has(kolom))) {
+                    setTabAktif('landing');
+                } else {
+                    setTabAktif('identitas');
+                }
+            },
             onFinish: () => {
                 sedangMenyimpan.current = false;
             },
@@ -132,179 +151,231 @@ export default function PengaturanSistem({ pengaturan }: { pengaturan: Pengatura
 
             <PageContainer wide>
                 <form onSubmit={submit} className="space-y-6">
-                    <div className="grid gap-6 lg:grid-cols-2">
-                        <Kartu judul="Identitas Sekolah">
-                            <div className="space-y-5">
-                                <div>
-                                    <Label required htmlFor="nama_sekolah">
-                                        Nama Sekolah
-                                    </Label>
-                                    <Input id="nama_sekolah" value={data.nama_sekolah} onChange={(value) => setData('nama_sekolah', value)} />
-                                    <FieldError message={errors.nama_sekolah} />
-                                </div>
+                    <Tabs value={tabAktif} onValueChange={(value) => setTabAktif(value as TabPengaturan)}>
+                        <TabsList className="mb-5 grid h-auto w-full grid-cols-3 rounded-2xl bg-white p-1.5 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
+                            <TabsTrigger
+                                value="identitas"
+                                className="min-w-0 gap-1.5 rounded-xl px-2 py-2.5 text-[11px] text-gray-600 data-[state=active]:bg-[#0A3981] data-[state=active]:text-white sm:text-sm"
+                            >
+                                <Building2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                Identitas
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="pembayaran"
+                                className="min-w-0 gap-1.5 rounded-xl px-2 py-2.5 text-[11px] text-gray-600 data-[state=active]:bg-[#0A3981] data-[state=active]:text-white sm:text-sm"
+                            >
+                                <CreditCard className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                Pembayaran
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="landing"
+                                className="min-w-0 gap-1.5 rounded-xl px-2 py-2.5 text-[11px] text-gray-600 data-[state=active]:bg-[#0A3981] data-[state=active]:text-white sm:text-sm"
+                            >
+                                <PanelsTopLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                <span className="sm:hidden">Landing</span>
+                                <span className="hidden sm:inline">Landing Page</span>
+                            </TabsTrigger>
+                        </TabsList>
 
-                                <div>
-                                    <Label htmlFor="tagline">Tagline</Label>
-                                    <Input
-                                        id="tagline"
-                                        value={data.tagline}
-                                        onChange={(value) => setData('tagline', value)}
-                                        placeholder="Kalimat singkat yang menggambarkan sekolah"
-                                    />
-                                    <FieldError message={errors.tagline} />
-                                </div>
-
-                                <div>
-                                    <Label htmlFor="alamat">Alamat</Label>
-                                    <TeksArea id="alamat" value={data.alamat} onChange={(value) => setData('alamat', value)} />
-                                    <FieldError message={errors.alamat} />
-                                </div>
-
-                                <div className="grid gap-5 sm:grid-cols-2">
-                                    <div>
-                                        <Label htmlFor="telepon">Telepon Sekolah</Label>
-                                        <Input
-                                            id="telepon"
-                                            value={data.telepon}
-                                            onChange={(value) => setData('telepon', value)}
-                                            placeholder="0761..."
-                                        />
-                                        <FieldError message={errors.telepon} />
+                        <div className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
+                            <div className="p-5 sm:p-6 lg:p-8">
+                                <TabsContent value="identitas" className="mt-0">
+                                    <div className="mb-6">
+                                        <h2 className="text-base font-semibold text-gray-900">Identitas Sekolah</h2>
+                                        <p className="mt-1 text-sm text-gray-500">Informasi utama sekolah yang ditampilkan kepada pengguna.</p>
                                     </div>
-                                    <div>
-                                        <Label htmlFor="email">Email Sekolah</Label>
-                                        <Input
-                                            id="email"
-                                            type="email"
-                                            value={data.email}
-                                            onChange={(value) => setData('email', value)}
-                                            placeholder="info@sekolah.sch.id"
-                                        />
-                                        <FieldError message={errors.email} />
+
+                                    <div className="grid gap-5 lg:grid-cols-2">
+                                        <div>
+                                            <Label required htmlFor="nama_sekolah">
+                                                Nama Sekolah
+                                            </Label>
+                                            <Input id="nama_sekolah" value={data.nama_sekolah} onChange={(value) => setData('nama_sekolah', value)} />
+                                            <FieldError message={errors.nama_sekolah} />
+                                        </div>
+
+                                        <div>
+                                            <Label htmlFor="tagline">Tagline</Label>
+                                            <Input
+                                                id="tagline"
+                                                value={data.tagline}
+                                                onChange={(value) => setData('tagline', value)}
+                                                placeholder="Kalimat singkat yang menggambarkan sekolah"
+                                            />
+                                            <FieldError message={errors.tagline} />
+                                        </div>
+
+                                        <div className="lg:col-span-2">
+                                            <Label htmlFor="alamat">Alamat</Label>
+                                            <TeksArea id="alamat" value={data.alamat} onChange={(value) => setData('alamat', value)} />
+                                            <FieldError message={errors.alamat} />
+                                        </div>
+
+                                        <div>
+                                            <Label htmlFor="telepon">Telepon Sekolah</Label>
+                                            <Input
+                                                id="telepon"
+                                                value={data.telepon}
+                                                onChange={(value) => setData('telepon', value)}
+                                                placeholder="0761..."
+                                            />
+                                            <FieldError message={errors.telepon} />
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="email">Email Sekolah</Label>
+                                            <Input
+                                                id="email"
+                                                type="email"
+                                                value={data.email}
+                                                onChange={(value) => setData('email', value)}
+                                                placeholder="info@sekolah.sch.id"
+                                            />
+                                            <FieldError message={errors.email} />
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
-                        </Kartu>
+                                </TabsContent>
 
-                        <Kartu judul="Informasi Pembayaran">
-                            <div className="space-y-5">
-                                <div>
-                                    <Label htmlFor="nama_bank">Nama Bank</Label>
-                                    <Input
-                                        id="nama_bank"
-                                        value={data.nama_bank}
-                                        onChange={(value) => setData('nama_bank', value)}
-                                        placeholder="Contoh: Bank Syariah Indonesia"
-                                    />
-                                    <FieldError message={errors.nama_bank} />
-                                </div>
-
-                                <div>
-                                    <Label htmlFor="nomor_rekening">Nomor Rekening</Label>
-                                    <Input id="nomor_rekening" value={data.nomor_rekening} onChange={(value) => setData('nomor_rekening', value)} />
-                                    <FieldError message={errors.nomor_rekening} />
-                                </div>
-
-                                <div>
-                                    <Label htmlFor="nama_pemilik_rekening">Nama Pemilik Rekening</Label>
-                                    <Input
-                                        id="nama_pemilik_rekening"
-                                        value={data.nama_pemilik_rekening}
-                                        onChange={(value) => setData('nama_pemilik_rekening', value)}
-                                    />
-                                    <FieldError message={errors.nama_pemilik_rekening} />
-                                </div>
-
-                                <div>
-                                    <Label htmlFor="instruksi_pembayaran">Instruksi Pembayaran</Label>
-                                    <TeksArea
-                                        id="instruksi_pembayaran"
-                                        value={data.instruksi_pembayaran}
-                                        onChange={(value) => setData('instruksi_pembayaran', value)}
-                                        placeholder="Contoh: Cantumkan nomor pendaftaran pada berita transfer."
-                                    />
-                                    <FieldError message={errors.instruksi_pembayaran} />
-                                </div>
-
-                                <div>
-                                    <Label required htmlFor="hari_pengingat_jatuh_tempo">
-                                        Pengingat Sebelum Jatuh Tempo
-                                    </Label>
-                                    <div className="flex items-center gap-3">
-                                        <Input
-                                            id="hari_pengingat_jatuh_tempo"
-                                            type="number"
-                                            min={1}
-                                            max={30}
-                                            value={data.hari_pengingat_jatuh_tempo}
-                                            onChange={(value) => setData('hari_pengingat_jatuh_tempo', value)}
-                                        />
-                                        <span className="shrink-0 text-sm font-medium text-gray-600">hari sebelumnya</span>
+                                <TabsContent value="pembayaran" className="mt-0">
+                                    <div className="mb-6">
+                                        <h2 className="text-base font-semibold text-gray-900">Pembayaran dan Pengingat</h2>
+                                        <p className="mt-1 text-sm text-gray-500">
+                                            Rekening tujuan serta waktu pengingat WhatsApp sebelum jatuh tempo.
+                                        </p>
                                     </div>
-                                    <p className="mt-1.5 text-xs leading-relaxed text-gray-500">
-                                        WhatsApp dikirim pukul 08.00 WIB kepada wali yang belum mencapai minimal pembayaran.
-                                    </p>
-                                    <FieldError message={errors.hari_pengingat_jatuh_tempo} />
-                                </div>
-                            </div>
-                        </Kartu>
-                    </div>
 
-                    <Kartu judul="Konten Landing Page">
-                        <div className="grid gap-5 lg:grid-cols-2">
-                            <div>
-                                <Label required htmlFor="judul_landing">
-                                    Judul Utama
-                                </Label>
-                                <Input id="judul_landing" value={data.judul_landing} onChange={(value) => setData('judul_landing', value)} />
-                                <FieldError message={errors.judul_landing} />
+                                    <div className="grid gap-5 lg:grid-cols-2">
+                                        <div>
+                                            <Label htmlFor="nama_bank">Nama Bank</Label>
+                                            <Input
+                                                id="nama_bank"
+                                                value={data.nama_bank}
+                                                onChange={(value) => setData('nama_bank', value)}
+                                                placeholder="Contoh: Bank Syariah Indonesia"
+                                            />
+                                            <FieldError message={errors.nama_bank} />
+                                        </div>
+
+                                        <div>
+                                            <Label htmlFor="nomor_rekening">Nomor Rekening</Label>
+                                            <Input
+                                                id="nomor_rekening"
+                                                value={data.nomor_rekening}
+                                                onChange={(value) => setData('nomor_rekening', value)}
+                                            />
+                                            <FieldError message={errors.nomor_rekening} />
+                                        </div>
+
+                                        <div>
+                                            <Label htmlFor="nama_pemilik_rekening">Nama Pemilik Rekening</Label>
+                                            <Input
+                                                id="nama_pemilik_rekening"
+                                                value={data.nama_pemilik_rekening}
+                                                onChange={(value) => setData('nama_pemilik_rekening', value)}
+                                            />
+                                            <FieldError message={errors.nama_pemilik_rekening} />
+                                        </div>
+
+                                        <div className="lg:row-span-2">
+                                            <Label htmlFor="instruksi_pembayaran">Instruksi Pembayaran</Label>
+                                            <TeksArea
+                                                id="instruksi_pembayaran"
+                                                value={data.instruksi_pembayaran}
+                                                onChange={(value) => setData('instruksi_pembayaran', value)}
+                                                placeholder="Contoh: Cantumkan nomor pendaftaran pada berita transfer."
+                                            />
+                                            <FieldError message={errors.instruksi_pembayaran} />
+                                        </div>
+
+                                        <div>
+                                            <Label required htmlFor="hari_pengingat_jatuh_tempo">
+                                                Pengingat Sebelum Jatuh Tempo
+                                            </Label>
+                                            <div className="flex items-center gap-3">
+                                                <Input
+                                                    id="hari_pengingat_jatuh_tempo"
+                                                    type="number"
+                                                    min={1}
+                                                    max={30}
+                                                    value={data.hari_pengingat_jatuh_tempo}
+                                                    onChange={(value) => setData('hari_pengingat_jatuh_tempo', value)}
+                                                />
+                                                <span className="shrink-0 text-sm font-medium text-gray-600">hari sebelumnya</span>
+                                            </div>
+                                            <p className="mt-1.5 text-xs leading-relaxed text-gray-500">
+                                                WhatsApp dikirim pukul 08.00 WIB kepada wali yang belum mencapai minimal pembayaran.
+                                            </p>
+                                            <FieldError message={errors.hari_pengingat_jatuh_tempo} />
+                                        </div>
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="landing" className="mt-0">
+                                    <div className="mb-6">
+                                        <h2 className="text-base font-semibold text-gray-900">Konten Landing Page</h2>
+                                        <p className="mt-1 text-sm text-gray-500">Teks publik yang tampil pada halaman awal PPDB.</p>
+                                    </div>
+
+                                    <div className="grid gap-5 lg:grid-cols-2">
+                                        <div>
+                                            <Label required htmlFor="judul_landing">
+                                                Judul Utama
+                                            </Label>
+                                            <Input
+                                                id="judul_landing"
+                                                value={data.judul_landing}
+                                                onChange={(value) => setData('judul_landing', value)}
+                                            />
+                                            <FieldError message={errors.judul_landing} />
+                                        </div>
+
+                                        <div>
+                                            <Label htmlFor="whatsapp_kontak">WhatsApp Informasi</Label>
+                                            <Input
+                                                id="whatsapp_kontak"
+                                                value={data.whatsapp_kontak}
+                                                onChange={(value) => setData('whatsapp_kontak', value)}
+                                                placeholder="08xxxxxxxxxx"
+                                            />
+                                            <FieldError message={errors.whatsapp_kontak} />
+                                        </div>
+
+                                        <div>
+                                            <Label required htmlFor="deskripsi_landing">
+                                                Deskripsi Utama
+                                            </Label>
+                                            <TeksArea
+                                                id="deskripsi_landing"
+                                                value={data.deskripsi_landing}
+                                                onChange={(value) => setData('deskripsi_landing', value)}
+                                            />
+                                            <FieldError message={errors.deskripsi_landing} />
+                                        </div>
+
+                                        <div>
+                                            <Label htmlFor="pengumuman_landing">Pengumuman</Label>
+                                            <TeksArea
+                                                id="pengumuman_landing"
+                                                value={data.pengumuman_landing}
+                                                onChange={(value) => setData('pengumuman_landing', value)}
+                                                placeholder="Kosongkan kalau tidak ada pengumuman khusus."
+                                            />
+                                            <FieldError message={errors.pengumuman_landing} />
+                                        </div>
+                                    </div>
+                                </TabsContent>
                             </div>
 
-                            <div>
-                                <Label htmlFor="whatsapp_kontak">WhatsApp Informasi</Label>
-                                <Input
-                                    id="whatsapp_kontak"
-                                    value={data.whatsapp_kontak}
-                                    onChange={(value) => setData('whatsapp_kontak', value)}
-                                    placeholder="08xxxxxxxxxx"
-                                />
-                                <FieldError message={errors.whatsapp_kontak} />
-                            </div>
-
-                            <div>
-                                <Label required htmlFor="deskripsi_landing">
-                                    Deskripsi Utama
-                                </Label>
-                                <TeksArea
-                                    id="deskripsi_landing"
-                                    value={data.deskripsi_landing}
-                                    onChange={(value) => setData('deskripsi_landing', value)}
-                                />
-                                <FieldError message={errors.deskripsi_landing} />
-                            </div>
-
-                            <div>
-                                <Label htmlFor="pengumuman_landing">Pengumuman</Label>
-                                <TeksArea
-                                    id="pengumuman_landing"
-                                    value={data.pengumuman_landing}
-                                    onChange={(value) => setData('pengumuman_landing', value)}
-                                    placeholder="Kosongkan kalau tidak ada pengumuman khusus."
-                                />
-                                <FieldError message={errors.pengumuman_landing} />
+                            <div className="flex justify-end border-t border-gray-100 bg-gray-50/70 px-5 py-4 sm:px-6 lg:px-8">
+                                <Button
+                                    type="submit"
+                                    disabled={processing || !isDirty}
+                                    className="w-full rounded-xl bg-[#E38E49] font-semibold text-white hover:bg-[#E38E49]/90 sm:w-auto"
+                                >
+                                    {processing ? 'Menyimpan...' : 'Simpan Perubahan'}
+                                </Button>
                             </div>
                         </div>
-                    </Kartu>
-
-                    <div className="flex justify-end">
-                        <Button
-                            type="submit"
-                            disabled={processing || !isDirty}
-                            className="rounded-xl bg-[#E38E49] font-semibold text-white hover:bg-[#E38E49]/90"
-                        >
-                            {processing ? 'Menyimpan...' : 'Simpan Perubahan'}
-                        </Button>
-                    </div>
+                    </Tabs>
                 </form>
             </PageContainer>
 

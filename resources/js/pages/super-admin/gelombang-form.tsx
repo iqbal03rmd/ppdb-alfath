@@ -388,9 +388,11 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
 
                         {kebijakan && (
                             <Kartu judul="Ketentuan tiap Jalur">
-                                {/* Gaya tab-nya sama dengan halaman Pengaturan Akun —
-                                    jangan bikin varian baru. */}
-                                <div className="mb-5 flex flex-wrap gap-2 border-b border-[#D4EBF8]">
+                                <div
+                                    role="tablist"
+                                    aria-label="Pilih jalur pendaftaran"
+                                    className="mb-5 flex flex-wrap gap-1.5 rounded-2xl bg-[#F5F9FD] p-1.5"
+                                >
                                     {kebijakan.map((b) => {
                                         const aktif = b.kategori_siswa_id === jalurAktif;
                                         const bergalat = jalurBergalat.includes(b.kategori_siswa_id);
@@ -400,13 +402,14 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
                                             <button
                                                 key={b.kategori_siswa_id}
                                                 type="button"
+                                                role="tab"
                                                 onClick={() => setJalurAktif(b.kategori_siswa_id)}
-                                                aria-current={aktif ? 'page' : undefined}
+                                                aria-selected={aktif}
                                                 className={
-                                                    '-mb-px flex items-center gap-1.5 border-b-2 px-4 py-2.5 text-sm transition-colors ' +
+                                                    'flex min-w-[8rem] flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs transition-all sm:text-sm ' +
                                                     (aktif
-                                                        ? 'border-[#E38E49] font-semibold text-[#0A3981]'
-                                                        : 'border-transparent text-gray-500 hover:text-[#0A3981]')
+                                                        ? 'bg-[#0A3981] font-semibold text-white shadow-sm'
+                                                        : 'text-gray-600 hover:bg-white hover:text-[#0A3981]')
                                                 }
                                             >
                                                 {b.nama}
@@ -422,7 +425,7 @@ export default function GelombangForm({ pilihanTahunAjaran, gelombang, komponen,
                                     })}
                                 </div>
 
-                                <div>
+                                <div role="tabpanel">
                                     {kebijakan
                                         .filter((b) => b.kategori_siswa_id === jalurAktif)
                                         .map((b) => {
