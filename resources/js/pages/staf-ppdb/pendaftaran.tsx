@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link } from '@inertiajs/react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ChevronRight, Minus, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 interface PendaftaranItem {
@@ -66,6 +66,18 @@ function formatRupiah(nominal: number) {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(nominal);
 }
 
+function StatusBadge({ status, mobile = false }: { status: string; mobile?: boolean }) {
+    const badge = statusBadge[status] ?? statusBadge.draft;
+
+    return (
+        <span
+            className={`inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${mobile ? 'justify-center text-center whitespace-nowrap' : ''} ${badge.className}`}
+        >
+            {badge.label}
+        </span>
+    );
+}
+
 const columns: ColumnDef<PendaftaranItem>[] = [
     {
         id: 'pendaftar',
@@ -93,11 +105,7 @@ const columns: ColumnDef<PendaftaranItem>[] = [
     {
         accessorKey: 'status',
         header: 'Status',
-        cell: ({ row }) => {
-            const badge = statusBadge[row.original.status] ?? statusBadge.draft;
-
-            return <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${badge.className}`}>{badge.label}</span>;
-        },
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
     },
     {
         id: 'pembayaran',
@@ -197,11 +205,90 @@ export default function Pendaftaran({ pendaftaran, filterAwal }: PendaftaranProp
                     <DataTable
                         columns={columns}
                         data={barisTersaring}
+                        rowId={(item) => String(item.id)}
                         searchPlaceholder="Cari nama atau nomor pendaftaran..."
                         emptyMessage={kalimatKosong}
+                        mobileHeader={
+                            <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] gap-3 bg-[#0A3981] px-4 py-3 text-[11px] font-bold tracking-wide text-white uppercase">
+                                <span aria-hidden />
+                                <span>Pendaftar</span>
+                                <span className="text-right">Status</span>
+                            </div>
+                        }
+                        renderMobileRow={(item, { expanded, toggle }) => (
+                            <div className={expanded ? 'bg-[#F8FBFE]' : 'bg-white'}>
+                                <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-4">
+                                    <button
+                                        type="button"
+                                        onClick={toggle}
+                                        aria-expanded={expanded}
+                                        aria-label={`${expanded ? 'Tutup' : 'Buka'} ringkasan pendaftaran ${item.nama_pendaftar}`}
+                                        className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+                                            expanded ? 'bg-[#0A3981] text-white' : 'bg-[#E8EEF7] text-[#1F509A] hover:bg-[#D4EBF8]'
+                                        }`}
+                                    >
+                                        {expanded ? (
+                                            <Minus className="h-4 w-4" aria-hidden="true" />
+                                        ) : (
+                                            <Plus className="h-4 w-4" aria-hidden="true" />
+                                        )}
+                                    </button>
+
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-semibold text-gray-900" title={item.nama_pendaftar}>
+                                            {item.nama_pendaftar}
+                                        </p>
+                                        <p className="mt-0.5 truncate text-[11px] text-gray-500">{item.nomor_pendaftaran}</p>
+                                        <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-500">
+                                            <span>{item.kategori}</span>
+                                            <span aria-hidden="true" className="h-1 w-1 rounded-full bg-gray-300" />
+                                            <span>{item.gelombang}</span>
+                                        </p>
+                                    </div>
+
+                                    <StatusBadge status={item.status} mobile />
+                                </div>
+
+                                {expanded && (
+                                    <div className="border-t border-dashed border-[#D4EBF8] px-4 py-4 pl-[3.75rem]">
+                                        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                                            <div>
+                                                <dt className="text-xs text-gray-500">Tahun Ajaran</dt>
+                                                <dd className="mt-0.5 font-medium text-gray-900">{item.tahun_ajaran}</dd>
+                                            </div>
+                                            <div>
+                                                <dt className="text-xs text-gray-500">Tanggal Daftar</dt>
+                                                <dd className="mt-0.5 font-medium text-gray-900">{item.tanggal_daftar}</dd>
+                                            </div>
+                                            <div className="col-span-2">
+                                                <dt className="text-xs text-gray-500">Pembayaran</dt>
+                                                <dd className="mt-0.5 font-medium text-gray-900">
+                                                    {item.status_pelunasan ? pelunasanLabel[item.status_pelunasan] : 'Belum masuk tahap pembayaran'}
+                                                </dd>
+                                                {item.sisa_tagihan !== null && item.sisa_tagihan > 0 && (
+                                                    <p className="mt-0.5 text-xs text-gray-500">Sisa {formatRupiah(item.sisa_tagihan)}</p>
+                                                )}
+                                            </div>
+                                        </dl>
+
+                                        <Button
+                                            asChild
+                                            variant="outline"
+                                            size="sm"
+                                            className="mt-4 w-full rounded-xl border-[#1F509A]/40 bg-white text-xs font-bold text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
+                                        >
+                                            <Link href={route('staf-ppdb.pendaftaran.show', item.id)}>
+                                                Lihat Detail Pendaftaran
+                                                <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
+                                            </Link>
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                         toolbar={
                             <>
-                                <Penyaring lebar="w-48">
+                                <Penyaring lebar="w-full sm:w-48">
                                     <select
                                         className={gayaSelect}
                                         value={tahunAjaran}
@@ -217,7 +304,7 @@ export default function Pendaftaran({ pendaftaran, filterAwal }: PendaftaranProp
                                     </select>
                                 </Penyaring>
 
-                                <Penyaring lebar="w-48">
+                                <Penyaring lebar="w-full sm:w-48">
                                     <select
                                         className={gayaSelect}
                                         value={status}
@@ -233,7 +320,7 @@ export default function Pendaftaran({ pendaftaran, filterAwal }: PendaftaranProp
                                     </select>
                                 </Penyaring>
 
-                                <Penyaring lebar="w-48">
+                                <Penyaring lebar="w-full sm:w-48">
                                     <select
                                         className={gayaSelect}
                                         value={gelombang}
@@ -250,7 +337,7 @@ export default function Pendaftaran({ pendaftaran, filterAwal }: PendaftaranProp
                                 </Penyaring>
 
                                 {adaPenyaring && (
-                                    <span className="text-xs text-gray-500">
+                                    <span className="w-full text-xs text-gray-500 sm:w-auto">
                                         {barisTersaring.length} dari {pendaftaran.length} pendaftaran
                                     </span>
                                 )}
