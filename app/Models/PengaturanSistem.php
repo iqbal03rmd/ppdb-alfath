@@ -24,6 +24,7 @@ class PengaturanSistem extends Model
         'nomor_rekening',
         'nama_pemilik_rekening',
         'instruksi_pembayaran',
+        'hari_pengingat_jatuh_tempo',
         'judul_landing',
         'deskripsi_landing',
         'pengumuman_landing',
@@ -43,6 +44,7 @@ class PengaturanSistem extends Model
             'nomor_rekening' => null,
             'nama_pemilik_rekening' => null,
             'instruksi_pembayaran' => null,
+            'hari_pengingat_jatuh_tempo' => 7,
             'judul_landing' => 'Penerimaan Peserta Didik Baru',
             'deskripsi_landing' => 'Daftarkan putra-putri Anda secara daring dan pantau seluruh proses PPDB dalam satu tempat.',
             'pengumuman_landing' => null,
@@ -57,6 +59,13 @@ class PengaturanSistem extends Model
     public static function saatIni(): self
     {
         return static::query()->first() ?? new static(static::bawaan());
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'hari_pengingat_jatuh_tempo' => 'integer',
+        ];
     }
 
     /**

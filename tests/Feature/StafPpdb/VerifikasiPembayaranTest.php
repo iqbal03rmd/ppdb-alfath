@@ -1,11 +1,18 @@
 <?php
 
+use App\Jobs\KirimNotifikasiWhatsApp;
+use App\Models\NotifikasiWhatsapp;
 use App\Models\PembayaranPpdb;
 use App\Models\User;
+use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia;
 
 beforeEach(function () {
     $this->seed();
+
+    // Jangan mengikuti konfigurasi mesin developer/hosting saat test biasa.
+    // Skenario notifikasi mengaktifkannya sendiri bersama Queue::fake().
+    config()->set('services.whatsapp.enabled', false);
 
     $this->staf = User::where('email', 'staf@ppdbalfath.test')->firstOrFail();
 
@@ -44,6 +51,28 @@ test('mengesahkan transfer mencatat pemeriksanya', function () {
 
     expect($this->transfer->status)->toBe('terverifikasi')
         ->and($this->transfer->diverifikasi_oleh)->toBe($this->staf->id);
+});
+
+test('mengesahkan transfer mengantrikan notifikasi whatsapp pembayaran diterima', function () {
+    config()->set('services.whatsapp.enabled', true);
+    config()->set('services.whatsapp.driver', 'log');
+    Queue::fake();
+
+    $this->actingAs($this->staf)
+        ->post(route('staf-ppdb.verifikasi-pembayaran.sahkan', $this->transfer));
+
+    $notifikasi = NotifikasiWhatsapp::where('jenis', 'pembayaran_diterima')->sole();
+
+    expect($notifikasi->status)->toBe('menunggu')
+        ->and($notifikasi->idempotency_key)->toBe('pembayaran_diterima:'.$this->transfer->id)
+        ->and($notifikasi->pesan)->toContain($this->pendaftaran->nama_pendaftar)
+        ->and($notifikasi->pesan)->toContain('telah diterima')
+        ->and($notifikasi->pesan)->toContain('Status pendaftaran: Diterima');
+
+    Queue::assertPushed(
+        KirimNotifikasiWhatsApp::class,
+        fn (KirimNotifikasiWhatsApp $job) => $job->notifikasiId === $notifikasi->id,
+    );
 });
 
 /**
@@ -87,6 +116,30 @@ test('menolak transfer tidak menolak pendaftarannya', function () {
     expect($this->transfer->refresh()->status)->toBe('ditolak')
         // Aturan yang gampang keliru: yang ditolak buktinya, bukan pendaftarannya.
         ->and($this->pendaftaran->refresh()->status)->toBe('pembayaran');
+});
+
+test('menolak transfer mengantrikan notifikasi whatsapp beserta alasannya', function () {
+    config()->set('services.whatsapp.enabled', true);
+    config()->set('services.whatsapp.driver', 'log');
+    Queue::fake();
+    $alasan = 'Bukti transfer buram dan nomor referensinya tidak dapat dibaca.';
+
+    $this->actingAs($this->staf)
+        ->post(route('staf-ppdb.verifikasi-pembayaran.tolak', $this->transfer), [
+            'catatan_verifikasi' => $alasan,
+        ]);
+
+    $notifikasi = NotifikasiWhatsapp::where('jenis', 'pembayaran_ditolak')->sole();
+
+    expect($notifikasi->status)->toBe('menunggu')
+        ->and($notifikasi->idempotency_key)->toBe('pembayaran_ditolak:'.$this->transfer->id)
+        ->and($notifikasi->pesan)->toContain('ditolak')
+        ->and($notifikasi->pesan)->toContain($alasan);
+
+    Queue::assertPushed(
+        KirimNotifikasiWhatsApp::class,
+        fn (KirimNotifikasiWhatsApp $job) => $job->notifikasiId === $notifikasi->id,
+    );
 });
 
 test('menolak tanpa alasan ditolak dan status transfer tidak berubah', function () {

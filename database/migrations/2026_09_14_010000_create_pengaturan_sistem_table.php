@@ -26,6 +26,10 @@ return new class extends Migration
             $table->string('nama_pemilik_rekening', 150)->nullable();
             $table->text('instruksi_pembayaran')->nullable();
 
+            // Berlaku global untuk seluruh gelombang. Scheduler membaca angka
+            // ini, lalu mencocokkannya dengan tenggat milik gelombang masing-masing.
+            $table->unsignedTinyInteger('hari_pengingat_jatuh_tempo')->default(7);
+
             $table->string('judul_landing', 200);
             $table->text('deskripsi_landing');
             $table->text('pengumuman_landing')->nullable();
@@ -40,6 +44,7 @@ return new class extends Migration
             'tagline' => 'Mendidik Generasi Berilmu, Beriman, dan Berakhlak',
             'judul_landing' => 'Penerimaan Peserta Didik Baru',
             'deskripsi_landing' => 'Daftarkan putra-putri Anda secara daring dan pantau seluruh proses PPDB dalam satu tempat.',
+            'hari_pengingat_jatuh_tempo' => 7,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

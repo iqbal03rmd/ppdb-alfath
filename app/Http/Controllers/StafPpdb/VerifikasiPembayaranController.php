@@ -5,6 +5,7 @@ namespace App\Http\Controllers\StafPpdb;
 use App\Http\Controllers\Controller;
 use App\Models\PembayaranPpdb;
 use App\Models\PendaftaranPpdb;
+use App\Services\NotifikasiWhatsAppService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -168,7 +169,7 @@ class VerifikasiPembayaranController extends Controller
      * menyentuh minimal bayar. Tidak ada tombol "Tetapkan Diterima" terpisah;
      * itu keputusan yang sudah disepakati (lihat PRD bagian 12 poin A).
      */
-    public function sahkan(Request $request, PembayaranPpdb $pembayaran): RedirectResponse
+    public function sahkan(Request $request, PembayaranPpdb $pembayaran, NotifikasiWhatsAppService $notifikasi): RedirectResponse
     {
         abort_unless($pembayaran->status === 'menunggu_verifikasi', 403, 'Transfer ini sudah pernah diputuskan.');
 
@@ -181,9 +182,12 @@ class VerifikasiPembayaranController extends Controller
         ]);
 
         $pesan = 'Transfer '.$this->rupiah($pembayaran->nominal_transfer).' disahkan.';
+        $kabarStatus = $this->kabarPerubahanStatus($pembayaran->pendaftaran);
+
+        $notifikasi->pembayaranDiterima($pembayaran->refresh());
 
         return to_route('staf-ppdb.verifikasi-pembayaran.index')
-            ->with('success', $pesan.$this->kabarPerubahanStatus($pembayaran->pendaftaran));
+            ->with('success', $pesan.$kabarStatus.' Notifikasi WhatsApp diproses sesuai pengaturan wali.');
     }
 
     /**
@@ -196,7 +200,7 @@ class VerifikasiPembayaranController extends Controller
      * jadi utuh: kalau pengesahan yang salah tidak bisa dicabut, status
      * 'diterima' yang lahir dari salah periksa akan menetap selamanya.
      */
-    public function tolak(Request $request, PembayaranPpdb $pembayaran): RedirectResponse
+    public function tolak(Request $request, PembayaranPpdb $pembayaran, NotifikasiWhatsAppService $notifikasi): RedirectResponse
     {
         abort_unless(
             in_array($pembayaran->status, ['menunggu_verifikasi', 'terverifikasi']),
@@ -219,9 +223,12 @@ class VerifikasiPembayaranController extends Controller
         ]);
 
         $pesan = 'Transfer '.$this->rupiah($pembayaran->nominal_transfer).' ditolak.';
+        $kabarStatus = $this->kabarPerubahanStatus($pembayaran->pendaftaran);
+
+        $notifikasi->pembayaranDitolak($pembayaran->refresh());
 
         return to_route('staf-ppdb.verifikasi-pembayaran.index')
-            ->with('success', $pesan.$this->kabarPerubahanStatus($pembayaran->pendaftaran));
+            ->with('success', $pesan.$kabarStatus.' Notifikasi WhatsApp diproses sesuai pengaturan wali.');
     }
 
     /**

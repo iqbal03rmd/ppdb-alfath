@@ -18,6 +18,7 @@ interface Pengaturan {
     nomor_rekening: string | null;
     nama_pemilik_rekening: string | null;
     instruksi_pembayaran: string | null;
+    hari_pengingat_jatuh_tempo: number;
     judul_landing: string;
     deskripsi_landing: string;
     pengumuman_landing: string | null;
@@ -42,6 +43,7 @@ export default function PengaturanSistem({ pengaturan }: { pengaturan: Pengatura
         nomor_rekening: pengaturan.nomor_rekening ?? '',
         nama_pemilik_rekening: pengaturan.nama_pemilik_rekening ?? '',
         instruksi_pembayaran: pengaturan.instruksi_pembayaran ?? '',
+        hari_pengingat_jatuh_tempo: String(pengaturan.hari_pengingat_jatuh_tempo),
         judul_landing: pengaturan.judul_landing,
         deskripsi_landing: pengaturan.deskripsi_landing,
         pengumuman_landing: pengaturan.pengumuman_landing ?? '',
@@ -222,6 +224,27 @@ export default function PengaturanSistem({ pengaturan }: { pengaturan: Pengatura
                                         placeholder="Contoh: Cantumkan nomor pendaftaran pada berita transfer."
                                     />
                                     <FieldError message={errors.instruksi_pembayaran} />
+                                </div>
+
+                                <div>
+                                    <Label required htmlFor="hari_pengingat_jatuh_tempo">
+                                        Pengingat Sebelum Jatuh Tempo
+                                    </Label>
+                                    <div className="flex items-center gap-3">
+                                        <Input
+                                            id="hari_pengingat_jatuh_tempo"
+                                            type="number"
+                                            min={1}
+                                            max={30}
+                                            value={data.hari_pengingat_jatuh_tempo}
+                                            onChange={(value) => setData('hari_pengingat_jatuh_tempo', value)}
+                                        />
+                                        <span className="shrink-0 text-sm font-medium text-gray-600">hari sebelumnya</span>
+                                    </div>
+                                    <p className="mt-1.5 text-xs leading-relaxed text-gray-500">
+                                        WhatsApp dikirim pukul 08.00 WIB kepada wali yang belum mencapai minimal pembayaran.
+                                    </p>
+                                    <FieldError message={errors.hari_pengingat_jatuh_tempo} />
                                 </div>
                             </div>
                         </Kartu>

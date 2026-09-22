@@ -53,6 +53,26 @@ test('informasi rekening harus diisi sebagai satu paket', function () {
         ->assertSessionHasErrors('nama_pemilik_rekening');
 });
 
+test('jumlah hari pengingat jatuh tempo dapat diubah super admin', function () {
+    $data = pengaturanSistemPayload();
+    $data['hari_pengingat_jatuh_tempo'] = 3;
+
+    $this->actingAs($this->admin)
+        ->put(route('super-admin.pengaturan-sistem.update'), $data)
+        ->assertSessionHasNoErrors();
+
+    expect(PengaturanSistem::saatIni()->hari_pengingat_jatuh_tempo)->toBe(3);
+});
+
+test('jumlah hari pengingat dibatasi satu sampai tiga puluh hari', function (int $hari) {
+    $data = pengaturanSistemPayload();
+    $data['hari_pengingat_jatuh_tempo'] = $hari;
+
+    $this->actingAs($this->admin)
+        ->put(route('super-admin.pengaturan-sistem.update'), $data)
+        ->assertSessionHasErrors('hari_pengingat_jatuh_tempo');
+})->with([0, 31]);
+
 test('landing page membaca konten dinamis dan gelombang yang sedang dibuka', function () {
     PengaturanSistem::tersimpan()->update(pengaturanSistemPayload());
 
@@ -83,7 +103,7 @@ test('halaman pembayaran wali membaca rekening dari pengaturan sistem', function
         );
 });
 
-/** @return array<string, string> */
+/** @return array<string, int|string> */
 function pengaturanSistemPayload(): array
 {
     return [
@@ -96,6 +116,7 @@ function pengaturanSistemPayload(): array
         'nomor_rekening' => '1234567890',
         'nama_pemilik_rekening' => 'Yayasan Al-Fath',
         'instruksi_pembayaran' => 'Cantumkan nomor pendaftaran pada berita transfer.',
+        'hari_pengingat_jatuh_tempo' => 7,
         'judul_landing' => 'PPDB Tahun Ajaran Baru',
         'deskripsi_landing' => 'Pendaftaran peserta didik baru kini dapat dilakukan secara daring.',
         'pengumuman_landing' => 'Kuota terbatas selama gelombang pendaftaran berlangsung.',

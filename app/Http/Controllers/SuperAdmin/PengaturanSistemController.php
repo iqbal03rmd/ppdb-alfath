@@ -34,6 +34,7 @@ class PengaturanSistemController extends Controller
             'nomor_rekening' => ['nullable', 'required_with:nama_bank,nama_pemilik_rekening', 'string', 'max:100'],
             'nama_pemilik_rekening' => ['nullable', 'required_with:nama_bank,nomor_rekening', 'string', 'max:150'],
             'instruksi_pembayaran' => ['nullable', 'string', 'max:2000'],
+            'hari_pengingat_jatuh_tempo' => ['required', 'integer', 'min:1', 'max:30'],
 
             'judul_landing' => ['required', 'string', 'max:200'],
             'deskripsi_landing' => ['required', 'string', 'max:2000'],
@@ -44,6 +45,10 @@ class PengaturanSistemController extends Controller
             'nama_bank.required_with' => 'Nama bank wajib dilengkapi bersama informasi rekening.',
             'nomor_rekening.required_with' => 'Nomor rekening wajib dilengkapi bersama informasi rekening.',
             'nama_pemilik_rekening.required_with' => 'Nama pemilik rekening wajib dilengkapi bersama informasi rekening.',
+            'hari_pengingat_jatuh_tempo.required' => 'Jumlah hari pengingat wajib diisi.',
+            'hari_pengingat_jatuh_tempo.integer' => 'Jumlah hari pengingat harus berupa angka bulat.',
+            'hari_pengingat_jatuh_tempo.min' => 'Pengingat paling cepat diatur satu hari sebelum jatuh tempo.',
+            'hari_pengingat_jatuh_tempo.max' => 'Pengingat paling jauh diatur 30 hari sebelum jatuh tempo.',
             'judul_landing.required' => 'Judul utama landing page wajib diisi.',
             'deskripsi_landing.required' => 'Deskripsi landing page wajib diisi.',
         ]);

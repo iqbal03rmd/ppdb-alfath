@@ -40,6 +40,8 @@ export function Input({
     onChange,
     placeholder,
     type = 'text',
+    min,
+    max,
     autoComplete,
     disabled,
 }: {
@@ -47,7 +49,9 @@ export function Input({
     value: string;
     onChange: (value: string) => void;
     placeholder?: string;
-    type?: 'text' | 'email' | 'password';
+    type?: 'text' | 'email' | 'password' | 'number';
+    min?: number;
+    max?: number;
     autoComplete?: string;
     /** Buat layar yang merangkap baca-saja. Server tetap yang menjaga. */
     disabled?: boolean;
@@ -56,6 +60,8 @@ export function Input({
         <input
             id={id}
             type={type}
+            min={min}
+            max={max}
             autoComplete={autoComplete}
             disabled={disabled}
             className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-600"
