@@ -204,7 +204,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     useEffect(() => setLaciTerbuka(false), [url]);
 
     return (
-        <div className="flex h-screen bg-[#F5F9FD]">
+        <div className="flex h-dvh overflow-hidden bg-[#F5F9FD]">
             <Head>
                 <link rel="preconnect" href="https://fonts.bunny.net" />
                 <link href="https://fonts.bunny.net/css?family=fraunces:600" rel="stylesheet" />
@@ -223,7 +223,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             {/* Sidebar - utuh dari atas ke bawah; jadi laci geser di bawah lg */}
             <div
                 className={
-                    'fixed inset-y-0 left-0 z-40 flex h-screen w-72 shrink-0 flex-col border-r border-[#D4EBF8] bg-white shadow-[2px_0_12px_-4px_rgba(10,57,129,0.08)] transition-transform duration-200 lg:static lg:translate-x-0 ' +
+                    'fixed inset-y-0 left-0 z-40 flex h-dvh w-72 shrink-0 flex-col border-r border-[#D4EBF8] bg-white shadow-[2px_0_12px_-4px_rgba(10,57,129,0.08)] transition-transform duration-200 lg:static lg:translate-x-0 ' +
                     (laciTerbuka ? 'translate-x-0' : '-translate-x-full')
                 }
             >
@@ -310,8 +310,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </div>
 
             {/* Kolom kanan: bilah atas (hanya layar kecil) + konten */}
-            <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-                <div className="sticky top-0 z-20 flex items-center gap-3 border-b border-[#D4EBF8] bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto pt-[61px] lg:pt-0">
+                {/* Dibuat fixed pada mobile, bukan sticky di dalam area scroll.
+                    Beberapa browser ponsel memindahkan scroll ke viewport saat
+                    mencapai ujung halaman sehingga sticky ikut terdorong keluar.
+                    Ruangnya diganti oleh padding atas pada pembungkus di atas. */}
+                <div className="fixed inset-x-0 top-0 z-20 flex items-center gap-3 border-b border-[#D4EBF8] bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
                     <button
                         type="button"
                         onClick={() => setLaciTerbuka(true)}

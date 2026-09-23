@@ -291,22 +291,6 @@ export default function Pendaftaran({ pendaftaran, filterAwal }: PendaftaranProp
                                 <Penyaring lebar="w-full sm:w-48">
                                     <select
                                         className={gayaSelect}
-                                        value={tahunAjaran}
-                                        onChange={(e) => setTahunAjaran(e.target.value)}
-                                        aria-label="Saring menurut tahun ajaran"
-                                    >
-                                        <option value="">Semua tahun ajaran</option>
-                                        {daftarTahunAjaran.map((t) => (
-                                            <option key={t} value={t}>
-                                                {t}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </Penyaring>
-
-                                <Penyaring lebar="w-full sm:w-48">
-                                    <select
-                                        className={gayaSelect}
                                         value={status}
                                         onChange={(e) => setStatus(e.target.value)}
                                         aria-label="Saring menurut status pendaftaran"
@@ -320,21 +304,43 @@ export default function Pendaftaran({ pendaftaran, filterAwal }: PendaftaranProp
                                     </select>
                                 </Penyaring>
 
-                                <Penyaring lebar="w-full sm:w-48">
-                                    <select
-                                        className={gayaSelect}
-                                        value={gelombang}
-                                        onChange={(e) => setGelombang(e.target.value)}
-                                        aria-label="Saring menurut gelombang"
-                                    >
-                                        <option value="">Semua gelombang</option>
-                                        {daftarGelombang.map((g) => (
-                                            <option key={g} value={g}>
-                                                {g}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </Penyaring>
+                                {/* Tahun ajaran dan gelombang dibaca sebagai
+                                    satu pasangan periode. Di ponsel keduanya
+                                    disandingkan; mulai sm kembali mengikuti
+                                    toolbar mendatar seperti filter lainnya. */}
+                                <div className="grid w-full grid-cols-2 gap-3 sm:contents">
+                                    <Penyaring lebar="w-full sm:w-48">
+                                        <select
+                                            className={gayaSelect}
+                                            value={tahunAjaran}
+                                            onChange={(e) => setTahunAjaran(e.target.value)}
+                                            aria-label="Saring menurut tahun ajaran"
+                                        >
+                                            <option value="">Semua tahun ajaran</option>
+                                            {daftarTahunAjaran.map((t) => (
+                                                <option key={t} value={t}>
+                                                    {t}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </Penyaring>
+
+                                    <Penyaring lebar="w-full sm:w-48">
+                                        <select
+                                            className={gayaSelect}
+                                            value={gelombang}
+                                            onChange={(e) => setGelombang(e.target.value)}
+                                            aria-label="Saring menurut gelombang"
+                                        >
+                                            <option value="">Semua gelombang</option>
+                                            {daftarGelombang.map((g) => (
+                                                <option key={g} value={g}>
+                                                    {g}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </Penyaring>
+                                </div>
 
                                 {adaPenyaring && (
                                     <span className="w-full text-xs text-gray-500 sm:w-auto">
