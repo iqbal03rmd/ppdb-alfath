@@ -10,9 +10,12 @@ use App\Models\PendaftaranPpdb;
 use App\Models\TagihanItem;
 use App\Models\TahunAjaran;
 use App\Models\WaliMurid;
+use App\Services\NotifikasiWhatsAppService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -26,9 +29,9 @@ class PendaftaranController extends Controller
      * MENUMPUK, dan dipakai waktu staf perlu mencari data seseorang, mis. saat
      * wali menelepon menanyakan anaknya.
      *
-     * Karena itu tidak ada satu pun tombol yang mengubah status di sini. Semua
-     * keputusan tetap diambil di halaman verifikasinya masing-masing, supaya
-     * tidak ada dua tempat yang bisa mengubah hal yang sama.
+     * Karena itu daftar ini tidak menyediakan keputusan verifikasi langsung.
+     * Aksi operasional yang memang membutuhkan konteks satu anak—seperti
+     * pencatatan tunai—baru tersedia sesudah staf membuka detailnya.
      */
     public function index(Request $request): Response
     {
@@ -179,14 +182,15 @@ class PendaftaranController extends Controller
      * untuk MENJAWAB - staf sedang ditelepon wali dan butuh semuanya sekaligus,
      * terutama angka pembayaran yang justru tidak ada di halaman periksa.
      *
-     * Sama seperti index-nya, halaman ini read-only. Yang ada cuma tautan ke
-     * halaman tempat keputusan diambil, bukan tombol keputusannya sendiri.
+     * Keputusan formulir dan bukti transfer tetap dilakukan di antrian masing-
+     * masing. Satu pengecualian adalah pencatatan tunai: staf perlu memastikan
+     * anak dan sisa tagihannya dari layar lengkap ini sebelum menyimpan uang.
      */
     public function show(PendaftaranPpdb $pendaftaran): Response
     {
         $pendaftaran->load([
             'kategoriSiswa', 'gelombang.tahunAjaran', 'waliMurid', 'dokumen',
-            'pembayaran', 'tagihanItem', 'user', 'diverifikasiOleh',
+            'pembayaran.diverifikasiOleh', 'tagihanItem', 'user', 'diverifikasiOleh',
         ]);
 
         // Sengaja TIDAK memanggil terbitkanTagihan(), padahal halaman pembayaran
@@ -258,6 +262,12 @@ class PendaftaranController extends Controller
                 'jatuhTempoMinimal' => $pendaftaran->jatuhTempoMinimal()?->locale('id')->translatedFormat('d F Y'),
                 'tanggalPelunasanCicilan' => $pendaftaran->tanggalPelunasanCicilan()?->locale('id')->translatedFormat('d F Y'),
             ] : null,
+            'bisaCatatTunai' => $tagihanTerbit
+                && $pendaftaran->bolehBayar()
+                && $pendaftaran->sisaTagihan() > 0
+                && ! $pendaftaran->adaPembayaranPending(),
+            'adaPembayaranMenunggu' => $tagihanTerbit && $pendaftaran->adaPembayaranPending(),
+            'tanggalHariIni' => today()->toDateString(),
             'bisaDitutup' => $pendaftaran->bisaDitutup(),
             'sebabTanpaTagihan' => $tagihanTerbit ? null : ($bolehLihatTagihan
                 ? 'Tagihan belum terbit. Wali belum pernah membuka halaman pembayarannya, jadi rincian tagihannya belum dibekukan.'
@@ -268,17 +278,122 @@ class PendaftaranController extends Controller
                     'nominal' => $i->nominal,
                 ])
                 : [],
-            // Semua transfer, termasuk yang ditolak - ini riwayat, bukan saldo.
-            // Tiap baris menaut ke halaman periksanya sendiri; itu satu-satunya
-            // tempat transfer boleh disahkan atau dibatalkan.
-            'riwayatTransfer' => $pendaftaran->pembayaran->sortByDesc('tanggal_transfer')->values()
+            // Semua pembayaran, termasuk transfer yang ditolak - ini riwayat,
+            // bukan saldo. Pembayaran tunai langsung sah dan tidak mempunyai
+            // bukti transfer untuk dibuka.
+            'riwayatPembayaran' => $pendaftaran->pembayaran->sortByDesc('tanggal_transfer')->values()
                 ->map(fn (PembayaranPpdb $p) => [
                     'id' => $p->id,
                     'nominal_transfer' => $p->nominal_transfer,
                     'tanggal_transfer' => $p->tanggal_transfer->locale('id')->translatedFormat('d F Y'),
+                    'metode_pembayaran' => $p->metode_pembayaran,
                     'status' => $p->status,
                     'catatan_verifikasi' => $p->catatan_verifikasi,
+                    'dicatat_oleh' => $p->metode_pembayaran === 'tunai' ? $p->diverifikasiOleh?->name : null,
                 ]),
         ]);
+    }
+
+    /**
+     * Catat pembayaran yang diserahkan langsung ke sekolah.
+     *
+     * Tunai tidak masuk antrian verifikasi karena staf yang menerima uangnya
+     * sekaligus menjadi pemeriksa. Barisnya langsung terverifikasi, tetapi
+     * tetap disimpan di tabel pembayaran yang sama agar saldo, status anak,
+     * laporan, dan notifikasi memakai satu sumber data.
+     */
+    public function catatPembayaranTunai(
+        Request $request,
+        PendaftaranPpdb $pendaftaran,
+        NotifikasiWhatsAppService $notifikasi
+    ): RedirectResponse {
+        $data = $request->validate(
+            [
+                'nominal_pembayaran' => ['required', 'integer', 'min:1'],
+                'tanggal_pembayaran' => ['required', 'date', 'before_or_equal:today'],
+            ],
+            [
+                'nominal_pembayaran.required' => 'Masukkan nominal pembayaran tunai.',
+                'nominal_pembayaran.integer' => 'Nominal pembayaran harus berupa angka bulat.',
+                'nominal_pembayaran.min' => 'Nominal pembayaran minimal Rp1.',
+                'tanggal_pembayaran.required' => 'Pilih tanggal pembayaran.',
+                'tanggal_pembayaran.before_or_equal' => 'Tanggal pembayaran tidak boleh melewati hari ini.',
+            ]
+        );
+
+        $statusSebelum = $pendaftaran->status;
+
+        /** @var PembayaranPpdb $pembayaran */
+        $pembayaran = DB::transaction(function () use ($data, $request, $pendaftaran) {
+            $terkunci = PendaftaranPpdb::query()
+                ->whereKey($pendaftaran->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $terkunci->load(['pembayaran', 'tagihanItem']);
+
+            if (! $terkunci->bolehBayar()) {
+                throw ValidationException::withMessages([
+                    'nominal_pembayaran' => 'Pendaftaran ini sedang tidak menerima pembayaran baru.',
+                ]);
+            }
+
+            if (! $terkunci->tagihanSudahTerbit()) {
+                throw ValidationException::withMessages([
+                    'nominal_pembayaran' => 'Tagihan pendaftaran ini belum tersedia.',
+                ]);
+            }
+
+            if ($terkunci->adaPembayaranPending()) {
+                throw ValidationException::withMessages([
+                    'nominal_pembayaran' => 'Masih ada transfer yang menunggu pemeriksaan. Selesaikan transfer itu sebelum mencatat pembayaran tunai.',
+                ]);
+            }
+
+            $sisaTagihan = $terkunci->sisaTagihan();
+
+            if ($sisaTagihan <= 0) {
+                throw ValidationException::withMessages([
+                    'nominal_pembayaran' => 'Tagihan pendaftaran ini sudah lunas.',
+                ]);
+            }
+
+            if ((int) $data['nominal_pembayaran'] > $sisaTagihan) {
+                throw ValidationException::withMessages([
+                    'nominal_pembayaran' => 'Nominal tunai melebihi sisa tagihan sebesar '.$this->rupiah($sisaTagihan).'.',
+                ]);
+            }
+
+            $pembayaranBaru = $terkunci->pembayaran()->create([
+                'diverifikasi_oleh' => $request->user()->id,
+                'nominal_transfer' => (int) $data['nominal_pembayaran'],
+                'tanggal_transfer' => $data['tanggal_pembayaran'],
+                'metode_pembayaran' => 'tunai',
+                'bukti_transfer' => null,
+                'status' => 'terverifikasi',
+            ]);
+
+            $terkunci->unsetRelation('pembayaran');
+            $terkunci->segarkanStatusPenerimaan();
+
+            return $pembayaranBaru;
+        });
+
+        $statusSesudah = $pendaftaran->refresh()->status;
+        $notifikasi->pembayaranDiterima($pembayaran->refresh());
+
+        $pesan = 'Pembayaran tunai '.$this->rupiah($pembayaran->nominal_transfer).' berhasil dicatat.';
+
+        if ($statusSesudah !== $statusSebelum) {
+            $pesan .= " Status pendaftaran ikut berubah menjadi '{$statusSesudah}'.";
+        }
+
+        return to_route('staf-ppdb.pendaftaran.show', $pendaftaran)
+            ->with('success', $pesan.' Notifikasi WhatsApp diproses sesuai pengaturan wali.');
+    }
+
+    private function rupiah(int $nominal): string
+    {
+        return 'Rp '.number_format($nominal, 0, ',', '.');
     }
 }

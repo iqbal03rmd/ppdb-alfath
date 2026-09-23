@@ -13,10 +13,11 @@ interface RincianItem {
     nominal: number;
 }
 
-interface TransferItem {
+interface PembayaranItem {
     nominal_transfer: number;
     tanggal_transfer: string;
-    bukti_transfer_url: string;
+    metode_pembayaran: 'transfer' | 'tunai';
+    bukti_transfer_url: string | null;
     status: 'menunggu_verifikasi' | 'terverifikasi' | 'ditolak';
     catatan_verifikasi: string | null;
 }
@@ -31,7 +32,7 @@ interface PembayaranProps {
     totalTagihan: number;
     totalTerbayar: number;
     sisaTagihan: number;
-    riwayatTransfer: TransferItem[];
+    riwayatPembayaran: PembayaranItem[];
     tagihanTersedia: boolean;
     // Dua tenggat yang berbeda artinya: batasWaktu* itu tenggat MINIMAL bayar
     // (lewat = boleh ditolak staf), batasPelunasan* cuma menagih sisa cicilan.
@@ -69,7 +70,7 @@ export default function Pembayaran({
     totalTagihan,
     totalTerbayar,
     sisaTagihan,
-    riwayatTransfer,
+    riwayatPembayaran,
     tagihanTersedia,
     batasWaktuPembayaran,
     batasWaktuLewat,
@@ -96,8 +97,8 @@ export default function Pembayaran({
 
     // Kalau ada transfer yang masih diproses (menunggu_verifikasi), itu satu-satunya
     // alasan form disembunyikan padahal sisa tagihan masih > 0 - bedain dari kondisi lunas.
-    const adaPending = riwayatTransfer.some((t) => t.status === 'menunggu_verifikasi');
-    const transferTerakhirDitolak = riwayatTransfer[0]?.status === 'ditolak';
+    const adaPending = riwayatPembayaran.some((t) => t.status === 'menunggu_verifikasi');
+    const transferTerakhirDitolak = riwayatPembayaran[0]?.status === 'ditolak';
     // Pendaftaran ditolak: halaman tetap dibuka read-only supaya wali bisa
     // melihat uang yang sudah terlanjur disetor, tapi nggak bisa nambah transfer.
     const pendaftaranDitolak = statusPendaftaran === 'ditolak';
@@ -263,19 +264,21 @@ export default function Pembayaran({
                             </div>
                         </div>
 
-                        {/* Riwayat semua transfer yang pernah diajukan untuk pendaftaran ini */}
-                        {riwayatTransfer.length > 0 && (
+                        {/* Riwayat transfer wali dan pembayaran tunai yang dicatat sekolah. */}
+                        {riwayatPembayaran.length > 0 && (
                             <div className="overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
                                 <div className="border-b border-gray-100 p-5 sm:p-6">
-                                    <h2 className="text-[15px] font-semibold text-gray-900">Riwayat Transfer</h2>
+                                    <h2 className="text-[15px] font-semibold text-gray-900">Riwayat Pembayaran</h2>
                                 </div>
                                 <div className="divide-y divide-gray-100">
-                                    {riwayatTransfer.map((t, i) => (
+                                    {riwayatPembayaran.map((t, i) => (
                                         <div key={i} className="p-5 sm:p-6">
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="min-w-0">
                                                     <p className="text-sm font-semibold text-gray-900">{formatRupiah(t.nominal_transfer)}</p>
-                                                    <p className="mt-0.5 text-xs whitespace-nowrap text-gray-500">{t.tanggal_transfer}</p>
+                                                    <p className="mt-0.5 text-xs whitespace-nowrap text-gray-500">
+                                                        {t.tanggal_transfer} · {t.metode_pembayaran === 'tunai' ? 'Tunai' : 'Transfer'}
+                                                    </p>
                                                 </div>
                                                 <span
                                                     className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap ${statusBadge[t.status].className}`}
@@ -289,14 +292,16 @@ export default function Pembayaran({
                                                     {t.catatan_verifikasi ?? 'Bukti transfer ditolak Staf PPDB.'}
                                                 </p>
                                             )}
-                                            <a
-                                                href={t.bukti_transfer_url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="mt-3 inline-flex text-xs font-semibold text-[#1F509A] underline underline-offset-2 hover:text-[#0A3981]"
-                                            >
-                                                Lihat Bukti Transfer
-                                            </a>
+                                            {t.metode_pembayaran === 'transfer' && t.bukti_transfer_url && (
+                                                <a
+                                                    href={t.bukti_transfer_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="mt-3 inline-flex text-xs font-semibold text-[#1F509A] underline underline-offset-2 hover:text-[#0A3981]"
+                                                >
+                                                    Lihat Bukti Transfer
+                                                </a>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -368,7 +373,7 @@ export default function Pembayaran({
                                     {transferTerakhirDitolak && (
                                         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
                                             <span className="font-semibold text-red-800">Bukti transfer ditolak: </span>
-                                            {riwayatTransfer[0].catatan_verifikasi ??
+                                            {riwayatPembayaran[0].catatan_verifikasi ??
                                                 'Staf PPDB menolak bukti transfer sebelumnya. Silakan unggah ulang.'}
                                         </div>
                                     )}

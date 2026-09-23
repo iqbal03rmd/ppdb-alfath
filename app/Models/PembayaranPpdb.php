@@ -11,7 +11,7 @@ class PembayaranPpdb extends Model
 
     protected $fillable = [
         'pendaftaran_ppdb_id', 'diverifikasi_oleh', 'nominal_transfer',
-        'tanggal_transfer', 'bukti_transfer', 'status', 'catatan_verifikasi',
+        'tanggal_transfer', 'metode_pembayaran', 'bukti_transfer', 'status', 'catatan_verifikasi',
     ];
 
     protected $casts = [

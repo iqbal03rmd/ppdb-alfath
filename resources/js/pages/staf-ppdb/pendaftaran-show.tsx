@@ -1,6 +1,8 @@
 import PageContainer from '@/components/page-container';
 import PageHeader from '@/components/page-header';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
@@ -26,12 +28,14 @@ interface RincianTagihanItem {
     nominal: number;
 }
 
-interface TransferItem {
+interface PembayaranItem {
     id: number;
     nominal_transfer: number;
     tanggal_transfer: string;
+    metode_pembayaran: 'transfer' | 'tunai';
     status: string;
     catatan_verifikasi: string | null;
+    dicatat_oleh: string | null;
 }
 
 interface RingkasanPembayaran {
@@ -73,7 +77,10 @@ interface PendaftaranShowProps {
     ringkasanPembayaran: RingkasanPembayaran | null;
     sebabTanpaTagihan: string | null;
     rincianTagihan: RincianTagihanItem[];
-    riwayatTransfer: TransferItem[];
+    riwayatPembayaran: PembayaranItem[];
+    bisaCatatTunai: boolean;
+    adaPembayaranMenunggu: boolean;
+    tanggalHariIni: string;
     bisaDitutup: boolean;
 }
 
@@ -130,7 +137,10 @@ export default function PendaftaranShow({
     ringkasanPembayaran,
     sebabTanpaTagihan,
     rincianTagihan,
-    riwayatTransfer,
+    riwayatPembayaran,
+    bisaCatatTunai,
+    adaPembayaranMenunggu,
+    tanggalHariIni,
     bisaDitutup,
 }: PendaftaranShowProps) {
     const badge = statusBadge[pendaftaran.status] ?? statusBadge.draft;
@@ -140,7 +150,9 @@ export default function PendaftaranShow({
     // tindakan yang tidak bisa dibatalkan - jangan sampai kotak isian menganga
     // di layar yang paling sering dibuka staf cuma untuk membaca data.
     const [formTutupTampil, setFormTutupTampil] = useState(false);
+    const [modalTunaiTampil, setModalTunaiTampil] = useState(false);
     const tutup = useForm({ catatan_verifikasi: '' });
+    const tunai = useForm({ nominal_pembayaran: '', tanggal_pembayaran: tanggalHariIni });
 
     return (
         <AppLayout>
@@ -324,6 +336,18 @@ export default function PendaftaranShow({
                                             sistem.
                                         </p>
                                     )}
+
+                                    {bisaCatatTunai && (
+                                        <Button type="button" className="mt-4 w-full rounded-xl font-bold" onClick={() => setModalTunaiTampil(true)}>
+                                            Catat Pembayaran Tunai
+                                        </Button>
+                                    )}
+
+                                    {adaPembayaranMenunggu && ringkasanPembayaran.sisaTagihan > 0 && (
+                                        <p className="mt-3 text-xs leading-relaxed text-amber-700">
+                                            Selesaikan transfer yang menunggu pemeriksaan sebelum mencatat pembayaran tunai.
+                                        </p>
+                                    )}
                                 </>
                             )}
                         </Kartu>
@@ -336,11 +360,11 @@ export default function PendaftaranShow({
                             </Kartu>
                         )}
 
-                        <Kartu judul={`Riwayat Transfer (${riwayatTransfer.length})`}>
-                            {riwayatTransfer.length === 0 ? (
-                                <p className="text-sm text-gray-500">Belum ada bukti transfer yang diunggah wali.</p>
+                        <Kartu judul={`Riwayat Pembayaran (${riwayatPembayaran.length})`}>
+                            {riwayatPembayaran.length === 0 ? (
+                                <p className="text-sm text-gray-500">Belum ada pembayaran yang tercatat.</p>
                             ) : (
-                                riwayatTransfer.map((t) => {
+                                riwayatPembayaran.map((t) => {
                                     const tb = transferBadge[t.status] ?? transferBadge.menunggu_verifikasi;
 
                                     return (
@@ -349,14 +373,19 @@ export default function PendaftaranShow({
                                                 <span className="text-sm font-semibold text-gray-900">{formatRupiah(t.nominal_transfer)}</span>
                                                 <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${tb.className}`}>{tb.label}</span>
                                             </div>
-                                            <p className="mt-0.5 text-xs text-gray-500">{t.tanggal_transfer}</p>
+                                            <p className="mt-0.5 text-xs text-gray-500">
+                                                {t.tanggal_transfer} · {t.metode_pembayaran === 'tunai' ? 'Tunai' : 'Transfer'}
+                                                {t.dicatat_oleh ? ` · Dicatat ${t.dicatat_oleh}` : ''}
+                                            </p>
                                             {t.catatan_verifikasi && <p className="mt-1 text-xs text-gray-500">{t.catatan_verifikasi}</p>}
-                                            <Link
-                                                href={route('staf-ppdb.verifikasi-pembayaran.show', t.id)}
-                                                className="mt-1 inline-block text-xs text-[#1F509A] underline"
-                                            >
-                                                Lihat bukti transfer
-                                            </Link>
+                                            {t.metode_pembayaran === 'transfer' && (
+                                                <Link
+                                                    href={route('staf-ppdb.verifikasi-pembayaran.show', t.id)}
+                                                    className="mt-1 inline-block text-xs text-[#1F509A] underline"
+                                                >
+                                                    Lihat bukti transfer
+                                                </Link>
+                                            )}
                                         </div>
                                     );
                                 })
@@ -445,6 +474,93 @@ export default function PendaftaranShow({
                         </Kartu>
                     </div>
                 </div>
+
+                <Dialog
+                    open={modalTunaiTampil}
+                    onOpenChange={(terbuka) => {
+                        setModalTunaiTampil(terbuka);
+
+                        if (!terbuka) {
+                            tunai.clearErrors();
+                        }
+                    }}
+                >
+                    <DialogContent className="w-[calc(100%-2rem)] rounded-2xl border-0 p-0 sm:max-w-md">
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                tunai.post(route('staf-ppdb.pendaftaran.pembayaran-tunai', pendaftaran.id), {
+                                    preserveScroll: true,
+                                    onSuccess: () => {
+                                        setModalTunaiTampil(false);
+                                        tunai.reset();
+                                    },
+                                });
+                            }}
+                        >
+                            <DialogHeader className="px-6 pt-5 pb-3 text-left">
+                                <DialogTitle>Catat Pembayaran Tunai</DialogTitle>
+                                <DialogDescription className="pt-1">
+                                    {pendaftaran.nama_pendaftar} · {pendaftaran.nomor_pendaftaran}
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            <div className="space-y-4 px-6 pt-0 pb-5">
+                                <div className="rounded-xl bg-[#F5F9FD] p-3.5 text-sm text-gray-600">
+                                    Sisa tagihan saat ini{' '}
+                                    <span className="font-bold text-[#0A3981]">{formatRupiah(ringkasanPembayaran?.sisaTagihan ?? 0)}</span>
+                                </div>
+
+                                <div>
+                                    <label htmlFor="nominal-pembayaran-tunai" className="mb-1.5 block text-sm font-medium text-gray-700">
+                                        Nominal Tunai
+                                    </label>
+                                    <Input
+                                        id="nominal-pembayaran-tunai"
+                                        type="number"
+                                        min={1}
+                                        max={ringkasanPembayaran?.sisaTagihan}
+                                        value={tunai.data.nominal_pembayaran}
+                                        onChange={(e) => tunai.setData('nominal_pembayaran', e.target.value)}
+                                        onWheel={(e) => e.currentTarget.blur()}
+                                        placeholder="Masukkan nominal yang diterima"
+                                        className="border-gray-200 bg-[#F5F9FD]"
+                                        autoFocus
+                                    />
+                                    {tunai.errors.nominal_pembayaran && (
+                                        <p className="mt-1.5 text-xs text-red-600">{tunai.errors.nominal_pembayaran}</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label htmlFor="tanggal-pembayaran-tunai" className="mb-1.5 block text-sm font-medium text-gray-700">
+                                        Tanggal Pembayaran
+                                    </label>
+                                    <Input
+                                        id="tanggal-pembayaran-tunai"
+                                        type="date"
+                                        max={tanggalHariIni}
+                                        value={tunai.data.tanggal_pembayaran}
+                                        onChange={(e) => tunai.setData('tanggal_pembayaran', e.target.value)}
+                                        className="border-gray-200 bg-[#F5F9FD]"
+                                    />
+                                    {tunai.errors.tanggal_pembayaran && (
+                                        <p className="mt-1.5 text-xs text-red-600">{tunai.errors.tanggal_pembayaran}</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <DialogFooter className="gap-2 border-t border-gray-100 px-6 py-4 sm:space-x-0">
+                                <Button type="button" variant="outline" className="rounded-xl" onClick={() => setModalTunaiTampil(false)}>
+                                    Batal
+                                </Button>
+                                <Button type="submit" className="rounded-xl font-bold" disabled={tunai.processing}>
+                                    {tunai.processing ? 'Menyimpan...' : 'Simpan Pembayaran'}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
             </PageContainer>
         </AppLayout>
     );

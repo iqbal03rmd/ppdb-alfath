@@ -15,15 +15,16 @@ return new class extends Migration
             $table->id();
             $table->foreignId('pendaftaran_ppdb_id')->constrained('pendaftaran_ppdb')->cascadeOnDelete();
             $table->foreignId('diverifikasi_oleh')->nullable()->constrained('users')->nullOnDelete();
- 
+
             $table->unsignedBigInteger('nominal_transfer');
             $table->date('tanggal_transfer');
-            $table->string('bukti_transfer'); 
- 
+            $table->enum('metode_pembayaran', ['transfer', 'tunai'])->default('transfer');
+            $table->string('bukti_transfer')->nullable();
+
             $table->enum('status', ['menunggu_verifikasi', 'terverifikasi', 'ditolak'])
                 ->default('menunggu_verifikasi');
             $table->text('catatan_verifikasi')->nullable();
- 
+
             $table->timestamps();
         });
     }

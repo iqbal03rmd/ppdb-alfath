@@ -30,6 +30,7 @@ class PembayaranController extends Controller
                 'nama_pendaftar' => $p->pendaftaran->nama_pendaftar,
                 'nominal_transfer' => $p->nominal_transfer,
                 'tanggal_transfer' => $p->tanggal_transfer->locale('id')->translatedFormat('d F Y'),
+                'metode_pembayaran' => $p->metode_pembayaran,
                 'status' => $p->status,
             ]);
 
@@ -64,13 +65,14 @@ class PembayaranController extends Controller
         $adaPending = $pendaftaran->adaPembayaranPending();
         $tagihanTersedia = $pendaftaran->tagihanSudahTerbit();
 
-        $riwayatTransfer = $pendaftaran->pembayaran()
+        $riwayatPembayaran = $pendaftaran->pembayaran()
             ->latest('tanggal_transfer')
             ->get()
             ->map(fn (PembayaranPpdb $p) => [
                 'nominal_transfer' => $p->nominal_transfer,
                 'tanggal_transfer' => $p->tanggal_transfer->locale('id')->translatedFormat('d F Y'),
-                'bukti_transfer_url' => Storage::url($p->bukti_transfer),
+                'metode_pembayaran' => $p->metode_pembayaran,
+                'bukti_transfer_url' => $p->bukti_transfer ? Storage::url($p->bukti_transfer) : null,
                 'status' => $p->status,
                 'catatan_verifikasi' => $p->catatan_verifikasi,
             ]);
@@ -97,7 +99,7 @@ class PembayaranController extends Controller
             'totalTagihan' => $totalTagihan,
             'totalTerbayar' => $totalTerbayar,
             'sisaTagihan' => $sisaTagihan,
-            'riwayatTransfer' => $riwayatTransfer,
+            'riwayatPembayaran' => $riwayatPembayaran,
             'tagihanTersedia' => $tagihanTersedia,
             'bisaBayar' => $pendaftaran->bolehBayar() && $tagihanTersedia && $sisaTagihan > 0 && ! $adaPending,
             'informasiPembayaran' => $pengaturan->informasiRekeningLengkap() ? [
@@ -137,6 +139,7 @@ class PembayaranController extends Controller
                 $pendaftaran->pembayaran()->create([
                     'nominal_transfer' => $request->nominal_transfer,
                     'tanggal_transfer' => $request->tanggal_transfer,
+                    'metode_pembayaran' => 'transfer',
                     'bukti_transfer' => $path,
                     'status' => 'menunggu_verifikasi',
                 ]);

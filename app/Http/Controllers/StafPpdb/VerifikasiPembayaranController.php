@@ -25,6 +25,7 @@ class VerifikasiPembayaranController extends Controller
     public function index(): Response
     {
         $antrian = PembayaranPpdb::with(['pendaftaran.kategoriSiswa'])
+            ->where('metode_pembayaran', 'transfer')
             ->where('status', 'menunggu_verifikasi')
             // Yang paling lama menunggu didahulukan.
             ->oldest('created_at')
@@ -63,6 +64,8 @@ class VerifikasiPembayaranController extends Controller
      */
     public function show(PembayaranPpdb $pembayaran): Response
     {
+        abort_unless($pembayaran->metode_pembayaran === 'transfer', 404);
+
         $pembayaran->load([
             'pendaftaran.kategoriSiswa',
             'pendaftaran.pembayaran',
@@ -171,6 +174,7 @@ class VerifikasiPembayaranController extends Controller
      */
     public function sahkan(Request $request, PembayaranPpdb $pembayaran, NotifikasiWhatsAppService $notifikasi): RedirectResponse
     {
+        abort_unless($pembayaran->metode_pembayaran === 'transfer', 404);
         abort_unless($pembayaran->status === 'menunggu_verifikasi', 403, 'Transfer ini sudah pernah diputuskan.');
 
         $pembayaran->update([
@@ -202,6 +206,7 @@ class VerifikasiPembayaranController extends Controller
      */
     public function tolak(Request $request, PembayaranPpdb $pembayaran, NotifikasiWhatsAppService $notifikasi): RedirectResponse
     {
+        abort_unless($pembayaran->metode_pembayaran === 'transfer', 404);
         abort_unless(
             in_array($pembayaran->status, ['menunggu_verifikasi', 'terverifikasi']),
             403,

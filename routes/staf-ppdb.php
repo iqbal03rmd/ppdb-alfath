@@ -29,9 +29,16 @@ Route::middleware(['auth', 'role:staf_ppdb'])
 
         // Rekam lengkap satu pendaftaran, termasuk posisi pembayarannya - yang
         // justru tidak ada di halaman periksa milik Verifikasi Pendaftaran.
-        // Tetap read-only; tautannya saja yang mengarah ke tempat keputusan.
+        // Keputusan verifikasi tetap di antriannya; pencatatan tunai dilakukan
+        // di detail karena staf perlu memastikan anak dan sisa tagihannya.
         Route::get('/pendaftaran/{pendaftaran}', [PendaftaranController::class, 'show'])
             ->name('pendaftaran.show');
+
+        // Pembayaran langsung di sekolah dicatat dari rekam lengkap anaknya.
+        // Tidak dibuat menu/antrian baru karena staf sudah mencari anak lewat
+        // halaman Semua Pendaftaran dan filter status "Pembayaran".
+        Route::post('/pendaftaran/{pendaftaran}/pembayaran-tunai', [PendaftaranController::class, 'catatPembayaranTunai'])
+            ->name('pendaftaran.pembayaran-tunai');
 
         // Menutup pendaftaran ('ditolak'). Sengaja di sini, bukan di halaman
         // verifikasi: menutup melepas kursi kuota dan tidak bisa dibatalkan,

@@ -14,6 +14,7 @@ interface RiwayatItem {
     nama_pendaftar: string;
     nominal_transfer: number;
     tanggal_transfer: string;
+    metode_pembayaran: 'transfer' | 'tunai';
     status: 'menunggu_verifikasi' | 'terverifikasi' | 'ditolak';
 }
 
@@ -34,7 +35,7 @@ function formatRupiah(nominal: number) {
 const columns: ColumnDef<RiwayatItem>[] = [
     {
         accessorKey: 'tanggal_transfer',
-        header: 'Tanggal Transfer',
+        header: 'Tanggal Pembayaran',
     },
     {
         id: 'pendaftaran',
@@ -51,6 +52,11 @@ const columns: ColumnDef<RiwayatItem>[] = [
         accessorKey: 'nominal_transfer',
         header: 'Nominal',
         cell: ({ row }) => <span className="font-medium text-gray-700">{formatRupiah(row.original.nominal_transfer)}</span>,
+    },
+    {
+        accessorKey: 'metode_pembayaran',
+        header: 'Metode',
+        cell: ({ row }) => <span className="text-gray-700">{row.original.metode_pembayaran === 'tunai' ? 'Tunai' : 'Transfer'}</span>,
     },
     {
         accessorKey: 'status',
@@ -145,8 +151,14 @@ export default function RiwayatPembayaran({ riwayat }: RiwayatPembayaranProps) {
                                     <div className="border-t border-dashed border-[#D4EBF8] px-4 py-4 pl-[3.75rem]">
                                         <dl className="space-y-3 text-sm">
                                             <div>
-                                                <dt className="text-xs text-gray-500">Tanggal Transfer</dt>
+                                                <dt className="text-xs text-gray-500">Tanggal Pembayaran</dt>
                                                 <dd className="mt-0.5 font-medium text-gray-900">{item.tanggal_transfer}</dd>
+                                            </div>
+                                            <div>
+                                                <dt className="text-xs text-gray-500">Metode Pembayaran</dt>
+                                                <dd className="mt-0.5 font-medium text-gray-900">
+                                                    {item.metode_pembayaran === 'tunai' ? 'Tunai' : 'Transfer'}
+                                                </dd>
                                             </div>
                                             <div>
                                                 <dt className="text-xs text-gray-500">Status</dt>

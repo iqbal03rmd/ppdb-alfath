@@ -2,9 +2,11 @@
 
 use App\Models\GelombangPpdb;
 use App\Models\KebijakanKategori;
+use App\Models\PembayaranPpdb;
 use App\Models\PendaftaranPpdb;
 use App\Models\TahunAjaran;
 use App\Models\User;
+use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia;
 
 /**
@@ -135,6 +137,84 @@ test('pendaftaran yang lunas penuh tidak menyisakan tagihan', function () {
             ->where('ringkasanPembayaran.tanggalPelunasanCicilan', null)
             ->where('ringkasanPembayaran.jatuhTempoMinimal', null)
         );
+});
+
+/**
+ * ==========================================================================
+ * Pembayaran tunai langsung di sekolah
+ * ==========================================================================
+ */
+test('staf bisa mencatat pembayaran tunai dan status anak dihitung ulang', function () {
+    Queue::fake();
+
+    $pendaftaran = PendaftaranPpdb::where('nomor_pendaftaran', 'PPDB-2026-00004')->firstOrFail();
+    $nominal = (int) $pendaftaran->minimalBayar();
+
+    $this->actingAs($this->staf)
+        ->post(route('staf-ppdb.pendaftaran.pembayaran-tunai', $pendaftaran), [
+            'nominal_pembayaran' => $nominal,
+            'tanggal_pembayaran' => today()->toDateString(),
+        ])
+        ->assertRedirect(route('staf-ppdb.pendaftaran.show', $pendaftaran));
+
+    $pembayaran = PembayaranPpdb::where('pendaftaran_ppdb_id', $pendaftaran->id)->latest('id')->firstOrFail();
+
+    expect($pembayaran->nominal_transfer)->toBe($nominal)
+        ->and($pembayaran->metode_pembayaran)->toBe('tunai')
+        ->and($pembayaran->status)->toBe('terverifikasi')
+        ->and($pembayaran->bukti_transfer)->toBeNull()
+        ->and($pembayaran->diverifikasi_oleh)->toBe($this->staf->id)
+        ->and($pendaftaran->fresh()->status)->toBe('diterima');
+});
+
+test('nominal tunai tidak boleh melebihi sisa tagihan', function () {
+    $pendaftaran = PendaftaranPpdb::where('nomor_pendaftaran', 'PPDB-2026-00004')->firstOrFail();
+    $jumlahSebelum = $pendaftaran->pembayaran()->count();
+
+    $this->actingAs($this->staf)
+        ->post(route('staf-ppdb.pendaftaran.pembayaran-tunai', $pendaftaran), [
+            'nominal_pembayaran' => $pendaftaran->sisaTagihan() + 1,
+            'tanggal_pembayaran' => today()->toDateString(),
+        ])
+        ->assertSessionHasErrors('nominal_pembayaran');
+
+    expect($pendaftaran->pembayaran()->count())->toBe($jumlahSebelum);
+});
+
+test('tunai ditahan ketika masih ada transfer yang menunggu pemeriksaan', function () {
+    $pendaftaran = PendaftaranPpdb::where('nomor_pendaftaran', 'PPDB-2026-00005')->firstOrFail();
+    $jumlahSebelum = $pendaftaran->pembayaran()->count();
+
+    $this->actingAs($this->staf)
+        ->post(route('staf-ppdb.pendaftaran.pembayaran-tunai', $pendaftaran), [
+            'nominal_pembayaran' => 100_000,
+            'tanggal_pembayaran' => today()->toDateString(),
+        ])
+        ->assertSessionHasErrors('nominal_pembayaran');
+
+    expect($pendaftaran->pembayaran()->count())->toBe($jumlahSebelum);
+});
+
+test('detail staf mengirim metode pembayaran dalam riwayat', function () {
+    $pendaftaran = PendaftaranPpdb::where('nomor_pendaftaran', 'PPDB-2026-00006')->firstOrFail();
+
+    $this->actingAs($this->staf)
+        ->get(route('staf-ppdb.pendaftaran.show', $pendaftaran))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('riwayatPembayaran.0.metode_pembayaran', 'transfer')
+        );
+});
+
+test('wali tidak boleh mencatat pembayaran tunai', function () {
+    $pendaftaran = PendaftaranPpdb::where('nomor_pendaftaran', 'PPDB-2026-00004')->firstOrFail();
+    $wali = User::where('email', 'wali@ppdbalfath.test')->firstOrFail();
+
+    $this->actingAs($wali)
+        ->post(route('staf-ppdb.pendaftaran.pembayaran-tunai', $pendaftaran), [
+            'nominal_pembayaran' => 100_000,
+            'tanggal_pembayaran' => today()->toDateString(),
+        ])
+        ->assertForbidden();
 });
 
 /**
