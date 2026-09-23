@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router } from '@inertiajs/react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { CalendarPlus, ChevronDown, TriangleAlert } from 'lucide-react';
+import { CalendarPlus, ChevronDown, Minus, Plus, TriangleAlert } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 /** Satu kata dari server. Layar tinggal memetakannya, tidak menyimpulkan sendiri. */
@@ -220,10 +220,9 @@ export default function GelombangIndex({ gelombang, tahunAjaran, filterAwal, ada
                             <div className="mb-5 flex items-start gap-2 rounded-2xl bg-amber-50 p-4 text-xs text-amber-800">
                                 <TriangleAlert size={15} strokeWidth={2} className="mt-0.5 shrink-0" />
                                 <p>
-                                    <b>{perluDitutup.map((g) => g.nama).join(', ')}</b> tandanya masih &quot;Dibuka&quot;, tapi jendela
-                                    pendaftarannya sudah lewat &mdash; jadi tidak ada yang bisa mendaftar lagi di sana. Tekan <b>Tutup</b> supaya
-                                    keadaannya cocok. Ketentuannya sendiri sudah terkunci permanen; kalau sekolah mau menerima pendaftar lagi, buat
-                                    gelombang baru.
+                                    <b>{perluDitutup.map((g) => g.nama).join(', ')}</b> tandanya masih &quot;Dibuka&quot;, tapi jendela pendaftarannya
+                                    sudah lewat &mdash; jadi tidak ada yang bisa mendaftar lagi di sana. Tekan <b>Tutup</b> supaya keadaannya cocok.
+                                    Ketentuannya sendiri sudah terkunci permanen; kalau sekolah mau menerima pendaftar lagi, buat gelombang baru.
                                 </p>
                             </div>
                         )}
@@ -232,15 +231,15 @@ export default function GelombangIndex({ gelombang, tahunAjaran, filterAwal, ada
                             columns={columns}
                             data={tersaring}
                             searchPlaceholder="Cari gelombang..."
-                            searchWidth="max-w-xs"
+                            searchWidth="max-w-none sm:max-w-xs"
                             emptyMessage={
                                 saring
                                     ? `Belum ada gelombang di tahun ajaran ${saring}. Pilih "Semua tahun ajaran" untuk melihat sisanya.`
                                     : 'Belum ada gelombang sama sekali. Selama belum ada yang dibuka, wali murid tidak bisa mendaftar.'
                             }
                             toolbar={
-                                <>
-                                    <div className="relative w-52">
+                                <div className="grid w-full gap-2 sm:flex sm:w-auto sm:flex-1 sm:items-center sm:gap-3">
+                                    <div className="relative w-full sm:w-52">
                                         <select
                                             value={saring}
                                             onChange={(e) => setSaring(e.target.value)}
@@ -257,16 +256,116 @@ export default function GelombangIndex({ gelombang, tahunAjaran, filterAwal, ada
                                         <ChevronDown className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-gray-500" />
                                     </div>
 
-                                    <Button asChild className="ml-auto rounded-xl bg-[#E38E49] font-semibold text-white hover:bg-[#E38E49]/90">
+                                    <Button
+                                        asChild
+                                        className="w-full rounded-xl bg-[#E38E49] font-semibold text-white hover:bg-[#E38E49]/90 sm:ml-auto sm:w-auto"
+                                    >
                                         <Link href={route('super-admin.gelombang.create')}>
                                             <CalendarPlus size={16} strokeWidth={2} />
                                             Tambah Gelombang
                                         </Link>
                                     </Button>
-                                </>
+                                </div>
                             }
-                        />
+                            rowId={(item) => String(item.id)}
+                            mobileHeader={
+                                <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] gap-3 bg-[#0A3981] px-4 py-3 text-[11px] font-bold tracking-wide text-white uppercase">
+                                    <span aria-hidden />
+                                    <span>Gelombang</span>
+                                    <span className="text-right">Status</span>
+                                </div>
+                            }
+                            renderMobileRow={(item, { expanded, toggle }) => {
+                                const badge = BADGE[item.keadaan];
+                                const bisaDiubah = item.alasan_tidak_bisa_diubah === null;
 
+                                return (
+                                    <div className={expanded ? 'bg-[#F8FBFE]' : 'bg-white'}>
+                                        <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-4">
+                                            <button
+                                                type="button"
+                                                onClick={toggle}
+                                                aria-expanded={expanded}
+                                                aria-label={`${expanded ? 'Tutup' : 'Buka'} detail gelombang ${item.nama}`}
+                                                className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+                                                    expanded ? 'bg-[#0A3981] text-white' : 'bg-[#E8EEF7] text-[#1F509A] hover:bg-[#D4EBF8]'
+                                                }`}
+                                            >
+                                                {expanded ? (
+                                                    <Minus className="h-4 w-4" aria-hidden="true" />
+                                                ) : (
+                                                    <Plus className="h-4 w-4" aria-hidden="true" />
+                                                )}
+                                            </button>
+
+                                            <div className="min-w-0">
+                                                <p className="truncate text-sm font-semibold text-gray-900" title={item.nama}>
+                                                    {item.nama}
+                                                </p>
+                                                <p className="mt-0.5 truncate text-[11px] text-gray-500">{item.tahun_ajaran}</p>
+                                            </div>
+
+                                            <span
+                                                className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${badge.gaya}`}
+                                            >
+                                                {badge.teks}
+                                            </span>
+                                        </div>
+
+                                        {expanded && (
+                                            <div className="border-t border-dashed border-[#D4EBF8] px-4 py-4 pl-[3.75rem]">
+                                                <dl className="space-y-3 text-sm">
+                                                    <div>
+                                                        <dt className="text-xs text-gray-500">Jadwal Pendaftaran</dt>
+                                                        <dd className="mt-0.5 font-medium text-gray-900">
+                                                            {item.tanggal_mulai} s/d {item.tanggal_selesai}
+                                                        </dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt className="text-xs text-gray-500">Jatuh Tempo Pembayaran</dt>
+                                                        <dd
+                                                            className={`mt-0.5 font-medium ${item.batas_waktu_pembayaran ? 'text-gray-900' : 'text-amber-800'}`}
+                                                        >
+                                                            {item.batas_waktu_pembayaran || 'Belum diatur'}
+                                                        </dd>
+                                                    </div>
+                                                </dl>
+
+                                                {item.tarif_terisi === 0 && (
+                                                    <p className="mt-3 flex items-start gap-1.5 text-xs text-amber-800">
+                                                        <TriangleAlert size={14} strokeWidth={2} className="mt-0.5 shrink-0" />
+                                                        Nominal biaya pada gelombang ini belum diisi.
+                                                    </p>
+                                                )}
+
+                                                {!item.status_buka && item.alasan_tidak_bisa_dibuka && (
+                                                    <p className="mt-3 text-xs leading-relaxed text-gray-500">{item.alasan_tidak_bisa_dibuka}</p>
+                                                )}
+
+                                                <div className="mt-4 grid grid-cols-2 gap-2">
+                                                    <Button
+                                                        asChild
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className={
+                                                            'w-full rounded-xl bg-white text-xs font-bold ' +
+                                                            (bisaDiubah
+                                                                ? 'border-[#1F509A]/40 text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]'
+                                                                : 'border-gray-300 text-gray-700 hover:bg-gray-50')
+                                                        }
+                                                    >
+                                                        <Link href={route('super-admin.gelombang.edit', item.id)}>
+                                                            {bisaDiubah ? 'Ubah' : 'Detail'}
+                                                        </Link>
+                                                    </Button>
+                                                    <TombolStatus gelombang={item} />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            }}
+                        />
                     </>
                 )}
             </PageContainer>

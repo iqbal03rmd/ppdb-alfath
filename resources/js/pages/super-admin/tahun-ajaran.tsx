@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import AppLayout from '@/layouts/app-layout';
 import { Head, useForm } from '@inertiajs/react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { CalendarPlus } from 'lucide-react';
+import { CalendarPlus, Minus, Plus } from 'lucide-react';
 import { FormEventHandler, useCallback, useMemo, useState } from 'react';
 
 interface TahunAjaranItem {
@@ -269,18 +269,88 @@ export default function TahunAjaranIndex({ tahunAjaran }: { tahunAjaran: TahunAj
                         columns={columns}
                         data={tahunAjaran}
                         searchPlaceholder="Cari tahun ajaran..."
-                        searchWidth="max-w-xs"
+                        searchWidth="max-w-none sm:max-w-xs"
                         emptyMessage="Tidak ada tahun ajaran yang cocok dengan pencarian."
                         toolbar={
                             <Button
                                 type="button"
                                 onClick={() => buka(null)}
-                                className="ml-auto rounded-xl bg-[#E38E49] font-semibold text-white hover:bg-[#E38E49]/90"
+                                className="w-full rounded-xl bg-[#E38E49] font-semibold text-white hover:bg-[#E38E49]/90 sm:ml-auto sm:w-auto"
                             >
                                 <CalendarPlus size={16} strokeWidth={2} />
                                 Tambah Tahun Ajaran
                             </Button>
                         }
+                        rowId={(item) => String(item.id)}
+                        mobileHeader={
+                            <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] gap-3 bg-[#0A3981] px-4 py-3 text-[11px] font-bold tracking-wide text-white uppercase">
+                                <span aria-hidden />
+                                <span>Tahun Ajaran</span>
+                                <span className="text-right">Status</span>
+                            </div>
+                        }
+                        renderMobileRow={(item, { expanded, toggle }) => (
+                            <div className={expanded ? 'bg-[#F8FBFE]' : 'bg-white'}>
+                                <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-4">
+                                    <button
+                                        type="button"
+                                        onClick={toggle}
+                                        aria-expanded={expanded}
+                                        aria-label={`${expanded ? 'Tutup' : 'Buka'} detail tahun ajaran ${item.nama}`}
+                                        className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+                                            expanded ? 'bg-[#0A3981] text-white' : 'bg-[#E8EEF7] text-[#1F509A] hover:bg-[#D4EBF8]'
+                                        }`}
+                                    >
+                                        {expanded ? (
+                                            <Minus className="h-4 w-4" aria-hidden="true" />
+                                        ) : (
+                                            <Plus className="h-4 w-4" aria-hidden="true" />
+                                        )}
+                                    </button>
+
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-semibold text-gray-900">{item.nama}</p>
+                                        <p className="mt-0.5 text-[11px] text-gray-500">Mulai {item.tahun_mulai}</p>
+                                    </div>
+
+                                    <span
+                                        className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${
+                                            item.status_aktif ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                                        }`}
+                                    >
+                                        {item.status_aktif ? 'Aktif' : 'Non-aktif'}
+                                    </span>
+                                </div>
+
+                                {expanded && (
+                                    <div className="border-t border-dashed border-[#D4EBF8] px-4 py-4 pl-[3.75rem]">
+                                        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                                            <div>
+                                                <dt className="text-xs text-gray-500">Gelombang</dt>
+                                                <dd className="mt-0.5 font-medium text-gray-900">{item.jumlah_gelombang}</dd>
+                                            </div>
+                                            <div>
+                                                <dt className="text-xs text-gray-500">Pendaftar</dt>
+                                                <dd className="mt-0.5 font-medium text-gray-900">{item.jumlah_pendaftaran}</dd>
+                                            </div>
+                                            <div className="col-span-2">
+                                                <dt className="text-xs text-gray-500">Batas Pelunasan</dt>
+                                                <dd className="mt-0.5 font-medium text-gray-900">{item.batas_pelunasan}</dd>
+                                            </div>
+                                        </dl>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => buka(item)}
+                                            className="mt-4 w-full rounded-xl border-[#1F509A]/40 bg-white text-xs font-bold text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
+                                        >
+                                            Ubah Tahun Ajaran
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     />
                 )}
             </PageContainer>

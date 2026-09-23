@@ -3,7 +3,7 @@ import PageContainer from '@/components/page-container';
 import PageHeader from '@/components/page-header';
 import AppLayout from '@/layouts/app-layout';
 import { Head } from '@inertiajs/react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Minus, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 interface BarisGelombang {
@@ -238,34 +238,26 @@ export default function Rekapitulasi({ perGelombang, perKategori, temuan, tahunA
     // Dibuka pada tahun ajaran aktif. Cuma posisi awal - "Semua tahun ajaran"
     // tetap tersedia, dan justru itu gunanya halaman laporan: membandingkan
     // angkatan tahun ini dengan tahun sebelumnya.
+    const gelombangKategoriAwal =
+        perGelombang.find((g) => (!filterAwal || g.tahun_ajaran === filterAwal) && g.status_buka) ??
+        perGelombang.find((g) => !filterAwal || g.tahun_ajaran === filterAwal);
+
     const [tahun, setTahun] = useState(filterAwal);
+    const [gelombangKategori, setGelombangKategori] = useState(gelombangKategoriAwal ? String(gelombangKategoriAwal.id) : 'semua');
+    const [gelombangTerbuka, setGelombangTerbuka] = useState<number | null>(null);
+    const [kategoriTerbuka, setKategoriTerbuka] = useState<string | null>(null);
 
     const gelombang = useMemo(() => perGelombang.filter((g) => !tahun || g.tahun_ajaran === tahun), [perGelombang, tahun]);
-    const kategori = useMemo(() => perKategori.filter((k) => !tahun || k.tahun_ajaran === tahun), [perKategori, tahun]);
+    const kategoriTahun = useMemo(() => perKategori.filter((k) => !tahun || k.tahun_ajaran === tahun), [perKategori, tahun]);
+    const kategori = useMemo(
+        () => kategoriTahun.filter((k) => gelombangKategori === 'semua' || String(k.gelombang_id) === gelombangKategori),
+        [kategoriTahun, gelombangKategori],
+    );
 
     // Cuma memilih, tidak menghitung - seluruh agregasinya sudah selesai di
     // server. Tahun ajaran yang belum punya pendaftaran tidak punya kunci di
     // sini, jadi jatuh ke bentuk kosong.
     const t = temuan[tahun] ?? TEMUAN_KOSONG;
-
-    // Baris total dihitung dari baris yang sedang tampil, supaya tidak pernah
-    // bertentangan dengan isi tabel di atasnya.
-    const total = useMemo(
-        () =>
-            gelombang.reduce(
-                (a, g) => ({
-                    total: a.total + g.total,
-                    diproses: a.diproses + g.diproses,
-                    diterima: a.diterima + g.diterima,
-                    ditolak: a.ditolak + g.ditolak,
-                    total_tagihan: a.total_tagihan + g.total_tagihan,
-                    sudah_masuk: a.sudah_masuk + g.sudah_masuk,
-                    sisa_tagihan: a.sisa_tagihan + g.sisa_tagihan,
-                }),
-                { total: 0, diproses: 0, diterima: 0, ditolak: 0, total_tagihan: 0, sudah_masuk: 0, sisa_tagihan: 0 },
-            ),
-        [gelombang],
-    );
 
     return (
         <AppLayout>
@@ -279,7 +271,16 @@ export default function Rekapitulasi({ perGelombang, perKategori, temuan, tahunA
                             <select
                                 className={gayaSelect}
                                 value={tahun}
-                                onChange={(e) => setTahun(e.target.value)}
+                                onChange={(e) => {
+                                    const tahunBaru = e.target.value;
+                                    const gelombangTahunBaru = perGelombang.filter((g) => !tahunBaru || g.tahun_ajaran === tahunBaru);
+                                    const pilihanAwal = gelombangTahunBaru.find((g) => g.status_buka) ?? gelombangTahunBaru[0];
+
+                                    setTahun(tahunBaru);
+                                    setGelombangKategori(pilihanAwal ? String(pilihanAwal.id) : 'semua');
+                                    setGelombangTerbuka(null);
+                                    setKategoriTerbuka(null);
+                                }}
                                 aria-label="Saring menurut tahun ajaran"
                             >
                                 <option value="">Semua tahun ajaran</option>
@@ -301,116 +302,303 @@ export default function Rekapitulasi({ perGelombang, perKategori, temuan, tahunA
                                 Belum ada gelombang pada tahun ajaran ini. Pilih tahun ajaran lain untuk melihat angkatan sebelumnya.
                             </p>
                         ) : (
-                            <div className="mt-4 overflow-x-auto">
-                                <table className="w-full min-w-[860px]">
-                                    <thead>
-                                        <tr className="bg-[#0A3981]">
-                                            <Th>Gelombang</Th>
-                                            <Th angka>Pendaftar</Th>
-                                            <Th angka>Diproses</Th>
-                                            <Th angka>Diterima</Th>
-                                            <Th angka>Ditolak</Th>
-                                            <Th angka>Tagihan</Th>
-                                            <Th angka>Sudah Masuk</Th>
-                                            <Th angka>Sisa</Th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {gelombang.map((g) => (
-                                            <tr key={g.id} className="border-b border-gray-100 last:border-b-0 hover:bg-[#F5F9FD]/50">
-                                                <Td>
-                                                    <span className="font-medium text-gray-900">{g.nama}</span>
-                                                    <span className="text-gray-500"> · {g.tahun_ajaran}</span>
-                                                    {g.status_buka && (
-                                                        <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
-                                                            Dibuka
-                                                        </span>
+                            <>
+                                {/* Mobile: satu gelombang diringkas menjadi satu
+                                    baris. Angka status dan keuangan baru muncul
+                                    saat baris dibuka, jadi tidak perlu menggeser
+                                    tabel lebar ke kanan dan kiri. */}
+                                <div className="mt-4 overflow-hidden md:hidden">
+                                    <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] gap-3 bg-[#0A3981] px-4 py-3 text-[11px] font-bold tracking-wide text-white uppercase">
+                                        <span aria-hidden />
+                                        <span>Gelombang</span>
+                                        <span className="text-right">Pendaftar</span>
+                                    </div>
+
+                                    <div className="divide-y divide-gray-100">
+                                        {gelombang.map((g) => {
+                                            const terbuka = gelombangTerbuka === g.id;
+
+                                            return (
+                                                <div key={g.id} className={terbuka ? 'bg-[#F8FBFE]' : 'bg-white'}>
+                                                    <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-4">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setGelombangTerbuka(terbuka ? null : g.id)}
+                                                            aria-expanded={terbuka}
+                                                            aria-label={`${terbuka ? 'Tutup' : 'Buka'} detail ${g.nama} ${g.tahun_ajaran}`}
+                                                            className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+                                                                terbuka ? 'bg-[#0A3981] text-white' : 'bg-[#E8EEF7] text-[#1F509A] hover:bg-[#D4EBF8]'
+                                                            }`}
+                                                        >
+                                                            {terbuka ? (
+                                                                <Minus className="h-4 w-4" aria-hidden="true" />
+                                                            ) : (
+                                                                <Plus className="h-4 w-4" aria-hidden="true" />
+                                                            )}
+                                                        </button>
+
+                                                        <div className="min-w-0">
+                                                            <p className="truncate text-sm font-semibold text-gray-900">{g.nama}</p>
+                                                            <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-gray-500">
+                                                                <span>{g.tahun_ajaran}</span>
+                                                                {g.status_buka && (
+                                                                    <span className="rounded-full bg-green-100 px-2 py-0.5 font-semibold text-green-700">
+                                                                        Dibuka
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        <span className="text-sm font-semibold text-gray-900 tabular-nums">{g.total}</span>
+                                                    </div>
+
+                                                    {terbuka && (
+                                                        <div className="border-t border-dashed border-[#D4EBF8] px-4 py-4 pl-[3.75rem]">
+                                                            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                                                                <div>
+                                                                    <dt className="text-xs text-gray-500">Diproses</dt>
+                                                                    <dd className="mt-0.5 font-semibold text-gray-900 tabular-nums">{g.diproses}</dd>
+                                                                </div>
+                                                                <div>
+                                                                    <dt className="text-xs text-gray-500">Diterima</dt>
+                                                                    <dd className="mt-0.5 font-semibold text-gray-900 tabular-nums">{g.diterima}</dd>
+                                                                </div>
+                                                                <div>
+                                                                    <dt className="text-xs text-gray-500">Ditolak</dt>
+                                                                    <dd className="mt-0.5 font-semibold text-gray-900 tabular-nums">{g.ditolak}</dd>
+                                                                </div>
+                                                                <div>
+                                                                    <dt className="text-xs text-gray-500">Total Tagihan</dt>
+                                                                    <dd className="mt-0.5 font-semibold text-gray-900">
+                                                                        {formatRupiah(g.total_tagihan)}
+                                                                    </dd>
+                                                                </div>
+                                                                <div>
+                                                                    <dt className="text-xs text-gray-500">Sudah Masuk</dt>
+                                                                    <dd className="mt-0.5 font-semibold text-green-700">
+                                                                        {formatRupiah(g.sudah_masuk)}
+                                                                    </dd>
+                                                                </div>
+                                                                <div>
+                                                                    <dt className="text-xs text-gray-500">Sisa Tagihan</dt>
+                                                                    <dd className="mt-0.5 font-semibold text-gray-900">
+                                                                        {formatRupiah(g.sisa_tagihan)}
+                                                                    </dd>
+                                                                </div>
+                                                            </dl>
+                                                        </div>
                                                     )}
-                                                </Td>
-                                                <Td angka tebal>
-                                                    {g.total}
-                                                </Td>
-                                                <Td angka>{g.diproses}</Td>
-                                                <Td angka>{g.diterima}</Td>
-                                                <Td angka>{g.ditolak}</Td>
-                                                <Td angka>{formatRupiah(g.total_tagihan)}</Td>
-                                                <Td angka>{formatRupiah(g.sudah_masuk)}</Td>
-                                                <Td angka>{formatRupiah(g.sisa_tagihan)}</Td>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Desktop tetap tabel penuh untuk perbandingan
+                                    banyak kolom sekaligus. */}
+                                <div className="mt-4 hidden overflow-x-auto md:block">
+                                    <table className="w-full min-w-[860px]">
+                                        <thead>
+                                            <tr className="bg-[#0A3981]">
+                                                <Th>Gelombang</Th>
+                                                <Th angka>Pendaftar</Th>
+                                                <Th angka>Diproses</Th>
+                                                <Th angka>Diterima</Th>
+                                                <Th angka>Ditolak</Th>
+                                                <Th angka>Tagihan</Th>
+                                                <Th angka>Sudah Masuk</Th>
+                                                <Th angka>Sisa</Th>
                                             </tr>
-                                        ))}
-                                        <tr className="bg-[#F5F9FD]">
-                                            <Td tebal>Total</Td>
-                                            <Td angka tebal>
-                                                {total.total}
-                                            </Td>
-                                            <Td angka tebal>
-                                                {total.diproses}
-                                            </Td>
-                                            <Td angka tebal>
-                                                {total.diterima}
-                                            </Td>
-                                            <Td angka tebal>
-                                                {total.ditolak}
-                                            </Td>
-                                            <Td angka tebal>
-                                                {formatRupiah(total.total_tagihan)}
-                                            </Td>
-                                            <Td angka tebal>
-                                                {formatRupiah(total.sudah_masuk)}
-                                            </Td>
-                                            <Td angka tebal>
-                                                {formatRupiah(total.sisa_tagihan)}
-                                            </Td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody>
+                                            {gelombang.map((g) => (
+                                                <tr key={g.id} className="border-b border-gray-100 last:border-b-0 hover:bg-[#F5F9FD]/50">
+                                                    <Td>
+                                                        <span className="font-medium text-gray-900">{g.nama}</span>
+                                                        <span className="text-gray-500"> · {g.tahun_ajaran}</span>
+                                                        {g.status_buka && (
+                                                            <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
+                                                                Dibuka
+                                                            </span>
+                                                        )}
+                                                    </Td>
+                                                    <Td angka tebal>
+                                                        {g.total}
+                                                    </Td>
+                                                    <Td angka>{g.diproses}</Td>
+                                                    <Td angka>{g.diterima}</Td>
+                                                    <Td angka>{g.ditolak}</Td>
+                                                    <Td angka>{formatRupiah(g.total_tagihan)}</Td>
+                                                    <Td angka>{formatRupiah(g.sudah_masuk)}</Td>
+                                                    <Td angka>{formatRupiah(g.sisa_tagihan)}</Td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
                         )}
                     </Kartu>
 
                     <Kartu judul="Rekap per Kategori" keterangan="Pendaftaran yang masih draft tidak ikut dihitung.">
-                        {kategori.length === 0 ? (
+                        {kategoriTahun.length === 0 ? (
                             <p className="px-6 py-8 text-center text-sm text-gray-500">Kuota per kategori belum ditetapkan untuk tahun ajaran ini.</p>
                         ) : (
-                            <div className="mt-4 overflow-x-auto">
-                                <table className="w-full min-w-[720px]">
-                                    <thead>
-                                        <tr className="bg-[#0A3981]">
-                                            <Th>Gelombang</Th>
-                                            <Th>Kategori</Th>
-                                            <Th angka>Pendaftar</Th>
-                                            <Th angka>Diterima</Th>
-                                            <Th angka>Ditolak</Th>
-                                            <Th angka>Kuota</Th>
-                                            <Th angka>Sisa</Th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {kategori.map((k) => (
-                                            <tr
-                                                key={`${k.gelombang_id}-${k.kategori}`}
-                                                className="border-b border-gray-100 last:border-b-0 hover:bg-[#F5F9FD]/50"
-                                            >
-                                                <Td>
-                                                    <span className="text-gray-700">{k.gelombang}</span>
-                                                    <span className="text-gray-500"> · {k.tahun_ajaran}</span>
-                                                </Td>
-                                                <Td tebal>{k.kategori}</Td>
-                                                <Td angka>{k.total}</Td>
-                                                <Td angka>{k.diterima}</Td>
-                                                {/* Kolom ini yang menerangkan kenapa Sisa tidak sama
+                            <>
+                                <div className="relative mx-6 mt-4 sm:w-56">
+                                    <select
+                                        className={gayaSelect}
+                                        value={gelombangKategori}
+                                        onChange={(e) => {
+                                            setGelombangKategori(e.target.value);
+                                            setKategoriTerbuka(null);
+                                        }}
+                                        aria-label="Saring rekap kategori menurut gelombang"
+                                    >
+                                        <option value="semua">Semua gelombang</option>
+                                        {gelombang.map((g) => (
+                                            <option key={g.id} value={String(g.id)}>
+                                                {tahun ? g.nama : `${g.nama} · ${g.tahun_ajaran}`}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown
+                                        className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-gray-500"
+                                        aria-hidden="true"
+                                    />
+                                </div>
+
+                                {kategori.length === 0 ? (
+                                    <p className="px-6 py-8 text-center text-sm text-gray-500">
+                                        Belum ada kategori yang dikonfigurasi pada gelombang ini.
+                                    </p>
+                                ) : (
+                                    <>
+                                        <div className="mt-4 overflow-hidden md:hidden">
+                                            <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] gap-3 bg-[#0A3981] px-4 py-3 text-[11px] font-bold tracking-wide text-white uppercase">
+                                                <span aria-hidden />
+                                                <span>Kategori</span>
+                                                <span className="text-right">Pendaftar</span>
+                                            </div>
+
+                                            <div className="divide-y divide-gray-100">
+                                                {kategori.map((k) => {
+                                                    const kunci = `${k.gelombang_id}-${k.kategori}`;
+                                                    const terbuka = kategoriTerbuka === kunci;
+
+                                                    return (
+                                                        <div key={kunci} className={terbuka ? 'bg-[#F8FBFE]' : 'bg-white'}>
+                                                            <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-4">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setKategoriTerbuka(terbuka ? null : kunci)}
+                                                                    aria-expanded={terbuka}
+                                                                    aria-label={`${terbuka ? 'Tutup' : 'Buka'} detail kategori ${k.kategori}`}
+                                                                    className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+                                                                        terbuka
+                                                                            ? 'bg-[#0A3981] text-white'
+                                                                            : 'bg-[#E8EEF7] text-[#1F509A] hover:bg-[#D4EBF8]'
+                                                                    }`}
+                                                                >
+                                                                    {terbuka ? (
+                                                                        <Minus className="h-4 w-4" aria-hidden="true" />
+                                                                    ) : (
+                                                                        <Plus className="h-4 w-4" aria-hidden="true" />
+                                                                    )}
+                                                                </button>
+
+                                                                <div className="min-w-0">
+                                                                    <p className="truncate text-sm font-semibold text-gray-900" title={k.kategori}>
+                                                                        {k.kategori}
+                                                                    </p>
+                                                                    <p className="mt-0.5 truncate text-[11px] text-gray-500">
+                                                                        {k.gelombang} · {k.tahun_ajaran}
+                                                                    </p>
+                                                                </div>
+
+                                                                <span className="text-sm font-semibold text-gray-900 tabular-nums">{k.total}</span>
+                                                            </div>
+
+                                                            {terbuka && (
+                                                                <div className="border-t border-dashed border-[#D4EBF8] px-4 py-4 pl-[3.75rem]">
+                                                                    <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                                                                        <div>
+                                                                            <dt className="text-xs text-gray-500">Diterima</dt>
+                                                                            <dd className="mt-0.5 font-semibold text-gray-900 tabular-nums">
+                                                                                {k.diterima}
+                                                                            </dd>
+                                                                        </div>
+                                                                        <div>
+                                                                            <dt className="text-xs text-gray-500">Ditolak</dt>
+                                                                            <dd className="mt-0.5 font-semibold text-gray-900 tabular-nums">
+                                                                                {k.ditolak}
+                                                                            </dd>
+                                                                        </div>
+                                                                        <div>
+                                                                            <dt className="text-xs text-gray-500">Kuota</dt>
+                                                                            <dd className="mt-0.5 font-semibold text-gray-900 tabular-nums">
+                                                                                {k.kuota}
+                                                                            </dd>
+                                                                        </div>
+                                                                        <div>
+                                                                            <dt className="text-xs text-gray-500">Sisa Kuota</dt>
+                                                                            <dd
+                                                                                className={`mt-0.5 font-semibold ${k.penuh ? 'text-red-700' : 'text-gray-900'}`}
+                                                                            >
+                                                                                {k.penuh ? 'Penuh' : k.sisa}
+                                                                            </dd>
+                                                                        </div>
+                                                                    </dl>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-4 hidden overflow-x-auto md:block">
+                                            <table className="w-full min-w-[720px]">
+                                                <thead>
+                                                    <tr className="bg-[#0A3981]">
+                                                        <Th>Gelombang</Th>
+                                                        <Th>Kategori</Th>
+                                                        <Th angka>Pendaftar</Th>
+                                                        <Th angka>Diterima</Th>
+                                                        <Th angka>Ditolak</Th>
+                                                        <Th angka>Kuota</Th>
+                                                        <Th angka>Sisa</Th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {kategori.map((k) => (
+                                                        <tr
+                                                            key={`${k.gelombang_id}-${k.kategori}`}
+                                                            className="border-b border-gray-100 last:border-b-0 hover:bg-[#F5F9FD]/50"
+                                                        >
+                                                            <Td>
+                                                                <span className="text-gray-700">{k.gelombang}</span>
+                                                                <span className="text-gray-500"> · {k.tahun_ajaran}</span>
+                                                            </Td>
+                                                            <Td tebal>{k.kategori}</Td>
+                                                            <Td angka>{k.total}</Td>
+                                                            <Td angka>{k.diterima}</Td>
+                                                            {/* Kolom ini yang menerangkan kenapa Sisa tidak sama
                                                     dengan Kuota - Pendaftar: kursi dipegang sejak
                                                     formulir dikirim, dan cuma Ditolak yang melepasnya. */}
-                                                <Td angka>{k.ditolak}</Td>
-                                                <Td angka>{k.kuota}</Td>
-                                                <Td angka tebal>
-                                                    {k.penuh ? <span className="text-red-700">Penuh</span> : k.sisa}
-                                                </Td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                                            <Td angka>{k.ditolak}</Td>
+                                                            <Td angka>{k.kuota}</Td>
+                                                            <Td angka tebal>
+                                                                {k.penuh ? <span className="text-red-700">Penuh</span> : k.sisa}
+                                                            </Td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </>
+                                )}
+                            </>
                         )}
                     </Kartu>
 

@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import AppLayout from '@/layouts/app-layout';
 import { Head, router, useForm } from '@inertiajs/react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { ChevronDown, Lock, UserPlus } from 'lucide-react';
+import { ChevronDown, Lock, Minus, Plus, UserPlus } from 'lucide-react';
 import { FormEventHandler, useMemo, useState } from 'react';
 
 interface PenggunaItem {
@@ -139,15 +139,15 @@ export default function Pengguna({ pengguna, peran }: PenggunaProps) {
                     // Dipendekkan dari bawaannya karena baris ini sekarang juga
                     // memuat tombol "Tambah Pengguna" di ujung kanan - dengan
                     // lebar penuh, pencarian dan dua penyaring mepet ke tombol.
-                    searchWidth="max-w-xs"
+                    searchWidth="max-w-none sm:max-w-xs"
                     emptyMessage={
                         adaPenyaring
                             ? 'Tidak ada akun yang cocok dengan penyaring ini. Pilih "Semua peran" atau "Semua status" untuk melihat sisanya.'
                             : 'Tidak ada akun yang cocok dengan pencarian.'
                     }
                     toolbar={
-                        <>
-                            <Penyaring lebar="w-44">
+                        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-1 sm:items-center sm:gap-3">
+                            <Penyaring lebar="w-full sm:w-44">
                                 <select
                                     className={gayaSelect}
                                     value={saringPeran}
@@ -163,7 +163,7 @@ export default function Pengguna({ pengguna, peran }: PenggunaProps) {
                                 </select>
                             </Penyaring>
 
-                            <Penyaring lebar="w-40">
+                            <Penyaring lebar="w-full sm:w-40">
                                 <select
                                     className={gayaSelect}
                                     value={saringStatus}
@@ -177,7 +177,7 @@ export default function Pengguna({ pengguna, peran }: PenggunaProps) {
                             </Penyaring>
 
                             {adaPenyaring && (
-                                <span className="text-xs text-gray-500">
+                                <span className="col-span-2 text-xs text-gray-500 sm:col-span-1">
                                     {barisTersaring.length} dari {pengguna.length} akun
                                 </span>
                             )}
@@ -188,13 +188,85 @@ export default function Pengguna({ pengguna, peran }: PenggunaProps) {
                             <Button
                                 type="button"
                                 onClick={() => setModal({ pengguna: null })}
-                                className="ml-auto rounded-xl bg-[#E38E49] font-semibold text-white hover:bg-[#E38E49]/90"
+                                className="col-span-2 w-full rounded-xl bg-[#E38E49] font-semibold text-white hover:bg-[#E38E49]/90 sm:ml-auto sm:w-auto"
                             >
                                 <UserPlus size={16} strokeWidth={2} />
                                 Tambah Pengguna
                             </Button>
-                        </>
+                        </div>
                     }
+                    rowId={(item) => String(item.id)}
+                    mobileHeader={
+                        <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] gap-3 bg-[#0A3981] px-4 py-3 text-[11px] font-bold tracking-wide text-white uppercase">
+                            <span aria-hidden />
+                            <span>Pengguna</span>
+                            <span className="text-right">Status</span>
+                        </div>
+                    }
+                    renderMobileRow={(item, { expanded, toggle }) => (
+                        <div className={expanded ? 'bg-[#F8FBFE]' : 'bg-white'}>
+                            <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-4">
+                                <button
+                                    type="button"
+                                    onClick={toggle}
+                                    aria-expanded={expanded}
+                                    aria-label={`${expanded ? 'Tutup' : 'Buka'} detail pengguna ${item.name}`}
+                                    className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+                                        expanded ? 'bg-[#0A3981] text-white' : 'bg-[#E8EEF7] text-[#1F509A] hover:bg-[#D4EBF8]'
+                                    }`}
+                                >
+                                    {expanded ? <Minus className="h-4 w-4" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}
+                                </button>
+
+                                <div className="min-w-0">
+                                    <p className="truncate text-sm font-semibold text-gray-900" title={item.name}>
+                                        {item.name}
+                                        {item.diri_sendiri && <span className="ml-1 text-[11px] font-normal text-gray-500">(Anda)</span>}
+                                    </p>
+                                    <p className="mt-0.5 truncate text-[11px] text-gray-500" title={item.email}>
+                                        {item.email}
+                                    </p>
+                                </div>
+
+                                <span
+                                    className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${
+                                        item.status_aktif ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                                    }`}
+                                >
+                                    {item.status_aktif ? 'Aktif' : 'Nonaktif'}
+                                </span>
+                            </div>
+
+                            {expanded && (
+                                <div className="border-t border-dashed border-[#D4EBF8] px-4 py-4 pl-[3.75rem]">
+                                    <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                                        <div>
+                                            <dt className="text-xs text-gray-500">Peran</dt>
+                                            <dd className="mt-0.5 font-medium text-gray-900">{item.peran}</dd>
+                                        </div>
+                                        <div>
+                                            <dt className="text-xs text-gray-500">Telepon</dt>
+                                            <dd className="mt-0.5 font-medium break-words text-gray-900">{item.telepon || '—'}</dd>
+                                        </div>
+                                        <div className="col-span-2">
+                                            <dt className="text-xs text-gray-500">Pendaftaran Terkait</dt>
+                                            <dd className="mt-0.5 font-medium text-gray-900">{item.jumlah_pendaftaran} pendaftaran</dd>
+                                        </div>
+                                    </dl>
+
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setModal({ pengguna: item })}
+                                        className="mt-4 w-full rounded-xl border-[#1F509A]/40 bg-white text-xs font-bold text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
+                                    >
+                                        Ubah Pengguna
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 />
             </PageContainer>
 
