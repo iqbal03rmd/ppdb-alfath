@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link } from '@inertiajs/react';
 import { type ColumnDef } from '@tanstack/react-table';
+import { ChevronRight, Minus, Plus } from 'lucide-react';
 
 interface AntrianItem {
     id: number;
@@ -89,7 +90,82 @@ export default function VerifikasiPembayaran({ antrian }: VerifikasiPembayaranPr
                         </p>
                     </div>
                 ) : (
-                    <DataTable columns={columns} data={antrian} searchPlaceholder="Cari nama atau nomor pendaftaran..." />
+                    <DataTable
+                        columns={columns}
+                        data={antrian}
+                        rowId={(item) => String(item.id)}
+                        searchPlaceholder="Cari nama atau nomor pendaftaran..."
+                        mobileHeader={
+                            <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] gap-3 bg-[#0A3981] px-4 py-3 text-[11px] font-bold tracking-wide text-white uppercase">
+                                <span aria-hidden />
+                                <span>Pendaftar</span>
+                                <span className="text-right">Nominal</span>
+                            </div>
+                        }
+                        renderMobileRow={(item, { expanded, toggle }) => (
+                            <div className={expanded ? 'bg-[#F8FBFE]' : 'bg-white'}>
+                                <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-4">
+                                    <button
+                                        type="button"
+                                        onClick={toggle}
+                                        aria-expanded={expanded}
+                                        aria-label={`${expanded ? 'Tutup' : 'Buka'} detail pembayaran ${item.nama_pendaftar}`}
+                                        className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+                                            expanded ? 'bg-[#0A3981] text-white' : 'bg-[#E8EEF7] text-[#1F509A] hover:bg-[#D4EBF8]'
+                                        }`}
+                                    >
+                                        {expanded ? (
+                                            <Minus className="h-4 w-4" aria-hidden="true" />
+                                        ) : (
+                                            <Plus className="h-4 w-4" aria-hidden="true" />
+                                        )}
+                                    </button>
+
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-semibold text-gray-900" title={item.nama_pendaftar}>
+                                            {item.nama_pendaftar}
+                                        </p>
+                                        <p className="mt-0.5 truncate text-[11px] text-gray-500">{item.nomor_pendaftaran}</p>
+                                    </div>
+
+                                    <p className="text-right text-sm font-semibold whitespace-nowrap text-gray-900">
+                                        {formatRupiah(item.nominal_transfer)}
+                                    </p>
+                                </div>
+
+                                {expanded && (
+                                    <div className="border-t border-dashed border-[#D4EBF8] px-4 py-4 pl-[3.75rem]">
+                                        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                                            <div>
+                                                <dt className="text-xs text-gray-500">Kategori</dt>
+                                                <dd className="mt-0.5 font-medium text-gray-900">{item.kategori}</dd>
+                                            </div>
+                                            <div>
+                                                <dt className="text-xs text-gray-500">Tanggal Transfer</dt>
+                                                <dd className="mt-0.5 font-medium text-gray-900">{item.tanggal_transfer}</dd>
+                                            </div>
+                                            <div className="col-span-2">
+                                                <dt className="text-xs text-gray-500">Menunggu Sejak</dt>
+                                                <dd className="mt-0.5 font-medium text-gray-900">{item.menunggu_sejak}</dd>
+                                            </div>
+                                        </dl>
+
+                                        <Button
+                                            asChild
+                                            variant="outline"
+                                            size="sm"
+                                            className="mt-4 w-full rounded-xl border-[#1F509A]/40 bg-white text-xs font-bold text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
+                                        >
+                                            <Link href={route('staf-ppdb.verifikasi-pembayaran.show', item.id)}>
+                                                Periksa Pembayaran
+                                                <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
+                                            </Link>
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    />
                 )}
             </PageContainer>
         </AppLayout>
