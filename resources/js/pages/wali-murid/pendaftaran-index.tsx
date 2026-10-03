@@ -155,7 +155,7 @@ export default function PendaftaranIndex({ pendaftaranList, expandId, gelombangD
                     emptyMessage={pendaftaranList.length === 0 ? 'Belum ada pendaftaran.' : 'Tidak ada hasil yang cocok.'}
                     toolbar={!gelombangDibuka ? <p className="ml-auto shrink-0 text-sm text-gray-500">Pendaftaran sedang ditutup</p> : undefined}
                     mobileHeader={
-                        <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] gap-3 bg-[#0A3981] px-4 py-3 text-[11px] font-bold tracking-wide text-white uppercase">
+                        <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto] gap-3 bg-[#0A3981] px-4 py-3 text-xs font-bold tracking-wide text-white uppercase">
                             <span aria-hidden />
                             <span>Pendaftaran</span>
                             <span className="text-right">Status</span>
@@ -163,13 +163,13 @@ export default function PendaftaranIndex({ pendaftaranList, expandId, gelombangD
                     }
                     renderMobileRow={(item, { expanded, toggle }) => (
                         <div className={expanded ? 'bg-[#F8FBFE]' : 'bg-white'}>
-                            <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-4">
+                            <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-4">
                                 <button
                                     type="button"
                                     onClick={toggle}
                                     aria-expanded={expanded}
                                     aria-label={`${expanded ? 'Tutup' : 'Buka'} detail pendaftaran ${item.pendaftaran.nama_pendaftar}`}
-                                    className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+                                    className={`flex h-11 w-11 items-center justify-center rounded-full border-8 border-transparent bg-clip-padding transition-colors ${
                                         expanded ? 'bg-[#0A3981] text-white' : 'bg-[#E8EEF7] text-[#1F509A] hover:bg-[#D4EBF8]'
                                     }`}
                                 >
@@ -180,10 +180,10 @@ export default function PendaftaranIndex({ pendaftaranList, expandId, gelombangD
                                     <p className="truncate text-sm font-semibold text-gray-900" title={item.pendaftaran.nama_pendaftar}>
                                         {ringkasNamaMobile(item.pendaftaran.nama_pendaftar)}
                                     </p>
-                                    <p className="mt-0.5 truncate text-[11px] text-gray-500">
+                                    <p className="mt-0.5 truncate text-xs text-gray-500">
                                         {item.pendaftaran.nomor_pendaftaran} · {item.pendaftaran.kategori}
                                     </p>
-                                    <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-500">
+                                    <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500">
                                         <span>{item.pendaftaran.gelombang}</span>
                                         <span aria-hidden="true" className="h-1 w-1 rounded-full bg-gray-300" />
                                         <span>{item.pendaftaran.tanggal_daftar}</span>

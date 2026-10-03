@@ -60,8 +60,8 @@ export default function Register() {
                         <InputError message={errors.name} />
                     </div>
 
-                    {/* Email + No. WhatsApp sebaris */}
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* Ditumpuk di mobile agar label dan placeholder tetap mudah dibaca. */}
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="grid gap-2">
                             <Label htmlFor="email">Email</Label>
                             <Input
@@ -112,8 +112,8 @@ export default function Register() {
                         </div>
                     </div>
 
-                    {/* Password + Konfirmasi sebaris */}
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* Menjadi dua kolom mulai breakpoint sm. */}
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="grid gap-2">
                             <Label htmlFor="password">Password</Label>
                             <Input

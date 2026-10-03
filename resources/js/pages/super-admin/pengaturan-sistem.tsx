@@ -155,21 +155,21 @@ export default function PengaturanSistem({ pengaturan }: { pengaturan: Pengatura
                         <TabsList className="mb-5 grid h-auto w-full grid-cols-3 rounded-2xl bg-white p-1.5 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
                             <TabsTrigger
                                 value="identitas"
-                                className="min-w-0 gap-1.5 rounded-xl px-2 py-2.5 text-[11px] text-gray-600 data-[state=active]:bg-[#0A3981] data-[state=active]:text-white sm:text-sm"
+                                className="min-w-0 gap-1.5 rounded-xl px-2 py-2.5 text-xs text-gray-600 data-[state=active]:bg-[#0A3981] data-[state=active]:text-white sm:text-sm"
                             >
                                 <Building2 className="h-4 w-4 shrink-0" aria-hidden="true" />
                                 Identitas
                             </TabsTrigger>
                             <TabsTrigger
                                 value="pembayaran"
-                                className="min-w-0 gap-1.5 rounded-xl px-2 py-2.5 text-[11px] text-gray-600 data-[state=active]:bg-[#0A3981] data-[state=active]:text-white sm:text-sm"
+                                className="min-w-0 gap-1.5 rounded-xl px-2 py-2.5 text-xs text-gray-600 data-[state=active]:bg-[#0A3981] data-[state=active]:text-white sm:text-sm"
                             >
                                 <CreditCard className="h-4 w-4 shrink-0" aria-hidden="true" />
                                 Pembayaran
                             </TabsTrigger>
                             <TabsTrigger
                                 value="landing"
-                                className="min-w-0 gap-1.5 rounded-xl px-2 py-2.5 text-[11px] text-gray-600 data-[state=active]:bg-[#0A3981] data-[state=active]:text-white sm:text-sm"
+                                className="min-w-0 gap-1.5 rounded-xl px-2 py-2.5 text-xs text-gray-600 data-[state=active]:bg-[#0A3981] data-[state=active]:text-white sm:text-sm"
                             >
                                 <PanelsTopLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
                                 <span className="sm:hidden">Landing</span>

@@ -43,7 +43,7 @@ export default function AuthSimpleLayout({ children, title, description }: AuthL
                 </div>
 
                 {/* Kolom kanan - form */}
-                <div className="flex flex-1 flex-col items-center justify-center p-8 md:p-14">
+                <div className="flex flex-1 flex-col items-center justify-center p-5 sm:p-8 md:p-14">
                     <div className="w-full max-w-md">
                         {/* Logo kompak, cuma muncul di layar kecil (panel kiri disembunyikan) */}
                         <div className="mb-6 flex flex-col items-center gap-2 lg:hidden">

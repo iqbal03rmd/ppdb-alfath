@@ -320,7 +320,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                         type="button"
                         onClick={() => setLaciTerbuka(true)}
                         aria-label="Buka menu"
-                        className="rounded-lg p-2 text-[#1F509A] hover:bg-[#F5F9FD]"
+                        className="flex h-11 w-11 items-center justify-center rounded-lg text-[#1F509A] hover:bg-[#F5F9FD]"
                     >
                         <Menu size={20} strokeWidth={1.8} />
                     </button>
@@ -337,14 +337,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <div
                     role="status"
                     className={
-                        'fixed top-5 right-5 z-50 flex max-w-md items-start gap-3 rounded-xl border px-4 py-3 text-sm shadow-lg ' +
+                        'fixed top-[73px] right-4 left-4 z-50 flex max-w-md items-start gap-3 rounded-xl border px-4 py-3 text-sm shadow-lg sm:top-5 sm:right-5 sm:left-auto ' +
                         (notif.tipe === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-green-200 bg-green-50 text-green-700')
                     }
                 >
                     <span className="flex-1">{notif.pesan}</span>
                     <button
                         onClick={() => setNotif(null)}
-                        className="shrink-0 font-semibold opacity-60 hover:opacity-100"
+                        className="-m-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-semibold opacity-60 hover:bg-black/5 hover:opacity-100"
                         aria-label="Tutup notifikasi"
                     >
                         ✕

@@ -200,14 +200,17 @@ export default function Welcome({ pengaturan, gelombang }: LandingProps) {
             <header className="relative z-30 border-b border-[#D4EBF8]/80 bg-white/90 backdrop-blur-md">
                 <PageContainer wide flush>
                     <div className="flex min-h-20 items-center justify-between gap-4 py-3">
-                        <Link href="/" className="flex min-w-0 items-center gap-3" aria-label={`Beranda ${pengaturan.nama_sekolah}`}>
+                        <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-3" aria-label={`Beranda ${pengaturan.nama_sekolah}`}>
                             <img
                                 src={logoAlFath}
                                 alt={`Logo ${pengaturan.nama_sekolah}`}
-                                className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-[#D4EBF8]"
+                                className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-[#D4EBF8] sm:h-12 sm:w-12"
                             />
                             <div className="min-w-0">
-                                <p style={{ fontFamily: 'Fraunces, serif' }} className="truncate text-lg font-semibold text-[#0A3981]">
+                                <p
+                                    style={{ fontFamily: 'Fraunces, serif' }}
+                                    className="text-[13px] leading-none font-semibold whitespace-nowrap text-[#0A3981] sm:text-lg"
+                                >
                                     {pengaturan.nama_sekolah}
                                 </p>
                                 <p className="hidden truncate text-xs font-medium text-gray-500 sm:block">Penerimaan Peserta Didik Baru</p>
@@ -225,12 +228,15 @@ export default function Welcome({ pengaturan, gelombang }: LandingProps) {
                                 <Button
                                     asChild
                                     variant="ghost"
-                                    className="rounded-xl font-bold text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981]"
+                                    className="h-11 rounded-xl px-3 font-bold text-[#1F509A] hover:bg-[#F5F9FD] hover:text-[#0A3981] sm:h-10 sm:px-4"
                                 >
                                     <Link href={route('login')}>Masuk</Link>
                                 </Button>
                             )}
-                            <Button asChild className="rounded-xl bg-[#E38E49] px-5 font-bold text-white shadow-sm hover:bg-[#D97D37]">
+                            <Button
+                                asChild
+                                className="h-11 rounded-xl bg-[#E38E49] px-3 font-bold text-white shadow-sm hover:bg-[#D97D37] sm:h-10 sm:px-5"
+                            >
                                 <Link href={tujuanUtama}>{auth.user ? 'Beranda' : 'Daftar'}</Link>
                             </Button>
                         </nav>

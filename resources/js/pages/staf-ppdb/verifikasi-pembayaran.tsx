@@ -96,7 +96,7 @@ export default function VerifikasiPembayaran({ antrian }: VerifikasiPembayaranPr
                         rowId={(item) => String(item.id)}
                         searchPlaceholder="Cari nama atau nomor pendaftaran..."
                         mobileHeader={
-                            <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] gap-3 bg-[#0A3981] px-4 py-3 text-[11px] font-bold tracking-wide text-white uppercase">
+                            <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto] gap-3 bg-[#0A3981] px-4 py-3 text-xs font-bold tracking-wide text-white uppercase">
                                 <span aria-hidden />
                                 <span>Pendaftar</span>
                                 <span className="text-right">Nominal</span>
@@ -104,13 +104,13 @@ export default function VerifikasiPembayaran({ antrian }: VerifikasiPembayaranPr
                         }
                         renderMobileRow={(item, { expanded, toggle }) => (
                             <div className={expanded ? 'bg-[#F8FBFE]' : 'bg-white'}>
-                                <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-4">
+                                <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-4">
                                     <button
                                         type="button"
                                         onClick={toggle}
                                         aria-expanded={expanded}
                                         aria-label={`${expanded ? 'Tutup' : 'Buka'} detail pembayaran ${item.nama_pendaftar}`}
-                                        className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+                                        className={`flex h-11 w-11 items-center justify-center rounded-full border-8 border-transparent bg-clip-padding transition-colors ${
                                             expanded ? 'bg-[#0A3981] text-white' : 'bg-[#E8EEF7] text-[#1F509A] hover:bg-[#D4EBF8]'
                                         }`}
                                     >
@@ -125,7 +125,7 @@ export default function VerifikasiPembayaran({ antrian }: VerifikasiPembayaranPr
                                         <p className="truncate text-sm font-semibold text-gray-900" title={item.nama_pendaftar}>
                                             {item.nama_pendaftar}
                                         </p>
-                                        <p className="mt-0.5 truncate text-[11px] text-gray-500">{item.nomor_pendaftaran}</p>
+                                        <p className="mt-0.5 truncate text-xs text-gray-500">{item.nomor_pendaftaran}</p>
                                     </div>
 
                                     <p className="text-right text-sm font-semibold whitespace-nowrap text-gray-900">

@@ -204,7 +204,7 @@ function Histogram({ ember, kalimatKosong }: { ember: BarisPeringkat[]; kalimatK
             </div>
             <div className="mt-2 flex gap-2 border-t border-gray-100 pt-2">
                 {ember.map((e) => (
-                    <span key={e.label} className="flex-1 text-center text-[11px] leading-tight text-gray-500">
+                    <span key={e.label} className="flex-1 text-center text-xs leading-tight text-gray-500">
                         {e.label}
                     </span>
                 ))}
@@ -308,7 +308,7 @@ export default function Rekapitulasi({ perGelombang, perKategori, temuan, tahunA
                                     saat baris dibuka, jadi tidak perlu menggeser
                                     tabel lebar ke kanan dan kiri. */}
                                 <div className="mt-4 overflow-hidden md:hidden">
-                                    <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] gap-3 bg-[#0A3981] px-4 py-3 text-[11px] font-bold tracking-wide text-white uppercase">
+                                    <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto] gap-3 bg-[#0A3981] px-4 py-3 text-xs font-bold tracking-wide text-white uppercase">
                                         <span aria-hidden />
                                         <span>Gelombang</span>
                                         <span className="text-right">Pendaftar</span>
@@ -320,13 +320,13 @@ export default function Rekapitulasi({ perGelombang, perKategori, temuan, tahunA
 
                                             return (
                                                 <div key={g.id} className={terbuka ? 'bg-[#F8FBFE]' : 'bg-white'}>
-                                                    <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-4">
+                                                    <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-4">
                                                         <button
                                                             type="button"
                                                             onClick={() => setGelombangTerbuka(terbuka ? null : g.id)}
                                                             aria-expanded={terbuka}
                                                             aria-label={`${terbuka ? 'Tutup' : 'Buka'} detail ${g.nama} ${g.tahun_ajaran}`}
-                                                            className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+                                                            className={`flex h-11 w-11 items-center justify-center rounded-full border-8 border-transparent bg-clip-padding transition-colors ${
                                                                 terbuka ? 'bg-[#0A3981] text-white' : 'bg-[#E8EEF7] text-[#1F509A] hover:bg-[#D4EBF8]'
                                                             }`}
                                                         >
@@ -339,7 +339,7 @@ export default function Rekapitulasi({ perGelombang, perKategori, temuan, tahunA
 
                                                         <div className="min-w-0">
                                                             <p className="truncate text-sm font-semibold text-gray-900">{g.nama}</p>
-                                                            <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-gray-500">
+                                                            <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-gray-500">
                                                                 <span>{g.tahun_ajaran}</span>
                                                                 {g.status_buka && (
                                                                     <span className="rounded-full bg-green-100 px-2 py-0.5 font-semibold text-green-700">
@@ -475,7 +475,7 @@ export default function Rekapitulasi({ perGelombang, perKategori, temuan, tahunA
                                 ) : (
                                     <>
                                         <div className="mt-4 overflow-hidden md:hidden">
-                                            <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] gap-3 bg-[#0A3981] px-4 py-3 text-[11px] font-bold tracking-wide text-white uppercase">
+                                            <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto] gap-3 bg-[#0A3981] px-4 py-3 text-xs font-bold tracking-wide text-white uppercase">
                                                 <span aria-hidden />
                                                 <span>Kategori</span>
                                                 <span className="text-right">Pendaftar</span>
@@ -488,13 +488,13 @@ export default function Rekapitulasi({ perGelombang, perKategori, temuan, tahunA
 
                                                     return (
                                                         <div key={kunci} className={terbuka ? 'bg-[#F8FBFE]' : 'bg-white'}>
-                                                            <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-4">
+                                                            <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-4">
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => setKategoriTerbuka(terbuka ? null : kunci)}
                                                                     aria-expanded={terbuka}
                                                                     aria-label={`${terbuka ? 'Tutup' : 'Buka'} detail kategori ${k.kategori}`}
-                                                                    className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+                                                                    className={`flex h-11 w-11 items-center justify-center rounded-full border-8 border-transparent bg-clip-padding transition-colors ${
                                                                         terbuka
                                                                             ? 'bg-[#0A3981] text-white'
                                                                             : 'bg-[#E8EEF7] text-[#1F509A] hover:bg-[#D4EBF8]'
@@ -511,7 +511,7 @@ export default function Rekapitulasi({ perGelombang, perKategori, temuan, tahunA
                                                                     <p className="truncate text-sm font-semibold text-gray-900" title={k.kategori}>
                                                                         {k.kategori}
                                                                     </p>
-                                                                    <p className="mt-0.5 truncate text-[11px] text-gray-500">
+                                                                    <p className="mt-0.5 truncate text-xs text-gray-500">
                                                                         {k.gelombang} · {k.tahun_ajaran}
                                                                     </p>
                                                                 </div>

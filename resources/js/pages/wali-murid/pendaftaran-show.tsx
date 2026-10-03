@@ -145,7 +145,7 @@ export default function PendaftaranShow({ pendaftaran, waliMurid }: ShowProps) {
                         <TabsList className="mb-5 grid h-auto w-full grid-cols-2 rounded-2xl bg-white p-1.5 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
                             <TabsTrigger
                                 value="calon"
-                                className="min-w-0 gap-1.5 rounded-xl px-2 py-2.5 text-[11px] whitespace-normal text-gray-600 data-[state=active]:bg-[#0A3981] data-[state=active]:text-white sm:text-sm"
+                                className="min-w-0 gap-1.5 rounded-xl px-2 py-2.5 text-xs whitespace-normal text-gray-600 data-[state=active]:bg-[#0A3981] data-[state=active]:text-white sm:text-sm"
                             >
                                 <GraduationCap className="h-4 w-4 shrink-0" aria-hidden="true" />
                                 <span className="sm:hidden">Calon Peserta</span>
@@ -153,7 +153,7 @@ export default function PendaftaranShow({ pendaftaran, waliMurid }: ShowProps) {
                             </TabsTrigger>
                             <TabsTrigger
                                 value="wali"
-                                className="min-w-0 gap-1.5 rounded-xl px-2 py-2.5 text-[11px] whitespace-normal text-gray-600 data-[state=active]:bg-[#0A3981] data-[state=active]:text-white sm:text-sm"
+                                className="min-w-0 gap-1.5 rounded-xl px-2 py-2.5 text-xs whitespace-normal text-gray-600 data-[state=active]:bg-[#0A3981] data-[state=active]:text-white sm:text-sm"
                             >
                                 <Users className="h-4 w-4 shrink-0" aria-hidden="true" />
                                 <span className="sm:hidden">Orang Tua / Wali</span>

@@ -283,7 +283,7 @@ export default function TahunAjaranIndex({ tahunAjaran }: { tahunAjaran: TahunAj
                         }
                         rowId={(item) => String(item.id)}
                         mobileHeader={
-                            <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] gap-3 bg-[#0A3981] px-4 py-3 text-[11px] font-bold tracking-wide text-white uppercase">
+                            <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto] gap-3 bg-[#0A3981] px-4 py-3 text-xs font-bold tracking-wide text-white uppercase">
                                 <span aria-hidden />
                                 <span>Tahun Ajaran</span>
                                 <span className="text-right">Status</span>
@@ -291,13 +291,13 @@ export default function TahunAjaranIndex({ tahunAjaran }: { tahunAjaran: TahunAj
                         }
                         renderMobileRow={(item, { expanded, toggle }) => (
                             <div className={expanded ? 'bg-[#F8FBFE]' : 'bg-white'}>
-                                <div className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-4">
+                                <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-start gap-3 px-4 py-4">
                                     <button
                                         type="button"
                                         onClick={toggle}
                                         aria-expanded={expanded}
                                         aria-label={`${expanded ? 'Tutup' : 'Buka'} detail tahun ajaran ${item.nama}`}
-                                        className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+                                        className={`flex h-11 w-11 items-center justify-center rounded-full border-8 border-transparent bg-clip-padding transition-colors ${
                                             expanded ? 'bg-[#0A3981] text-white' : 'bg-[#E8EEF7] text-[#1F509A] hover:bg-[#D4EBF8]'
                                         }`}
                                     >
@@ -310,11 +310,11 @@ export default function TahunAjaranIndex({ tahunAjaran }: { tahunAjaran: TahunAj
 
                                     <div className="min-w-0">
                                         <p className="truncate text-sm font-semibold text-gray-900">{item.nama}</p>
-                                        <p className="mt-0.5 text-[11px] text-gray-500">Mulai {item.tahun_mulai}</p>
+                                        <p className="mt-0.5 text-xs text-gray-500">Mulai {item.tahun_mulai}</p>
                                     </div>
 
                                     <span
-                                        className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${
+                                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold whitespace-nowrap ${
                                             item.status_aktif ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
                                         }`}
                                     >

@@ -82,7 +82,7 @@ export default function UnggahBerkas({ pendaftaran, dokumenList, bisaEdit }: Ung
                                 <h3 className="text-[15px] leading-snug font-semibold text-gray-900">{doc.label}</h3>
                                 <div className="mt-2 flex flex-wrap items-center gap-2">
                                     {bisaEdit && (
-                                        <span className="rounded-md bg-[#FFF4E8] px-2 py-0.5 text-[11px] font-semibold text-[#B86522]">
+                                        <span className="rounded-md bg-[#FFF4E8] px-2 py-0.5 text-xs font-semibold text-[#B86522]">
                                             PDF/JPG/PNG · Maks. 2 MB
                                         </span>
                                     )}

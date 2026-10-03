@@ -164,7 +164,7 @@ export default function PendaftaranShow({
             />
 
             <PageContainer wide>
-                <div className="mb-5 flex items-center gap-3">
+                <div className="mb-5 flex flex-wrap items-center gap-3">
                     <Button
                         asChild
                         variant="outline"
@@ -181,7 +181,7 @@ export default function PendaftaranShow({
                     </Button>
 
                     <span className={`rounded-full px-3 py-1 text-xs font-semibold ${badge.className}`}>{badge.label}</span>
-                    <span className="text-xs text-gray-500">Didaftarkan {pendaftaran.tanggal_daftar}</span>
+                    <span className="w-full pl-[52px] text-xs text-gray-500 sm:w-auto sm:pl-0">Didaftarkan {pendaftaran.tanggal_daftar}</span>
                 </div>
 
                 {/* Halaman ini tidak mengubah status. Kalau pendaftarannya memang
