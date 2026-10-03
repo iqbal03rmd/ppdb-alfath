@@ -48,7 +48,7 @@ interface DashboardProps {
     // gelombang milik pendaftaran wali. Tenggat tiap anak ada di item-nya sendiri.
     gelombangDibuka: { nama: string; tanggal_selesai: string } | null;
     tiketPendaftaran: {
-        status: 'belum_bayar' | 'menunggu_verifikasi' | 'ditolak' | 'siap_digunakan';
+        status: 'belum_bayar' | 'menunggu_pembayaran' | 'menunggu_verifikasi' | 'ditolak' | 'siap_digunakan';
         boleh_mendaftar: boolean;
     };
 }
@@ -100,8 +100,12 @@ export default function Dashboard({ daftarPendaftaran, ringkasan, gelombangDibuk
 
     const tanggalHariIni = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     const hrefAnakBaru = route('wali-murid.biaya-pendaftaran.show');
-    const sedangMengurusUangPendaftaran = tiketPendaftaran.status !== 'belum_bayar';
-    const labelAnakBaru = sedangMengurusUangPendaftaran ? 'Status Uang Pendaftaran' : '+ Daftarkan Anak';
+    const labelAnakBaru =
+        tiketPendaftaran.status === 'belum_bayar'
+            ? '+ Daftarkan Anak'
+            : tiketPendaftaran.status === 'menunggu_pembayaran'
+              ? 'Lanjutkan Pembayaran'
+              : 'Status Uang Pendaftaran';
     const adaStatusUangBaru = tiketPendaftaran.status === 'ditolak' || tiketPendaftaran.status === 'siap_digunakan';
 
     return (
@@ -341,7 +345,7 @@ export default function Dashboard({ daftarPendaftaran, ringkasan, gelombangDibuk
                             <div className="rounded-2xl bg-white p-5 shadow-[0_1px_3px_rgba(10,57,129,0.06),0_8px_24px_-8px_rgba(10,57,129,0.08)]">
                                 <h2 className="text-[15px] font-semibold text-gray-900">Alur Pendaftaran</h2>
                                 <p className="mb-4 text-sm text-gray-500">Lima tahap yang dilalui setiap pendaftaran anak.</p>
-                                {/* Jarak antar langkah sengaja rapat: keempatnya harus kebaca
+                                {/* Jarak antar langkah sengaja rapat: kelimanya harus kebaca
                                     tanpa scroll begitu wali sampai di Beranda, termasuk di
                                     laptop tinggi 768px. */}
                                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
@@ -354,13 +358,13 @@ export default function Dashboard({ daftarPendaftaran, ringkasan, gelombangDibuk
                                     <Tahap
                                         no={2}
                                         judul="Biaya Pendaftaran"
-                                        isi="Membayar biaya pendaftaran dan menunggu verifikasi Staf PPDB."
+                                        isi="Pilih jalur anak, kirim bukti pembayaran sebelum batas waktu, lalu tunggu persetujuan sekolah."
                                         icon={<Wallet size={16} strokeWidth={1.8} />}
                                     />
                                     <Tahap
                                         no={3}
                                         judul="Formulir"
-                                        isi="Mengisi data calon peserta didik dan data orang tua/wali."
+                                        isi="Setelah pembayaran disetujui, isi data calon peserta didik dan orang tua/wali."
                                         icon={<FileText size={16} strokeWidth={1.8} />}
                                     />
                                     <Tahap
@@ -372,7 +376,7 @@ export default function Dashboard({ daftarPendaftaran, ringkasan, gelombangDibuk
                                     <Tahap
                                         no={5}
                                         judul="Pembayaran Sekolah"
-                                        isi="Membayar biaya PPDB setelah berkas dinyatakan lengkap."
+                                        isi="Setelah formulir dan berkas disetujui, penuhi minimal pembayaran sebelum jatuh tempo."
                                         icon={<Wallet size={16} strokeWidth={1.8} />}
                                     />
                                 </div>

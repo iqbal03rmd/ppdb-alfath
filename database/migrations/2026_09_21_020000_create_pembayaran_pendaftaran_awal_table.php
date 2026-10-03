@@ -12,16 +12,19 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('gelombang_ppdb_id')->constrained('gelombang_ppdb')->cascadeOnDelete();
+            $table->foreignId('kategori_siswa_id')->nullable()->constrained('kategori_siswa')->restrictOnDelete();
+            $table->timestamp('reservasi_berakhir_pada')->nullable();
             $table->foreignId('pendaftaran_ppdb_id')->nullable()->unique()->constrained('pendaftaran_ppdb')->nullOnDelete();
             $table->foreignId('diverifikasi_oleh')->nullable()->constrained('users')->nullOnDelete();
 
-            // nominal_tagihan adalah snapshot kebijakan saat bukti dikirim;
+            // nominal_tagihan adalah snapshot kebijakan saat kursi direservasi;
             // nominal_transfer adalah pengakuan wali atas jumlah yang ditransfer.
             $table->unsignedBigInteger('nominal_tagihan');
-            $table->unsignedBigInteger('nominal_transfer');
-            $table->date('tanggal_transfer');
-            $table->string('bukti_transfer');
-            $table->enum('status', ['menunggu_verifikasi', 'terverifikasi', 'ditolak'])
+            $table->unsignedBigInteger('nominal_transfer')->nullable();
+            $table->date('tanggal_transfer')->nullable();
+            $table->string('bukti_transfer')->nullable();
+            $table->timestamp('bukti_dikirim_pada')->nullable();
+            $table->enum('status', ['menunggu_pembayaran', 'menunggu_verifikasi', 'terverifikasi', 'ditolak'])
                 ->default('menunggu_verifikasi');
             $table->text('catatan_verifikasi')->nullable();
             $table->timestamp('diverifikasi_pada')->nullable();

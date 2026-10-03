@@ -18,6 +18,8 @@ Route::middleware(['auth', 'role:wali_murid'])
             ->name('biaya-pendaftaran.show');
         Route::post('/biaya-pendaftaran', [BiayaPendaftaranController::class, 'store'])
             ->name('biaya-pendaftaran.store');
+        Route::post('/biaya-pendaftaran/reservasi', [BiayaPendaftaranController::class, 'reservasi'])
+            ->name('biaya-pendaftaran.reservasi');
 
         Route::prefix('pendaftaran')->name('pendaftaran.')->group(function () {
             Route::get('/', [PendaftaranController::class, 'index'])->name('index');

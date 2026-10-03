@@ -195,9 +195,11 @@ class PendaftaranController extends Controller
     public function create(): Response
     {
         $gelombang = $this->gelombangDibuka();
+        $jalurReservasi = $gelombang ? request()->user()->tiketPendaftaranTersedia($gelombang->id)->oldest()->value('kategori_siswa_id') : null;
 
         return Inertia::render('wali-murid/pendaftaran-create', [
-            'kategoriSiswa' => $this->kategoriDenganKuota($gelombang),
+            'jalurReservasi' => $jalurReservasi,
+            'kategoriSiswa' => $this->kategoriDenganKuota($gelombang, $jalurReservasi, $jalurReservasi),
             'gelombang' => $gelombang ? [
                 'id' => $gelombang->id,
                 'nama' => $gelombang->nama,
@@ -246,7 +248,14 @@ class PendaftaranController extends Controller
                 ->lockForUpdate()
                 ->first();
 
-            $this->abortJikaKuotaPenuh($gelombangAktif, (int) $request->kategori_siswa_id);
+            if ($tiket->kategori_siswa_id !== null) {
+                if ($tiket->kategori_siswa_id !== (int) $request->kategori_siswa_id) {
+                    throw ValidationException::withMessages(['kategori_siswa_id' => 'Gunakan jalur yang dipilih saat pembayaran pendaftaran.']);
+                }
+            } else {
+                // Tiket lama tanpa jalur tetap diperiksa seperti sebelumnya.
+                $this->abortJikaKuotaPenuh($gelombangAktif, (int) $request->kategori_siswa_id);
+            }
 
             $pendaftaran = PendaftaranPpdb::create([
                 'user_id' => $request->user()->id,
@@ -296,7 +305,7 @@ class PendaftaranController extends Controller
             'kategoriSiswa' => $this->kategoriDenganKuota(
                 $gelombang,
                 $pendaftaran->kategori_siswa_id,
-                $pendaftaran->status === 'perlu_perbaikan' ? $pendaftaran->kategori_siswa_id : null
+                $pendaftaran->status === 'perlu_perbaikan' || $pendaftaran->memilikiReservasiKursi() ? $pendaftaran->kategori_siswa_id : null
             ),
             'gelombang' => $gelombang ? [
                 'id' => $gelombang->id,
@@ -341,7 +350,7 @@ class PendaftaranController extends Controller
         $this->authorizeAccess($pendaftaran);
         $this->authorizeEditable($pendaftaran);
 
-        if ($pendaftaran->status === 'draft' || (int) $request->kategori_siswa_id !== $pendaftaran->kategori_siswa_id) {
+        if (($pendaftaran->status === 'draft' && ! $pendaftaran->memilikiReservasiKursi()) || (int) $request->kategori_siswa_id !== $pendaftaran->kategori_siswa_id) {
             $this->abortJikaKuotaPenuh($pendaftaran->gelombang, (int) $request->kategori_siswa_id);
         }
 
@@ -351,24 +360,28 @@ class PendaftaranController extends Controller
         // dikirim, bukan draf yang masih di tangan walinya.
         $pertanyaanBaru = $this->pertanyaanJalur((int) $request->kategori_siswa_id);
 
-        $pendaftaran->update([
-            'kategori_siswa_id' => $request->kategori_siswa_id,
-            'nama_pendaftar' => $request->nama_pendaftar,
-            'nik' => $request->nik,
-            'tanggal_lahir' => $request->tanggal_lahir,
-            'tempat_lahir' => $request->tempat_lahir,
-            'jenis_kelamin' => $request->jenis_kelamin,
-            'alamat' => $request->alamat,
-            ...$this->bagianAlamat($request),
-            ...$this->isianLaporan($request),
-            'pertanyaan_khusus' => $pertanyaanBaru,
-            'jawaban_khusus' => $pertanyaanBaru === null ? null : $request->jawaban_khusus,
-        ]);
+        DB::transaction(function () use ($request, $pendaftaran, $pertanyaanBaru): void {
+            $pendaftaran->update([
+                'kategori_siswa_id' => $request->kategori_siswa_id,
+                'nama_pendaftar' => $request->nama_pendaftar,
+                'nik' => $request->nik,
+                'tanggal_lahir' => $request->tanggal_lahir,
+                'tempat_lahir' => $request->tempat_lahir,
+                'jenis_kelamin' => $request->jenis_kelamin,
+                'alamat' => $request->alamat,
+                ...$this->bagianAlamat($request),
+                ...$this->isianLaporan($request),
+                'pertanyaan_khusus' => $pertanyaanBaru,
+                'jawaban_khusus' => $pertanyaanBaru === null ? null : $request->jawaban_khusus,
+            ]);
 
-        $pendaftaran->waliMurid()->delete();
-        foreach ($request->wali_murid as $waliMuridData) {
-            $pendaftaran->waliMurid()->create($waliMuridData);
-        }
+            $pendaftaran->waliMurid()->delete();
+            foreach ($request->wali_murid as $waliMuridData) {
+                $pendaftaran->waliMurid()->create($waliMuridData);
+            }
+            $pendaftaran->pembayaranPendaftaranAwal()->whereNotNull('reservasi_berakhir_pada')
+                ->update(['kategori_siswa_id' => $request->integer('kategori_siswa_id')]);
+        });
 
         return to_route('wali-murid.pendaftaran.index', ['expand' => $pendaftaran->id]);
     }
@@ -424,9 +437,8 @@ class PendaftaranController extends Controller
                     'pertanyaan_khusus' => $k->pertanyaan_khusus,
                     'kuota' => $kuota?->kuota,
                     'sisa_kuota' => $kuota?->sisa(),
-                    // perlu_perbaikan sudah memegang kursi sendiri, jadi jalur
-                    // asalnya tidak boleh tampak penuh karena menghitung dirinya.
-                    // Draft belum memegang kursi dan tidak mendapat pengecualian.
+                    // Pendaftar yang sudah memegang kursi (termasuk reservasi)
+                    // tidak dianggap kehabisan kuota karena dirinya sendiri.
                     'penuh' => $kuota && $kuota->penuh() && $k->id !== $kecualikanDariPenuhId,
                 ];
             });

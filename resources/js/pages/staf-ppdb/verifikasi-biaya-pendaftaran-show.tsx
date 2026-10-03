@@ -23,6 +23,7 @@ interface Props {
         bukti_gambar: boolean;
         sudah_digunakan: boolean;
         gelombang: string;
+        jalur: string | null;
         gelombang_aktif: boolean;
     };
     wali: { nama: string; email: string; telepon: string | null };
@@ -102,6 +103,7 @@ export default function VerifikasiBiayaPendaftaranShow({ pembayaran, wali, penda
                             <Baris label="Email" nilai={wali.email} />
                             <Baris label="Telepon" nilai={wali.telepon ?? '-'} />
                             <Baris label="Gelombang" nilai={pembayaran.gelombang} />
+                            {pembayaran.jalur && <Baris label="Jalur reservasi" nilai={pembayaran.jalur} />}
                             <Baris label="Biaya yang ditagihkan" nilai={rupiah(pembayaran.nominal_tagihan)} />
                             <Baris label="Nominal transfer" nilai={rupiah(pembayaran.nominal_transfer)} tebal />
                             <Baris label="Tanggal transfer" nilai={pembayaran.tanggal_transfer} />

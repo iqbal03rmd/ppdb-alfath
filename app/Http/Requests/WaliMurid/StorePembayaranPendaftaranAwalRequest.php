@@ -14,6 +14,7 @@ class StorePembayaranPendaftaranAwalRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'reservasi_id' => ['required', 'integer'],
             'nominal_transfer' => ['required', 'integer', 'min:1'],
             'tanggal_transfer' => ['required', 'date', 'before_or_equal:today'],
             'bukti_transfer' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:2048'],

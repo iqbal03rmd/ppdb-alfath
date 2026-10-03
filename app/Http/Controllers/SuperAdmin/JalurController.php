@@ -54,7 +54,7 @@ class JalurController extends Controller
                     // pendaftaran_ppdb.kategori_siswa_id sengaja tidak cascade.
                     // Dihitung di sini supaya tombolnya tidak ditawarkan
                     // sia-sia; server tetap menolaknya juga.
-                    'bisa_dihapus' => $j->jumlahPendaftaran() === 0,
+                    'bisa_dihapus' => $j->bisaDihapus(),
                 ])
                 ->all(),
 
@@ -97,11 +97,10 @@ class JalurController extends Controller
      */
     public function destroy(KategoriSiswa $jalur): RedirectResponse
     {
-        if ($jalur->pendaftaran()->exists()) {
+        if (! $jalur->bisaDihapus()) {
             return back()->with(
                 'error',
-                "Jalur {$jalur->nama} sudah dipakai {$jalur->jumlahPendaftaran()} pendaftaran, jadi tidak bisa dihapus. "
-                    .'Riwayat mereka menggantung pada jalur ini.'
+                "Jalur {$jalur->nama} sudah dipakai pendaftaran atau reservasi, jadi tidak bisa dihapus. Nonaktifkan jalur jika tidak lagi digunakan."
             );
         }
 

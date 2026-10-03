@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\WaliMurid;
 
+use App\Models\GelombangPpdb;
 use App\Models\KategoriSiswa;
 use App\Models\PendaftaranPpdb;
 use App\Rules\NomorWhatsApp;
@@ -26,7 +27,12 @@ class StoreFormulirRequest extends FormRequest
     {
         $pendaftaran = $this->route('pendaftaran');
 
-        return $pendaftaran instanceof PendaftaranPpdb ? $pendaftaran->kategori_siswa_id : null;
+        if ($pendaftaran instanceof PendaftaranPpdb) {
+            return $pendaftaran->kategori_siswa_id;
+        }
+        $gelombang = GelombangPpdb::menerimaPendaftar()->latest()->first();
+
+        return $gelombang ? $this->user()->tiketPendaftaranTersedia($gelombang->id)->oldest()->value('kategori_siswa_id') : null;
     }
 
     /**

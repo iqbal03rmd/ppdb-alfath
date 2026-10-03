@@ -16,7 +16,7 @@ class VerifikasiBiayaPendaftaranController extends Controller
     public function index(): Response
     {
         return Inertia::render('staf-ppdb/verifikasi-biaya-pendaftaran', [
-            'antrian' => PembayaranPendaftaranAwal::with(['wali:id,name,email,telepon', 'gelombang:id,nama'])
+            'antrian' => PembayaranPendaftaranAwal::with(['wali:id,name,email,telepon', 'gelombang:id,nama', 'kategoriSiswa:id,nama'])
                 ->where('status', 'menunggu_verifikasi')
                 ->whereHas('gelombang', fn ($query) => $query->menerimaPendaftar())
                 ->oldest()
@@ -26,15 +26,17 @@ class VerifikasiBiayaPendaftaranController extends Controller
                     'nama_wali' => $p->wali->name,
                     'email' => $p->wali->email,
                     'gelombang' => $p->gelombang->nama,
+                    'jalur' => $p->kategoriSiswa?->nama,
                     'nominal_transfer' => $p->nominal_transfer,
                     'tanggal_transfer' => $p->tanggal_transfer->locale('id')->translatedFormat('d F Y'),
-                    'menunggu_sejak' => $p->created_at->locale('id')->translatedFormat('d F Y'),
+                    'menunggu_sejak' => ($p->bukti_dikirim_pada ?? $p->created_at)->locale('id')->translatedFormat('d F Y'),
                 ]),
         ]);
     }
 
     public function show(PembayaranPendaftaranAwal $pembayaran): Response
     {
+        abort_unless($pembayaran->bukti_transfer, 404);
         $pembayaran->load(['wali:id,name,email,telepon', 'gelombang:id,nama,tanggal_mulai,tanggal_selesai,status_buka', 'pendaftaran:id,nama_pendaftar,nomor_pendaftaran', 'diverifikasiOleh:id,name']);
 
         return Inertia::render('staf-ppdb/verifikasi-biaya-pendaftaran-show', [
@@ -44,7 +46,8 @@ class VerifikasiBiayaPendaftaranController extends Controller
                 'nominal_tagihan' => $pembayaran->nominal_tagihan,
                 'nominal_transfer' => $pembayaran->nominal_transfer,
                 'tanggal_transfer' => $pembayaran->tanggal_transfer->locale('id')->translatedFormat('d F Y'),
-                'diunggah_pada' => $pembayaran->created_at->locale('id')->translatedFormat('d F Y H:i'),
+                'diunggah_pada' => ($pembayaran->bukti_dikirim_pada ?? $pembayaran->created_at)->locale('id')->translatedFormat('d F Y H:i'),
+                'jalur' => $pembayaran->kategoriSiswa?->nama,
                 'catatan_verifikasi' => $pembayaran->catatan_verifikasi,
                 'diperiksa_oleh' => $pembayaran->diverifikasiOleh?->name,
                 'bukti_url' => Storage::url($pembayaran->bukti_transfer),

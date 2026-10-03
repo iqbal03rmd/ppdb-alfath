@@ -86,7 +86,7 @@ class DokumenController extends Controller
                 ->lockForUpdate()
                 ->first();
 
-            if (KebijakanKategori::penuhUntuk($pendaftaran->gelombang_ppdb_id, $pendaftaran->kategori_siswa_id)) {
+            if (! $pendaftaran->memilikiReservasiKursi() && KebijakanKategori::penuhUntuk($pendaftaran->gelombang_ppdb_id, $pendaftaran->kategori_siswa_id)) {
                 return false;
             }
 

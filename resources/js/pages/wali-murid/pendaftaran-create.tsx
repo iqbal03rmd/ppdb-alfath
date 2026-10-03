@@ -63,6 +63,7 @@ interface PendaftaranExisting {
 }
 
 interface FormulirProps {
+    jalurReservasi?: number | null;
     kategoriSiswa: KategoriSiswa[];
     gelombang: Gelombang | null;
     pendaftaran?: PendaftaranExisting;
@@ -76,7 +77,7 @@ interface FormulirProps {
 const TANPA_PAUD = 'tanpa-paud';
 const PAUD_LAINNYA = 'paud-lainnya';
 
-export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPaud, sumberInformasi }: FormulirProps) {
+export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPaud, sumberInformasi, jalurReservasi }: FormulirProps) {
     const isEdit = !!pendaftaran;
 
     const {
@@ -87,7 +88,7 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPa
         processing,
         errors: rawErrors,
     } = useForm({
-        kategori_siswa_id: pendaftaran?.kategori_siswa_id ?? '',
+        kategori_siswa_id: pendaftaran?.kategori_siswa_id ?? (jalurReservasi ? String(jalurReservasi) : ''),
         nama_pendaftar: pendaftaran?.nama_pendaftar ?? '',
         nik: pendaftaran?.nik ?? '',
         tanggal_lahir: pendaftaran?.tanggal_lahir ?? '',
@@ -227,6 +228,7 @@ export default function Formulir({ kategoriSiswa, gelombang, pendaftaran, asalPa
                                         </Label>
                                         <select
                                             id="kategori_siswa_id"
+                                            disabled={!!jalurReservasi}
                                             className="w-full rounded-lg border border-gray-200 bg-[#F5F9FD] px-3.5 py-2.5 text-sm text-gray-900 transition-colors focus:border-[#1F509A] focus:bg-white focus:ring-2 focus:ring-[#1F509A]/15 focus:outline-none [&>option:disabled]:bg-gray-100 [&>option:disabled]:text-gray-400"
                                             value={data.kategori_siswa_id}
                                             onChange={(e) => setData('kategori_siswa_id', e.target.value)}

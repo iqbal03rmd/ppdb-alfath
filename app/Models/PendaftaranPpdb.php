@@ -11,6 +11,20 @@ use Illuminate\Support\Facades\DB;
 
 class PendaftaranPpdb extends Model
 {
+    public function pembayaranPendaftaranAwal(): HasOne
+    {
+        return $this->hasOne(PembayaranPendaftaranAwal::class);
+    }
+
+    public function memilikiReservasiKursi(): bool
+    {
+        return $this->pembayaranPendaftaranAwal()->menahanKursi()
+            ->where('status', 'terverifikasi')
+            ->where('gelombang_ppdb_id', $this->gelombang_ppdb_id)
+            ->where('kategori_siswa_id', $this->kategori_siswa_id)
+            ->exists();
+    }
+
     /** Formulir perbaikan tetap hidup karena sudah pernah diajukan ke staf. */
     public const STATUS_BISA_DIEDIT = ['draft', 'perlu_perbaikan'];
 
@@ -37,8 +51,8 @@ class PendaftaranPpdb extends Model
     /**
      * Status yang masih boleh DITUTUP staf ('ditolak').
      *
-     * 'draft' tidak masuk: belum pernah disubmit, tidak memegang kursi kuota,
-     * jadi tidak ada apa pun yang perlu ditutup. 'diterima' juga tidak - kalau
+     * 'draft' tidak masuk: belum pernah disubmit, reservasinya mengikuti masa
+     * gelombang dan bukan keputusan verifikasi staf. 'diterima' juga tidak - kalau
      * penerimaannya salah, yang dicabut pengesahan transfernya, dan status turun
      * sendiri lewat segarkanStatusPenerimaan().
      */

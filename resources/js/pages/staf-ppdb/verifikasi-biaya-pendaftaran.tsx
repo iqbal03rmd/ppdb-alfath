@@ -12,6 +12,7 @@ interface Item {
     nama_wali: string;
     email: string;
     gelombang: string;
+    jalur: string | null;
     nominal_transfer: number;
     tanggal_transfer: string;
     menunggu_sejak: string;
@@ -33,7 +34,16 @@ const columns: ColumnDef<Item>[] = [
             </div>
         ),
     },
-    { accessorKey: 'gelombang', header: 'Gelombang' },
+    {
+        accessorKey: 'gelombang',
+        header: 'Gelombang',
+        cell: ({ row }) => (
+            <div>
+                <p>{row.original.gelombang}</p>
+                <p className="text-xs text-gray-500">{row.original.jalur}</p>
+            </div>
+        ),
+    },
     {
         accessorKey: 'nominal_transfer',
         header: 'Nominal',
@@ -113,6 +123,7 @@ export default function VerifikasiBiayaPendaftaran({ antrian }: { antrian: Item[
                                             <div>
                                                 <dt className="text-xs text-gray-500">Gelombang</dt>
                                                 <dd className="mt-0.5 font-medium text-gray-900">{item.gelombang}</dd>
+                                                {item.jalur && <dd className="mt-1 text-xs text-gray-500">{item.jalur}</dd>}
                                             </div>
                                             <div>
                                                 <dt className="text-xs text-gray-500">Tanggal Transfer</dt>

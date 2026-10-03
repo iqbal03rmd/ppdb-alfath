@@ -49,22 +49,28 @@ const langkah = [
         warna: 'bg-[#E8F4FC] text-[#1F509A]',
     },
     {
+        ikon: <Wallet size={22} strokeWidth={1.8} />,
+        judul: 'Biaya Pendaftaran',
+        teks: 'Pilih jalur anak, kirim bukti pembayaran sebelum batas waktu, lalu tunggu persetujuan sekolah.',
+        warna: 'bg-[#E8F7EE] text-[#238154]',
+    },
+    {
         ikon: <FileText size={22} strokeWidth={1.8} />,
         judul: 'Formulir',
-        teks: 'Lengkapi data calon peserta didik dan wali dengan tenang dari rumah.',
+        teks: 'Setelah pembayaran disetujui, isi data calon peserta didik dan orang tua atau wali.',
         warna: 'bg-[#F0EDFF] text-[#6652A3]',
     },
     {
         ikon: <UploadCloud size={22} strokeWidth={1.8} />,
         judul: 'Unggah Berkas',
-        teks: 'Unggah dokumen sesuai jalur pendaftaran untuk diperiksa oleh sekolah.',
+        teks: 'Unggah dokumen yang diminta sesuai jalur untuk diperiksa oleh sekolah.',
         warna: 'bg-[#FFF0DF] text-[#C96D25]',
     },
     {
         ikon: <Wallet size={22} strokeWidth={1.8} />,
-        judul: 'Pembayaran',
-        teks: 'Bayar biaya PPDB setelah berkas dinyatakan lengkap, lalu pantau progresnya.',
-        warna: 'bg-[#E8F7EE] text-[#238154]',
+        judul: 'Pembayaran Sekolah',
+        teks: 'Setelah formulir dan berkas disetujui, penuhi minimal pembayaran sebelum jatuh tempo.',
+        warna: 'bg-[#FFF4E9] text-[#B86124]',
     },
 ];
 
@@ -368,16 +374,16 @@ export default function Welcome({ pengaturan, gelombang }: LandingProps) {
                         <div className="mx-auto max-w-2xl text-center">
                             <p className="text-xs font-extrabold tracking-[0.18em] text-[#E38E49] uppercase">Alur pendaftaran</p>
                             <h2 style={{ fontFamily: 'Fraunces, serif' }} className="mt-3 text-3xl font-bold text-[#0A3981] sm:text-4xl">
-                                Empat langkah menuju hari pertama sekolah
+                                Lima langkah pendaftaran anak
                             </h2>
                             <p className="mt-3 text-sm leading-6 text-[#63758A] sm:text-base">
                                 Orang tua mengurus seluruh proses secara daring, sementara sekolah memeriksa setiap tahapnya.
                             </p>
                         </div>
-                        <div className="relative mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="relative mt-12 grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
                             <div
                                 aria-hidden
-                                className="absolute top-8 right-[12%] left-[12%] hidden border-t-2 border-dashed border-[#D4EBF8] lg:block"
+                                className="absolute top-8 right-[10%] left-[10%] hidden border-t-2 border-dashed border-[#D4EBF8] xl:block"
                             />
                             {langkah.map((item, index) => (
                                 <div

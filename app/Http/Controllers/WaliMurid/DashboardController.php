@@ -77,8 +77,9 @@ class DashboardController extends Controller
 
         return match ($user->pembayaranPendaftaranAwal()
             ->where('gelombang_ppdb_id', $gelombang->id)
-            ->latest()
+            ->belumDigunakan()->dapatDilanjutkan()->latest('id')
             ->value('status')) {
+            'menunggu_pembayaran' => 'menunggu_pembayaran',
             'menunggu_verifikasi' => 'menunggu_verifikasi',
             'ditolak' => 'ditolak',
             default => 'belum_bayar',

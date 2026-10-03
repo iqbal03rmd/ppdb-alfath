@@ -72,6 +72,16 @@ class KategoriSiswa extends Model
         return $this->hasMany(PendaftaranPpdb::class);
     }
 
+    public function pembayaranPendaftaranAwal(): HasMany
+    {
+        return $this->hasMany(PembayaranPendaftaranAwal::class);
+    }
+
+    public function bisaDihapus(): bool
+    {
+        return ! $this->pendaftaran()->exists() && ! $this->pembayaranPendaftaranAwal()->exists();
+    }
+
     public function tarif(): HasMany
     {
         return $this->hasMany(TarifKategori::class);
